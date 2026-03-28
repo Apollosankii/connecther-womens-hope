@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_margin="8dp"
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="6dp">
+
+            <TextView
+                android:id="@+id/clientName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Client: Christine"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/black"/>
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/providerName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Provider: Caroline"
+            android:textSize="14sp"
+            android:textColor="@color/black_translucent"/>
+
+        <TextView
+            android:id="@+id/serviceName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Service: Mama Fua"
+            android:textSize="14sp"
+            android:textColor="@color/black"/>
+
+        <TextView
+            android:id="@+id/jobPrice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Price: KES 2000"
+            android:textSize="14sp"
+            android:textColor="@color/black"
+            android:textStyle="bold"/>
+
+        <!-- Complete Task Button -->
+        <Button
+            android:id="@+id/completeTaskButton"
+            android:text="Complete Job"
+            android:textAllCaps="false"
+            android:textStyle="bold"
+            android:backgroundTint="@color/accent_color"
+            android:textColor="@color/white"
+            android:layout_marginTop="12dp"
+            style="@style/main_button"
+            android:layout_width="match_parent"
+            android:layout_height="45dp"
+            android:layout_gravity="center"
+            android:drawablePadding="8dp"/>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+

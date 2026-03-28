@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/background">
+
+    <!-- Search Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@drawable/rounded_et_background"
+        android:padding="8dp">
+
+        <!-- Back Button -->
+        <ImageView
+            android:id="@+id/backButton"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/arrow_back_24px"
+            android:contentDescription="Back"
+            android:padding="4dp" />
+
+        <!-- Search Field -->
+        <EditText
+            android:id="@+id/searchField"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Search for users"
+            android:textSize="16sp"
+            android:padding="10dp"
+            android:background="@android:color/transparent"
+            android:inputType="text"
+            android:layout_marginStart="8dp"/>
+
+        <!-- Audio Search Button -->
+        <ImageButton
+            android:id="@+id/audioSearchButton"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="8dp"
+            android:scaleType="centerInside"
+            android:background="@drawable/rounded_button_background"
+            android:backgroundTint="@color/accent_color"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:contentDescription="Voice Search"
+            android:padding="4dp"/>
+    </LinearLayout>
+
+    <!-- RecyclerView for displaying search results -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/searchRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginTop="10dp"
+        android:padding="8dp"
+        android:clipToPadding="false"/>
+</LinearLayout>

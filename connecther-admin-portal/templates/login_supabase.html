@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#2563eb">
+    <title>ConnectHer Admin – Sign in</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin-theme.css') }}">
+    <style>
+        body.login-page {
+            min-height: 100vh;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.92) 0%, rgba(139, 92, 246, 0.88) 100%),
+                url("{{ url_for('static', filename='images/admin-login-bg.png') }}") center/cover no-repeat fixed;
+            display: flex;
+            align-items: center;
+            padding: 2rem 0;
+        }
+        .login-page .container { width: 100%; }
+        .login-card {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15), 0 4px 12px rgba(0,0,0,0.08);
+            border-radius: 14px;
+            background: var(--ch-bg-card, #fff);
+            border: 1px solid var(--ch-border, rgba(255,255,255,0.5));
+        }
+        .login-card h1 { font-size: 1.5rem; margin-bottom: 1.5rem; color: var(--ch-text, #1e293b); }
+        .login-card .btn-primary { background: var(--ch-primary, #6366f1) !important; border-color: var(--ch-primary) !important; }
+        .login-card .btn-primary:hover { background: var(--ch-primary-hover, #4f46e5) !important; border-color: var(--ch-primary-hover) !important; }
+        .login-card a { color: var(--ch-primary, #6366f1); }
+        .login-card a:hover { color: var(--ch-primary-hover, #4f46e5); }
+        .alert { margin-top: 1rem; }
+        .toggle-form { margin-top: 1rem; text-align: center; }
+    </style>
+</head>
+<body class="login-page">
+    <div class="container">
+        <div class="login-card bg-white">
+            <h1 class="text-center">ConnectHer Admin</h1>
+            <p class="text-muted text-center small" id="form-title">Sign in with your admin account</p>
+            {% if supabase_configured %}
+            <p class="text-center small text-success mb-2">Ready</p>
+            {% else %}
+            <p class="text-center small text-danger mb-2" id="config-status">Backend not configured</p>
+            {% endif %}
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="alert alert-warning" role="alert">
+                        {% for category, msg in messages %}{{ msg }}{% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            <div id="login-error" class="alert alert-danger d-none" role="alert"></div>
+
+            {% if not supabase_configured %}
+            <div id="config-help" class="alert alert-warning" role="alert">
+                <strong>Backend not configured.</strong>
+                Contact your administrator to configure the connection.
+            </div>
+            {% endif %}
+
+            <div id="signin-panel" {% if not supabase_configured and not clerk_configured %}class="d-none"{% endif %}>
+                {% if clerk_configured %}
+                <form id="clerk-login-form" class="mb-3">
+                    <div class="form-group">
+                        <label for="clerk-email">Email</label>
+                        <input type="email" class="form-control" id="clerk-email" required autocomplete="email" placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="clerk-password">Password</label>
+                        <input type="password" class="form-control" id="clerk-password" required autocomplete="current-password" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-clerk-signin">Sign in with Clerk</button>
+                </form>
+                <button type="button" class="btn btn-outline-dark btn-block mb-2" id="btn-google-signin">Continue with Google</button>
+                <p class="toggle-form small text-muted">Don't have an account? <a href="#" id="show-clerk-signup">Create account with Clerk</a></p>
+                {% if supabase_configured %}<p class="text-center small text-muted mt-2">— or sign in with email —</p>{% endif %}
+                {% endif %}
+                {% if supabase_configured %}
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" required autocomplete="email" placeholder="admin@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" class="form-control" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-submit">Sign in</button>
+                </form>
+                <p class="toggle-form small text-muted">
+                    Don’t have an account? <a href="#" id="show-signup" onclick="var sp=document.getElementById('signup-panel'); var si=document.getElementById('signin-panel'); if(sp)sp.classList.remove('d-none'); if(si)si.classList.add('d-none'); var t=document.getElementById('form-title'); if(t)t.textContent='Create a new admin account'; return false;">Create account</a>
+                </p>
+                <p class="mt-3"><button type="button" class="btn btn-outline-primary btn-block" id="show-signup-btn" onclick="var sp=document.getElementById('signup-panel'); var si=document.getElementById('signin-panel'); if(sp){sp.classList.remove('d-none');} if(si){si.classList.add('d-none');} var t=document.getElementById('form-title'); if(t){t.textContent='Create a new admin account';} var f=document.getElementById('signup-first'); if(f){f.focus();} return false;">Create account with email</button></p>
+                {% endif %}
+            </div>
+
+            <div id="signup-panel" class="d-none">
+                <p class="text-muted small mb-2"><strong>Create admin account</strong></p>
+                {% if supabase_configured %}
+                <form id="signup-form">
+                    <div class="form-group">
+                        <label for="signup-first">First name</label>
+                        <input type="text" class="form-control" id="signup-first" name="first_name" required placeholder="Jane">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-last">Last name</label>
+                        <input type="text" class="form-control" id="signup-last" name="last_name" required placeholder="Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-email">Email</label>
+                        <input type="email" class="form-control" id="signup-email" name="email" required placeholder="admin@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-phone">Phone</label>
+                        <input type="tel" class="form-control" id="signup-phone" name="phone" required placeholder="0712345678">
+                    </div>
+                    <div class="form-group">
+                        <label for="signup-password">Password</label>
+                        <input type="password" class="form-control" id="signup-password" name="password" required minlength="6" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-signup">Create account</button>
+                </form>
+                {% endif %}
+                {% if clerk_configured %}
+                <p class="text-center small text-muted my-3">— or create with Clerk —</p>
+                <form id="clerk-signup-form" class="mb-3">
+                    <div class="form-group">
+                        <label for="clerk-signup-first">First name</label>
+                        <input type="text" class="form-control" id="clerk-signup-first" required autocomplete="given-name" placeholder="Jane">
+                    </div>
+                    <div class="form-group">
+                        <label for="clerk-signup-last">Last name</label>
+                        <input type="text" class="form-control" id="clerk-signup-last" required autocomplete="family-name" placeholder="Doe">
+                    </div>
+                    <div class="form-group">
+                        <label for="clerk-signup-email">Email</label>
+                        <input type="email" class="form-control" id="clerk-signup-email" required autocomplete="email" placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="clerk-signup-password">Password</label>
+                        <input type="password" class="form-control" id="clerk-signup-password" required autocomplete="new-password" minlength="8" placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block" id="btn-clerk-signup">Create account with Clerk</button>
+                </form>
+                <button type="button" class="btn btn-outline-dark btn-block" id="btn-google-signup">Continue with Google</button>
+                {% endif %}
+                <p class="toggle-form small text-muted mt-3">
+                    Already have an account? <a href="#" id="show-signin">Sign in</a>
+                </p>
+            </div>
+
+            <p class="mt-3 text-center small text-muted">
+                <a href="{{ url_for('logout') }}">Back</a>
+            </p>
+        </div>
+    </div>
+
+    {# Hardcoded paths; form POST only #}
+    <form id="auth-callback-form" method="post" action="/auth/supabase/callback" style="display:none" accept-charset="UTF-8">
+        <input type="hidden" name="access_token" id="auth-callback-token" value="">
+    </form>
+    <form id="clerk-callback-form" method="post" action="/auth/clerk/callback" style="display:none" accept-charset="UTF-8">
+        <input type="hidden" name="access_token" id="clerk-callback-token" value="">
+    </form>
+
+    {% if clerk_configured %}
+    <script async crossorigin="anonymous"
+        data-clerk-publishable-key="{{ clerk_publishable_key|e }}"
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
+    </script>
+    {% endif %}
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+(function () {
+    var supabaseUrl = {{ (supabase_url or '')|tojson }};
+    var supabaseAnonKey = {{ (supabase_anon_key or '')|tojson }};
+    var clerkConfigured = {{ 'true' if clerk_configured else 'false' }};
+
+    var supabase = null;
+    if (supabaseUrl && supabaseAnonKey && typeof window.supabase !== 'undefined') {
+        try {
+            supabase = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        } catch (err) {
+            supabase = null;
+        }
+    }
+    if (!supabase && !clerkConfigured) {
+        var configHelp = document.getElementById('config-help');
+        if (!configHelp || !configHelp.offsetParent) {
+            document.getElementById('login-error').textContent = 'Backend not configured. Contact your administrator.';
+            document.getElementById('login-error').classList.remove('d-none');
+            var btn = document.querySelector('#login-form button[type=submit]');
+            if (btn) btn.disabled = true;
+        }
+    }
+
+    var clerkReady = null;
+    function ensureClerkReady() {
+        if (!clerkConfigured) return Promise.resolve(null);
+        if (clerkReady) return clerkReady;
+        clerkReady = new Promise(function(resolve, reject) {
+            (function waitForClerk() {
+                if (typeof window.Clerk === 'undefined') {
+                    setTimeout(waitForClerk, 50);
+                    return;
+                }
+                window.Clerk.load().then(function() {
+                    resolve(window.Clerk);
+                }).catch(reject);
+            })();
+        });
+        return clerkReady;
+    }
+
+    function showError(msg) {
+        var el = document.getElementById('login-error');
+        if (msg && (msg.toLowerCase().indexOf('rate limit') !== -1 || msg.toLowerCase().indexOf('rate_limit') !== -1)) {
+            msg = 'Too many sign-in attempts. Please wait an hour and try again.';
+        }
+        el.textContent = msg || 'Something went wrong.';
+        el.classList.remove('d-none', 'alert-success');
+        el.classList.add('alert-danger');
+    }
+    function showLoading(btn, isLoading, loadingLabel, defaultLabel) {
+        if (!btn) return;
+        btn.disabled = !!isLoading;
+        btn.textContent = isLoading ? loadingLabel : defaultLabel;
+    }
+
+    function goToSignup() {
+        document.getElementById('signin-panel').classList.add('d-none');
+        document.getElementById('signup-panel').classList.remove('d-none');
+        document.getElementById('form-title').textContent = 'Create a new admin account';
+        document.getElementById('login-error').classList.add('d-none');
+        var firstInput = document.getElementById('signup-first');
+        if (firstInput) firstInput.focus();
+    }
+    var showSignup = document.getElementById('show-signup');
+    if (showSignup) showSignup.addEventListener('click', function (e) { e.preventDefault(); goToSignup(); });
+    var showSignupBtn = document.getElementById('show-signup-btn');
+    if (showSignupBtn) showSignupBtn.addEventListener('click', function (e) { e.preventDefault(); goToSignup(); });
+    var showClerkSignup = document.getElementById('show-clerk-signup');
+    if (showClerkSignup) showClerkSignup.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.getElementById('signin-panel').classList.add('d-none');
+        document.getElementById('signup-panel').classList.remove('d-none');
+        document.getElementById('form-title').textContent = 'Create account with Clerk';
+        document.getElementById('login-error').classList.add('d-none');
+    });
+    var showSigninFromClerk = document.getElementById('show-signin-from-clerk');
+    if (showSigninFromClerk) showSigninFromClerk.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.getElementById('signup-panel').classList.add('d-none');
+        document.getElementById('signin-panel').classList.remove('d-none');
+        document.getElementById('form-title').textContent = 'Sign in with your admin account';
+        document.getElementById('login-error').classList.add('d-none');
+    });
+
+    var showSignin = document.getElementById('show-signin');
+    if (showSignin) showSignin.addEventListener('click', function (e) {
+        e.preventDefault();
+        document.getElementById('signup-panel').classList.add('d-none');
+        document.getElementById('signin-panel').classList.remove('d-none');
+        document.getElementById('form-title').textContent = 'Sign in with your admin account';
+        document.getElementById('login-error').classList.add('d-none');
+    });
+
+    function submitClerkTokenToBackend() {
+        return ensureClerkReady().then(function(clerk) {
+            if (!clerk || !clerk.session) throw new Error('No active Clerk session.');
+            return clerk.session.getToken({ template: 'supabase' });
+        }).then(function(token) {
+            if (!token) throw new Error('Could not get Clerk token.');
+            document.getElementById('clerk-callback-token').value = token;
+            document.getElementById('clerk-callback-form').submit();
+        });
+    }
+
+    function startGoogleOAuth(clerk) {
+        var continueUrl = window.location.origin + '/auth/clerk/continue';
+        return clerk.authenticateWithRedirect({
+            strategy: 'oauth_google',
+            redirectUrl: continueUrl,
+            redirectUrlComplete: continueUrl
+        });
+    }
+
+    var clerkSignInForm = document.getElementById('clerk-login-form');
+    if (clerkSignInForm) clerkSignInForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-clerk-signin');
+        var email = document.getElementById('clerk-email').value.trim();
+        var password = document.getElementById('clerk-password').value;
+        document.getElementById('login-error').classList.add('d-none');
+        showLoading(btn, true, 'Signing in…', 'Sign in with Clerk');
+
+        ensureClerkReady()
+            .then(function(clerk) {
+                return clerk.client.signIn.create({
+                    identifier: email,
+                    password: password
+                }).then(function(res) {
+                    if (res.status !== 'complete' || !res.createdSessionId) {
+                        throw new Error('Sign in requires additional steps.');
+                    }
+                    return clerk.setActive({ session: res.createdSessionId });
+                });
+            })
+            .then(submitClerkTokenToBackend)
+            .catch(function(err) {
+                showError(err && err.errors && err.errors[0] && err.errors[0].longMessage || err && err.message || 'Clerk sign in failed.');
+                showLoading(btn, false, 'Signing in…', 'Sign in with Clerk');
+            });
+    });
+
+    var clerkSignUpForm = document.getElementById('clerk-signup-form');
+    if (clerkSignUpForm) clerkSignUpForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var btn = document.getElementById('btn-clerk-signup');
+        var first = document.getElementById('clerk-signup-first').value.trim();
+        var last = document.getElementById('clerk-signup-last').value.trim();
+        var email = document.getElementById('clerk-signup-email').value.trim();
+        var password = document.getElementById('clerk-signup-password').value;
+        document.getElementById('login-error').classList.add('d-none');
+        showLoading(btn, true, 'Creating…', 'Create account with Clerk');
+
+        ensureClerkReady()
+            .then(function(clerk) {
+                return clerk.client.signUp.create({
+                    firstName: first,
+                    lastName: last,
+                    emailAddress: email,
+                    password: password
+                }).then(function(res) {
+                    if (res.status !== 'complete' || !res.createdSessionId) {
+                        throw new Error('Check your email to verify your account, then sign in.');
+                    }
+                    return clerk.setActive({ session: res.createdSessionId });
+                });
+            })
+            .then(submitClerkTokenToBackend)
+            .catch(function(err) {
+                showError(err && err.errors && err.errors[0] && err.errors[0].longMessage || err && err.message || 'Clerk sign up failed.');
+                showLoading(btn, false, 'Creating…', 'Create account with Clerk');
+            });
+    });
+
+    var googleSignInBtn = document.getElementById('btn-google-signin');
+    if (googleSignInBtn) googleSignInBtn.addEventListener('click', function () {
+        document.getElementById('login-error').classList.add('d-none');
+        showLoading(googleSignInBtn, true, 'Redirecting…', 'Continue with Google');
+        ensureClerkReady()
+            .then(startGoogleOAuth)
+            .catch(function(err) {
+                showError(err && err.message || 'Google sign in failed.');
+                showLoading(googleSignInBtn, false, 'Redirecting…', 'Continue with Google');
+            });
+    });
+
+    var googleSignUpBtn = document.getElementById('btn-google-signup');
+    if (googleSignUpBtn) googleSignUpBtn.addEventListener('click', function () {
+        document.getElementById('login-error').classList.add('d-none');
+        showLoading(googleSignUpBtn, true, 'Redirecting…', 'Continue with Google');
+        ensureClerkReady()
+            .then(startGoogleOAuth)
+            .catch(function(err) {
+                showError(err && err.message || 'Google sign up failed.');
+                showLoading(googleSignUpBtn, false, 'Redirecting…', 'Continue with Google');
+            });
+    });
+
+    function parseJsonResponse(r) {
+        var ct = (r.headers.get('Content-Type') || '').toLowerCase();
+        return r.text().then(function (text) {
+            if (ct.indexOf('application/json') !== -1) {
+                try { return { ok: r.ok, data: JSON.parse(text) }; }
+                catch (e) { return { ok: false, data: { detail: 'Invalid response' } }; }
+            }
+            if (r.ok) return { ok: false, data: { detail: 'Unexpected response' } };
+            return { ok: false, data: { detail: text && text.length < 200 ? text : 'Request failed' } };
+        });
+    }
+
+    function completeSignIn(accessToken) {
+        return fetch('/auth/supabase/callback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify({ access_token: accessToken }),
+            credentials: 'same-origin',
+            redirect: 'manual'
+        }).then(function (r) {
+            if (r.type === 'opaqueredirect' || r.status === 0) {
+                window.location.href = '/dash';
+                return { ok: true, redirected: true };
+            }
+            if (r.status === 302 || r.status === 301) {
+                var loc = r.headers.get('Location');
+                window.location.href = (loc && loc.indexOf('/') === 0) ? loc : '/dash';
+                return { ok: true, redirected: true };
+            }
+            if (r.status === 200) {
+                var ct = (r.headers.get('Content-Type') || '').toLowerCase();
+                if (ct.indexOf('application/json') !== -1) {
+                    return r.json().then(function (d) { return { ok: true, data: d }; }).catch(function () { return { ok: false, data: { detail: 'Invalid response' } }; });
+                }
+                window.location.href = '/dash';
+                return { ok: true, redirected: true };
+            }
+            return parseJsonResponse(r);
+        });
+    }
+
+    var loginForm = document.getElementById('login-form');
+    if (loginForm && supabase) loginForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var email = document.getElementById('email').value.trim();
+        var password = document.getElementById('password').value;
+        var btn = document.getElementById('btn-submit');
+        var errEl = document.getElementById('login-error');
+        errEl.classList.add('d-none');
+        btn.disabled = true;
+        btn.textContent = 'Signing in…';
+
+        supabase.auth.signInWithPassword({ email: email, password: password })
+            .then(function (res) {
+                if (res.error) {
+                    showError(res.error.message || 'Sign in failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign in';
+                    return;
+                }
+                var token = res.data && res.data.session && res.data.session.access_token;
+                if (!token) {
+                    showError('No session. Please confirm your email first, then sign in.');
+                    btn.disabled = false;
+                    btn.textContent = 'Sign in';
+                    return;
+                }
+                return completeSignIn(token);
+            })
+            .then(function (result) {
+                if (!result) return;
+                if (result.redirected) return;
+                if (result.ok && result.data && result.data.redirect) {
+                    window.location.href = result.data.redirect;
+                    return;
+                }
+                if (result.data && result.data.detail) showError(result.data.detail);
+                else showError('Sign in failed');
+                btn.disabled = false;
+                btn.textContent = 'Sign in';
+            })
+            .catch(function (err) {
+                showError(err && err.message || 'Sign in failed');
+                btn.disabled = false;
+                btn.textContent = 'Sign in';
+            });
+    });
+
+    var signupForm = document.getElementById('signup-form');
+    if (signupForm) signupForm.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var errEl = document.getElementById('login-error');
+        errEl.classList.add('d-none');
+        if (!supabase) {
+            showError('Backend not configured. Contact your administrator.');
+            return;
+        }
+        var first = document.getElementById('signup-first').value.trim();
+        var last = document.getElementById('signup-last').value.trim();
+        var email = document.getElementById('signup-email').value.trim();
+        var phone = document.getElementById('signup-phone').value.trim().replace(/\s+/g, '') || '0000000000';
+        var password = document.getElementById('signup-password').value;
+        var btn = document.getElementById('btn-signup');
+        btn.disabled = true;
+        btn.textContent = 'Creating…';
+
+        supabase.auth.signUp({
+            email: email,
+            password: password,
+            options: { data: { first_name: first, last_name: last } }
+        })
+            .then(function (res) {
+                if (res.error) {
+                    showError(res.error.message || 'Sign up failed');
+                    btn.disabled = false;
+                    btn.textContent = 'Create account';
+                    return Promise.reject();
+                }
+                var accessToken = res.data && res.data.session && res.data.session.access_token;
+                if (!accessToken) {
+                    showError('Sign up did not return a session. Please confirm your email first, then try again.');
+                    btn.disabled = false;
+                    btn.textContent = 'Create account';
+                    return Promise.reject();
+                }
+                return fetch('/auth/admin-signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        first_name: first,
+                        last_name: last,
+                        email: email,
+                        phone: phone,
+                        password: password,
+                        access_token: accessToken
+                    })
+                }).then(function (r) { return parseJsonResponse(r).then(function (out) { return { response: r, data: out.data, ok: out.ok, accessToken: accessToken }; }); });
+            })
+            .then(function (result) {
+                if (!result) return;
+                var response = result.response;
+                var data = result.data;
+                if (!response.ok || (data.Response !== 'ok' && data.info !== 'Registration')) {
+                    var msg = (data.detail && (Array.isArray(data.detail) ? data.detail.map(function (x) { return x.msg || x; }).join(' ') : data.detail)) || data.Response || 'Registration failed';
+                    showError(msg);
+                    btn.disabled = false;
+                    btn.textContent = 'Create account';
+                    return;
+                }
+                return completeSignIn(result.accessToken);
+            })
+            .then(function (callbackResult) {
+                if (!callbackResult) return;
+                if (callbackResult.redirected) return;
+                if (callbackResult.ok && callbackResult.data && callbackResult.data.redirect) {
+                    window.location.href = callbackResult.data.redirect;
+                    return;
+                }
+                errEl.classList.remove('alert-danger');
+                errEl.classList.add('alert-success');
+                errEl.textContent = 'Account created. Sign in above.';
+                errEl.classList.remove('d-none');
+                document.getElementById('signup-panel').classList.add('d-none');
+                document.getElementById('signin-panel').classList.remove('d-none');
+                document.getElementById('form-title').textContent = 'Sign in with your admin account';
+                document.getElementById('email').value = document.getElementById('signup-email').value.trim();
+                btn.disabled = false;
+                btn.textContent = 'Create account';
+            })
+            .catch(function (err) {
+                if (err && err.message) showError(err.message);
+                else if (!errEl.classList.contains('d-none') && !errEl.classList.contains('alert-success')) { }
+                else {
+                    errEl.textContent = 'Network error or registration failed. Try again or sign in if you already have an account.';
+                    errEl.classList.remove('d-none', 'alert-success');
+                    errEl.classList.add('alert-danger');
+                }
+                btn.disabled = false;
+                btn.textContent = 'Create account';
+            });
+    });
+})();
+});
+    </script>
+</body>
+</html>

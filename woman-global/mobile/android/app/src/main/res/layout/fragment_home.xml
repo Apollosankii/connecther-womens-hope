@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+
+    <!-- RecyclerView for displaying categories and items (Services, Organization, GBV Hotline) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/categoryRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="50dp"
+        android:clipToPadding="false"
+        android:scrollbars="vertical" />
+
+    <!-- Load More Button Below Services -->
+    <TextView
+        android:id="@+id/loadMoreText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:padding="8dp"
+        android:text="Load More"
+        android:textColor="@color/accent_color"
+        android:textSize="16sp"
+        android:visibility="gone" />
+
+</LinearLayout>

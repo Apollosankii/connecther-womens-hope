@@ -1,0 +1,42 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Pending Approvals</h2>
+        <p class="ch-page-subtitle">Review and approve new provider applications</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Awaiting Review</h5>
+        </div>
+        <div class="ch-card-body ch-card-body--table">
+            <table class="ch-table">
+                <thead>
+                    <tr>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {%for approval in approvals%}
+                    <tr>
+                        <td class="ch-td-name">{{ approval.first_name|default('')|e }}</td>
+                        <td class="ch-td-name">{{ approval.last_name|default('')|e }}</td>
+                        <td>{{ approval.phone|default('')|e }}</td>
+                        <td>{{ approval.email|default('—')|e }}</td>
+                        <td class="text-right">{% if approval.id is defined and approval.id is not none %}<a href="{{ url_for('approve_page', internal_id=approval.id) }}" class="ch-btn-sm ch-btn-warning">Review</a>{% elif approval.user_id is defined and approval.user_id %}<a href="{{ url_for('approve_by_user_id', user_id_str=approval.user_id|string) }}" class="ch-btn-sm ch-btn-warning">Review</a>{% else %}—{% endif %}</td>
+                    </tr>
+                    {%endfor%}
+                    {%if not approvals%}
+                    <tr><td colspan="5" class="ch-empty-state">No pending approvals</td></tr>
+                    {%endif%}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{%endblock content%}

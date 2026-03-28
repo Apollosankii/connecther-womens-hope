@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="14dp"
+    android:paddingBottom="14dp"
+    android:background="?attr/selectableItemBackground"
+    android:minHeight="56dp">
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp">
+
+        <ImageView
+            android:id="@+id/itemIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/baseline_circle_notifications_24"
+            android:contentDescription="Option icon"
+            android:tint="@color/on_surface_variant" />
+
+        <TextView
+            android:id="@+id/notificationCount"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="top|end"
+            android:background="@drawable/circular_notification"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="@color/on_primary"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/itemText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Item Label"
+        android:textSize="16sp"
+        android:textColor="@color/on_background" />
+
+    <ImageView
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/arrow_back_24px"
+        android:contentDescription=""
+        android:rotation="270"
+        android:alpha="0.5"
+        android:tint="@color/on_surface_variant" />
+</LinearLayout>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <color name="background">#F5EEEC</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_variant">#F7F3F2</color>
+    <color name="on_background">#1F1F1F</color>
+    <color name="on_surface">#1F1F1F</color>
+    <color name="on_surface_variant">#6D6D6D</color>
+    <color name="outline">#D9D9D9</color>
+    <color name="edittext_bg">#FFFFFF</color>
+    <color name="curved_top_bg">#FFFFFF</color>
+    <color name="curved_bottom_bg">#F5EEEC</color>
+
+    <color name="primary">#E91E63</color>
+    <color name="primary_variant">#C2185B</color>
+    <color name="on_primary">#FFFFFF</color>
+    <color name="accent_color">#E91E63</color>
+
+    <color name="nav_item_color">#645572</color>
+    <color name="grey">#837D7D</color>
+    <color name="black_translucent">#857C7C</color>
+    <color name="chat_item_background">#BE9796</color>
+    <color name="color3">#FF0C0C</color>
+    <color name="color4">#F215C1</color>
+    <color name="color5">#EBF0F0</color>
+    <color name="mpesaColor">#39b54a</color>
+    <color name="star_yellow">#FFD700</color>
+    <color name="light_gray">#D3D3D3</color>
+
+    <color name="sos_pulse_outer">#40E91E63</color>
+    <color name="sos_pulse_middle">#60E91E63</color>
+
+    <color name="chat_header_surface">#FFFFFF</color>
+    <color name="chat_thread_background">#FFFFFF</color>
+    <color name="chat_composer_surface">#FFFFFF</color>
+    <color name="chat_divider">#E5E5EA</color>
+    <color name="chat_bubble_outgoing">#3797F0</color>
+    <color name="chat_bubble_incoming">#F1F1F1</color>
+    <color name="chat_text_on_outgoing">#FFFFFF</color>
+    <color name="chat_text_on_incoming">#1F1F1F</color>
+    <color name="chat_text_subtitle">#8E8E93</color>
+    <color name="chat_input_fill">#F5F5F7</color>
+    <color name="chat_icon_muted">#2A2A2A</color>
+    <color name="chat_hire_outline">#3797F0</color>
+
+
+</resources>

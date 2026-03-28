@@ -1,0 +1,60 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Edit Service</h2>
+            <p class="ch-page-subtitle">Update details for {{service.name}}</p>
+        </div>
+        <a href="{{url_for('services')}}" class="ch-btn-sm">&larr; Back to Services</a>
+    </div>
+
+    <form action="{{url_for('update_service',service_id=service.service_id)}}" method="POST">
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Service Details</h5>
+        </div>
+        <div class="ch-card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Service Name</label>
+                        <div class="ch-field-value">{{service.name}}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Minimum Price</label>
+                        <input type="text" class="form-control" name="min_price" value="{{service.min_price}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Description</label>
+                        <input type="text" class="form-control" name="description" value="{{service.description}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Category</label>
+                        <input type="text" class="form-control" name="category" value="Domestic"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Country</label>
+                        <div class="ch-field-value">Kenya</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;">
+            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Save Changes</button>
+        </div>
+    </div>
+    </form>
+</div>
+{%endblock%}

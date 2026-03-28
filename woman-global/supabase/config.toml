@@ -1,0 +1,13 @@
+# Per-function Edge Function settings (used by Supabase CLI on deploy).
+# https://supabase.com/docs/guides/functions/function-configuration
+
+# Clerk JWT is not a Supabase Auth JWT — gateway must not validate it as such.
+# Safaricom STK callbacks also have no JWT; they use ?token= + Body.stkCallback.
+[functions.mpesa-express]
+verify_jwt = false
+
+[functions.paystack-express]
+verify_jwt = false
+
+[functions.auth-bridge]
+verify_jwt = false

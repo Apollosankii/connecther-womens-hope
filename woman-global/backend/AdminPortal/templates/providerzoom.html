@@ -1,0 +1,103 @@
+{%extends 'portemp.html'%}
+
+{%block content%} 
+<div class="col-sm-12 col-lg-8 col-xl-9">
+    <div class="my_profile_form_area">
+        <form action="{{url_for('flush_provider')}}" method="POST">
+           {# <!-- <form action="{{url_for('profileupdate')}}" method="POST"> -->#}
+        <div class="row">
+            
+            <div class="col-lg-12">
+                <h4 class="fz20 mb20">Provider</h4>
+            </div>
+            <div class="col-lg-12">
+                <div class="my_profile_thumb_edit"></div>
+            </div>
+            
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput1">First Name</label>
+                    <input type="text" class="form-control" id="formGroupExampleInput1" name="first_name" value="{{provider.first_name}}">
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleInputPhone">Last Name</label>
+                    <input type="text" class="form-control" name="last_name" id="exampleInputPhone" aria-describedby="min price" value="{{provider.last_name}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput1">National ID</label>
+                    <input type="text" class="form-control" id="exampleFormControlInput1" name='nat_id' value="{{provider.nat_id}}">
+                </div>
+            </div>
+            
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput2">Phone</label>
+                    <input type="text" class="form-control" id="formGroupExampleInput2" name="phone" value="{{provider.phone}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput1">County</label>
+                    <input type="text" class="form-control" id="formGroupExampleInput1" name="county" value="{{provider.county}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleInputPhone">Area Name</label>
+                    <input type="text" class="form-control" name="area_name" id="exampleInputPhone" aria-describedby="min price" value="{{provider.area_name}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleInputPhone">Emmergency Contact 1</label>
+                    <input type="text" class="form-control" name="emm_cont_1" id="exampleInputPhone" aria-describedby="min price" value="{{provider.emm_cont_1}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleInputPhone">Emmergency Contact 2</label>
+                    <input type="text" class="form-control" name="emm_cont_2" id="exampleInputPhone" aria-describedby="min price" value="{{provider.emm_cont_2}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <input type="hidden" class="form-control" name="user_id" id="exampleInputPhone" aria-describedby="min price" value="{{provider.user_name}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <input type="hidden" class="form-control" name="title" id="exampleInputPhone" aria-describedby="min price" value="{{provider.title}}">
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-lg-12">
+                    <h4 class="fz20 mb20">Service(s) Offered</h4>
+                </div>
+                <div class="col-lg-12">
+                        {%for service in services%}
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="customSwitch{{service.service_id}}" name="subscriptions" value="{{service.service_id}}">
+                            <label class="custom-control-label" for="customSwitch{{service.service_id}}">{{service.name}}</label>
+                        </div>
+                        {%endfor%}
+                    
+                </div>   
+        </div>
+            
+            <div class="col-lg-12">
+                <div class="my_profile_input">
+                    <button type="submit" class="btn btn-log btn-block btn-dark">Save Changes</button>									
+                </div>
+            </div>
+        
+        </div>
+    </form>
+    </div>
+</div>
+
+{%endblock%}

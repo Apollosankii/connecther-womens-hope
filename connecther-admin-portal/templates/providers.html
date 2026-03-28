@@ -1,0 +1,51 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Service Providers</h2>
+        <p class="ch-page-subtitle">Manage registered service providers</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">All Providers</h5>
+            <div class="input-group" style="max-width:320px;">
+                <input type="text" class="form-control" placeholder="Search providers..." name="query" id="searchbar"
+                    hx-get="/search" hx-trigger="keyup changed delay:500ms" hx-target="#results" min-length="2"
+                    style="border-radius:var(--ch-radius-sm) 0 0 var(--ch-radius-sm);border:1px solid var(--ch-border);background:var(--ch-bg-card);color:var(--ch-text);">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" style="border-radius:0 var(--ch-radius-sm) var(--ch-radius-sm) 0;"><span class="flaticon-search"></span></button>
+                </div>
+            </div>
+        </div>
+        <div class="ch-card-body ch-card-body--table">
+            <table class="ch-table">
+                <thead>
+                    <tr>
+                        <th>National ID</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>Jobs</th>
+                        <th>Status</th>
+                        <th class="text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="results">
+                    {%for provider in providers%}
+                    <tr>
+                        <td><code class="ch-code">{{provider.nat_id}}</code></td>
+                        <td class="ch-td-name">{{provider.first_name}}</td>
+                        <td class="ch-td-name">{{provider.last_name}}</td>
+                        <td>{{provider.phone}}</td>
+                        <td>200</td>
+                        <td>{% if provider.WH_Badge %}<span class="ch-badge ch-badge-success">Approved</span>{% else %}<span class="ch-badge ch-badge-warning">Pending</span>{% endif %}</td>
+                        <td class="text-right"><a href="{{url_for('edit_user',user_id=provider.user_id)}}" class="ch-btn-sm">Edit</a></td>
+                    </tr>
+                    {%endfor%}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{%endblock content%}

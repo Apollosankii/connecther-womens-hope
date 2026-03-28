@@ -1,0 +1,44 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Ongoing Jobs</h2>
+        <p class="ch-page-subtitle">Currently active service requests</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Active Jobs</h5>
+        </div>
+        <div class="ch-card-body ch-card-body--table">
+            <table class="ch-table">
+                <thead>
+                    <tr>
+                        <th>Quote</th>
+                        <th>Client</th>
+                        <th>Provider</th>
+                        <th>Service</th>
+                        <th>Date</th>
+                        <th class="text-right">Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {%for job in jobs%}
+                    <tr>
+                        <td><code class="ch-code">{{job.quote}}</code></td>
+                        <td class="ch-td-name">{{job.client}}</td>
+                        <td class="ch-td-name">{{job.provider}}</td>
+                        <td>{{job.service}}</td>
+                        <td>{{job.date}}</td>
+                        <td class="text-right"><strong>KES {{job.price}}</strong></td>
+                    </tr>
+                    {%endfor%}
+                    {%if not jobs%}
+                    <tr><td colspan="6" class="ch-empty-state">No ongoing jobs</td></tr>
+                    {%endif%}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{%endblock content%}

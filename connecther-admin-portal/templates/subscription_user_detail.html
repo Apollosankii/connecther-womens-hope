@@ -1,0 +1,76 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Subscription #{{ sub.id }}</h2>
+            <p class="ch-page-subtitle">User plan subscription detail and actions.</p>
+        </div>
+        <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">← Back to list</a>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Details</h5>
+            <table class="table table-borderless ch-table">
+                <tr><th width="180">User</th><td>{{ sub.user_name }} — {{ sub.user_phone }} ({{ sub.user_email or '—' }})</td></tr>
+                <tr><th>Plan</th><td>{{ sub.plan_name }} {% if sub.plan_price is not none %}({{ sub.plan_currency }} {{ sub.plan_price }}){% endif %}</td></tr>
+                <tr><th>Status</th><td>{% if sub.status == 'active' %}<span class="badge badge-success">Active</span>{% elif sub.status == 'cancelled' %}<span class="badge badge-secondary">Cancelled</span>{% elif sub.status == 'expired' %}<span class="badge badge-warning">Expired</span>{% else %}<span class="badge badge-light">{{ sub.status }}</span>{% endif %}</td></tr>
+                <tr><th>Started</th><td>{{ sub.started_at[:10] if sub.started_at else '—' }}</td></tr>
+                <tr><th>Expires</th><td>{{ sub.expires_at[:10] if sub.expires_at else '—' }}</td></tr>
+                <tr><th>Cancelled</th><td>{{ sub.cancelled_at[:10] if sub.cancelled_at else '—' }}</td></tr>
+                <tr><th>Payment ref</th><td>{{ sub.payment_reference or '—' }}</td></tr>
+                <tr><th>Notes</th><td>{{ sub.notes or '—' }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Actions</h5>
+            <div class="d-flex flex-wrap gap-2">
+                {% if sub.status == 'active' %}
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="_action" value="cancel">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Cancel this subscription?');">Cancel</button>
+                </form>
+                {% endif %}
+                <form method="post" class="d-inline form-inline">
+                    <input type="hidden" name="_action" value="extend">
+                    <input type="date" name="new_expires_at" class="form-control form-control-sm mr-2" required>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Extend to date</button>
+                </form>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="collapse" data-target="#edit-form">Edit</button>
+            </div>
+            <div id="edit-form" class="collapse mt-4">
+                <form method="post">
+                    <input type="hidden" name="_action" value="update">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Status</label>
+                            <select name="status" class="form-control">
+                                <option value="active" {% if sub.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="cancelled" {% if sub.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                <option value="expired" {% if sub.status == 'expired' %}selected{% endif %}>Expired</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Expires at</label>
+                            <input type="date" name="expires_at" class="form-control" value="{{ sub.expires_at[:10] if sub.expires_at else '' }}">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Payment reference</label>
+                            <input type="text" name="payment_reference" class="form-control" value="{{ sub.payment_reference or '' }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2">{{ sub.notes or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

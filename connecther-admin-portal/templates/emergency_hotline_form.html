@@ -1,0 +1,46 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">{% if is_edit %}Edit hotline{% else %}Add emergency hotline{% endif %}</h2>
+        <p class="ch-page-subtitle">{% if is_edit %}Update this entry.{% else %}Create a dialable line for the app emergency screen.{% endif %}</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label for="name">Name <span class="text-danger">*</span></label>
+                    <input type="text" id="name" name="name" class="form-control" value="{{ line.name if line else '' }}" placeholder="e.g. Nairobi Women's GBV hotline" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Short description</label>
+                    <input type="text" id="description" name="description" class="form-control" value="{{ line.description if line else '' }}" placeholder="Tap to call — 24/7 support">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone number <span class="text-danger">*</span></label>
+                    <input type="text" id="phone" name="phone" class="form-control" value="{{ line.phone if line else '' }}" placeholder="0800720565 or +254…" required>
+                    <small class="form-text text-muted">Digits and + only are sent to the device dialer.</small>
+                </div>
+                <div class="form-group">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_active" name="is_active" value="1" {% if not line or line.is_active %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_active">Active (show in app)</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="sort_order">Sort order</label>
+                    <input type="number" id="sort_order" name="sort_order" class="form-control" value="{{ line.sort_order if line else 0 }}" min="0">
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">{% if is_edit %}Save{% else %}Create{% endif %}</button>
+                    <a href="{{ url_for('emergency_hotlines') }}" class="btn btn-outline-secondary ml-2">Cancel</a>
+                    {% if is_edit and line %}
+                    <button type="submit" name="_action" value="delete" class="btn btn-outline-danger ml-2" onclick="return confirm('Delete this hotline?');">Delete</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

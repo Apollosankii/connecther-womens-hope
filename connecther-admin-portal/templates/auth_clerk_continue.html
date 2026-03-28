@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ConnectHer Admin – Signing in…</title>
+    <style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#f5f5f5}.msg{text-align:center;color:#666}</style>
+</head>
+<body>
+    <div class="msg"><p>Signing you in…</p></div>
+    <form id="clerk-callback-form" method="post" action="/auth/clerk/callback" style="display:none">
+        <input type="hidden" name="access_token" id="clerk-token" value="">
+        <input type="hidden" name="clerk_email" id="clerk-email" value="">
+        <input type="hidden" name="clerk_first_name" id="clerk-first-name" value="">
+        <input type="hidden" name="clerk_last_name" id="clerk-last-name" value="">
+    </form>
+    <script async crossorigin="anonymous"
+        data-clerk-publishable-key="{{ clerk_publishable_key|e }}"
+        src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest/dist/clerk.browser.js">
+    </script>
+    <script>
+(function(){
+    var pk = {{ clerk_publishable_key|tojson }};
+    if (!pk) { window.location.href = '/login'; return; }
+    function run(){
+        if (typeof window.Clerk === 'undefined') { setTimeout(run, 50); return; }
+        window.Clerk.load().then(function(){
+            if (!window.Clerk.user) { window.location.href = '/login'; return; }
+            var user = window.Clerk.user;
+            var emailEl = document.getElementById('clerk-email');
+            var firstNameEl = document.getElementById('clerk-first-name');
+            var lastNameEl = document.getElementById('clerk-last-name');
+            if (emailEl && user.primaryEmailAddress) emailEl.value = user.primaryEmailAddress.emailAddress || '';
+            if (firstNameEl) firstNameEl.value = user.firstName || '';
+            if (lastNameEl) lastNameEl.value = user.lastName || '';
+            window.Clerk.session.getToken({ template: 'supabase' }).then(function(token){
+                if (token) {
+                    document.getElementById('clerk-token').value = token;
+                    document.getElementById('clerk-callback-form').submit();
+                } else { window.location.href = '/login'; }
+            }).catch(function(){ window.location.href = '/login'; });
+        }).catch(function(){ window.location.href = '/login'; });
+    }
+    run();
+})();
+    </script>
+</body>
+</html>

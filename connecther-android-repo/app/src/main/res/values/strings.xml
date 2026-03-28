@@ -1,0 +1,16 @@
+<resources>
+    <!--    <string name="app_name">ConnectHer</string>-->
+    <string name="our_platform_connects_you_with_verified_professionals_for_household_services_ensuring_convenience_safety_and_reliability">Our platform connects you with verified professionals for household services, ensuring convenience, safety, and reliability.</string>
+    <string name="empowering_women_with_trusted_home_services">Empowering Women with Trusted Home Services!</string>
+    <string name="about_us_image">About Us Image</string>
+    <string name="our_mission">Our Mission</string>
+    <string name="to_create_a_safe_empowering_and_seamless_experience_for_women_in_need_of_home_services_by_ensuring_high_quality_and_verified_professionals">To create a safe, empowering, and seamless experience for women in need of home services, by ensuring high-quality and verified professionals.</string>
+    <string name="back">Back</string>
+    <string name="about_us">About Us</string>
+    <string name="onboarding_page_desc">Tired of spending hours searching for reliable cleaning and caregiver services? ConnectHer makes it easier than ever to book professionals house cleaners and caregivers at your convenience. Whether you need a one-time deep clean, regular house maintenance, or care giving services our app connects you with trusted, background-checked professionals in your area</string>
+    <string name="get_started">Get Started</string>
+    <string name="default_notification_channel_id">FCM_CHANNEL_ID</string>
+    <!-- Web client ID from Firebase Console → Project settings → Your apps → Web app (for Google Sign-In id token). -->
+    <string name="default_web_client_id" translatable="false">REPLACE_WITH_WEB_CLIENT_ID.apps.googleusercontent.com</string>
+    <string name="notifications_empty">No notifications yet.\nWhen you get bookings or messages, they\'ll show here.</string>
+</resources>

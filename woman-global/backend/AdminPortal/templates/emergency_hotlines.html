@@ -1,0 +1,19 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Emergency hotlines</h2>
+            <p class="ch-page-subtitle">Numbers shown at the top of the app <strong>Emergency Contacts</strong> screen. Inactive lines are hidden from the app. This list refreshes every 20 seconds.</p>
+        </div>
+        <a href="{{ url_for('emergency_hotline_add') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">+ Add hotline</a>
+    </div>
+
+    <div id="emergency-hotlines-refresh"
+         hx-get="{{ url_for('emergency_hotlines_partial') }}"
+         hx-trigger="every 20s"
+         hx-swap="innerHTML">
+        {% include '_emergency_hotlines_partial.html' %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "759332294805",
+    "project_id": "connecther-d6e1a",
+    "storage_bucket": "connecther-d6e1a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759332294805:android:6f07fe8df5afc18e020b9c",
+        "android_client_info": {
+          "package_name": "com.womanglobal.connecther"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBg9nswCDREjAWQhELBOWrOMc6jiTyGJ3Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

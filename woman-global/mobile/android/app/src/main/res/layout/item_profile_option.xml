@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center"
+    android:padding="15dp">
+
+    <!-- Container for the Image and Notification Count -->
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp">
+
+        <!-- Item Icon -->
+        <ImageView
+            android:id="@+id/itemIcon"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/baseline_circle_notifications_24" />
+
+        <!-- Notification Count positioned at the top-right corner of the icon -->
+        <TextView
+            android:id="@+id/notificationCount"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="top|end"
+            android:background="@drawable/circular_notification"
+            android:gravity="center"
+            android:text="3"
+            android:textColor="@android:color/white"
+            android:textSize="10sp"
+            android:layout_marginStart="15dp"
+            android:layout_marginBottom="15dp"
+            android:visibility="gone"/>
+    </FrameLayout>
+
+    <!-- Item Label -->
+    <TextView
+        android:id="@+id/itemText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:fontFamily="@font/poppins"
+        android:text="Item Label"
+        android:textColor="#333"
+        android:textSize="22sp" />
+
+</LinearLayout>

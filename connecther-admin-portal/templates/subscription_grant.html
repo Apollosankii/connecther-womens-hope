@@ -1,0 +1,56 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Grant subscription</h2>
+        <p class="ch-page-subtitle">Assign a subscription plan to a user with start and end dates.</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label for="user_id">User <span class="text-danger">*</span></label>
+                    <select id="user_id" name="user_id" class="form-control" required>
+                        <option value="">Select user</option>
+                        {% for u in app_users %}
+                        <option value="{{ u.id }}">{{ u.first_name }} {{ u.last_name }} — {{ u.phone }} ({{ u.email or 'no email' }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="plan_id">Plan <span class="text-danger">*</span></label>
+                    <select id="plan_id" name="plan_id" class="form-control" required>
+                        <option value="">Select plan</option>
+                        {% for p in plans %}
+                        <option value="{{ p.id }}">{{ p.name }} — {{ p.currency }} {{ p.price }} / {{ p.duration_value }} {{ p.duration_type }}{% if p.duration_value != 1 %}s{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="started_at">Start date <span class="text-danger">*</span></label>
+                        <input type="date" id="started_at" name="started_at" class="form-control" required>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="expires_at">End date <span class="text-danger">*</span></label>
+                        <input type="date" id="expires_at" name="expires_at" class="form-control" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="payment_reference">Payment reference (optional)</label>
+                    <input type="text" id="payment_reference" name="payment_reference" class="form-control" placeholder="e.g. MPE-xxx">
+                </div>
+                <div class="form-group">
+                    <label for="notes">Notes (optional)</label>
+                    <textarea id="notes" name="notes" class="form-control" rows="2" placeholder="Admin notes"></textarea>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">Grant subscription</button>
+                    <a href="{{ url_for('subscription_user_subscriptions') }}" class="btn btn-outline-secondary ml-2">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Subscription #{{ sub.id }}</h2>
+            <p class="ch-page-subtitle">User plan subscription detail and actions.</p>
+        </div>
+        <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">← Back to list</a>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Details</h5>
+            <table class="table table-borderless ch-table">
+                <tr><th width="180">User</th><td>{{ sub.user_name }} — {{ sub.user_phone }} ({{ sub.user_email or '—' }})</td></tr>
+                <tr><th>Plan</th><td>{{ sub.plan_name }} {% if sub.plan_price is not none %}({{ sub.plan_currency }} {{ sub.plan_price }}){% endif %}</td></tr>
+                <tr><th>Status</th><td>{% if sub.status == 'active' %}<span class="badge badge-success">Active</span>{% elif sub.status == 'cancelled' %}<span class="badge badge-secondary">Cancelled</span>{% elif sub.status == 'expired' %}<span class="badge badge-warning">Expired</span>{% else %}<span class="badge badge-light">{{ sub.status }}</span>{% endif %}</td></tr>
+                <tr><th>Started</th><td>{{ sub.started_at[:10] if sub.started_at else '—' }}</td></tr>
+                <tr><th>Expires</th><td>{{ sub.expires_at[:10] if sub.expires_at else '—' }}</td></tr>
+                <tr><th>Cancelled</th><td>{{ sub.cancelled_at[:10] if sub.cancelled_at else '—' }}</td></tr>
+                <tr><th>Payment ref</th><td>{{ sub.payment_reference or '—' }}</td></tr>
+                <tr><th>Notes</th><td>{{ sub.notes or '—' }}</td></tr>
+                <tr><th>Plan connect policy</th><td>
+                    {% if sub.plan_connects_limit_enabled %}
+                    <strong>{{ sub.plan_connects_per_period }}</strong> connects per
+                    {% if sub.plan_connects_period_rule == 'calendar_month' %}calendar month{% elif sub.plan_connects_period_rule == 'calendar_year' %}calendar year{% else %}subscription term{% endif %}
+                    <br><small class="text-muted">{{ sub.plan_connects_period_rule_label }}</small>
+                    {% else %}
+                    <span class="text-muted">No plan-level connect cap (unlimited)</span>
+                    {% endif %}
+                </td></tr>
+                <tr><th>Connect balance</th><td>
+                    {% if sub.connects_granted is not none %}
+                    <strong>{{ sub.connects_remaining }}</strong> remaining · {{ sub.connects_used }} used of {{ sub.connects_granted }} granted
+                    {% if sub.connects_period_started_at %}<br><small class="text-muted">Period started: {{ sub.connects_period_started_at[:10] }}</small>{% endif %}
+                    {% else %}
+                    <span class="text-muted">Unlimited (no per-row cap)</span>
+                    {% endif %}
+                </td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Adjust connect balance</h5>
+            <p class="small text-muted">Use for support adjustments. <strong>Unlimited</strong> clears the per-row cap (seeker not limited by this subscription row until you set a limit again).</p>
+            <form method="post">
+                <input type="hidden" name="_action" value="update_connects">
+                <div class="form-group">
+                    <div class="custom-control custom-radio">
+                        <input type="radio" class="custom-control-input" id="cb_limited" name="connect_balance_mode" value="limited" {% if sub.connects_granted is not none %}checked{% endif %}>
+                        <label class="custom-control-label" for="cb_limited">Capped — set granted / used</label>
+                    </div>
+                    <div class="custom-control custom-radio">
+                        <input type="radio" class="custom-control-input" id="cb_unlimited" name="connect_balance_mode" value="unlimited" {% if sub.connects_granted is none %}checked{% endif %}>
+                        <label class="custom-control-label" for="cb_unlimited">Unlimited for this row (<code>connects_granted</code> = null)</label>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label>Connects granted (bucket size)</label>
+                        <input type="number" name="connects_granted" class="form-control" min="0" step="1" value="{% if sub.connects_granted is not none %}{{ sub.connects_granted }}{% else %}0{% endif %}">
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Connects used</label>
+                        <input type="number" name="connects_used" class="form-control" min="0" step="1" value="{{ sub.connects_used or 0 }}">
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Period started (anchor)</label>
+                        <input type="date" name="connects_period_started_at" class="form-control" value="{% if sub.connects_period_started_at %}{{ sub.connects_period_started_at[:10] }}{% endif %}">
+                        <small class="text-muted">Optional; used for calendar resets.</small>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Save connect balance</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Actions</h5>
+            <div class="d-flex flex-wrap gap-2">
+                {% if sub.status == 'active' %}
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="_action" value="cancel">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Cancel this subscription?');">Cancel</button>
+                </form>
+                {% endif %}
+                <form method="post" class="d-inline form-inline">
+                    <input type="hidden" name="_action" value="extend">
+                    <input type="date" name="new_expires_at" class="form-control form-control-sm mr-2" required>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">Extend to date</button>
+                </form>
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-toggle="collapse" data-target="#edit-form">Edit</button>
+            </div>
+            <div id="edit-form" class="collapse mt-4">
+                <form method="post">
+                    <input type="hidden" name="_action" value="update">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label>Status</label>
+                            <select name="status" class="form-control">
+                                <option value="active" {% if sub.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="cancelled" {% if sub.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                                <option value="expired" {% if sub.status == 'expired' %}selected{% endif %}>Expired</option>
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Expires at</label>
+                            <input type="date" name="expires_at" class="form-control" value="{{ sub.expires_at[:10] if sub.expires_at else '' }}">
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label>Payment reference</label>
+                            <input type="text" name="payment_reference" class="form-control" value="{{ sub.payment_reference or '' }}">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea name="notes" class="form-control" rows="2">{{ sub.notes or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Save changes</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

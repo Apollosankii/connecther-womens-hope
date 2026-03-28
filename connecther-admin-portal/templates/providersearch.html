@@ -1,0 +1,12 @@
+{%for provider in providers%}
+  <tr>
+      <th scope="row">{{provider.nat_id}}</th>
+      <td>{{provider.first_name}}</td>
+      <td>{{provider.last_name}}</td>
+      <td>{{provider.phone}}</td>
+                                
+      <td>200</td>
+      <td>{{provider.WH_Badge}}</td>
+      <td scope="col"><a href="{{url_for('edit_user',user_id=provider.user_id)}}">Edit</a></td>
+    </tr>
+{%endfor%}

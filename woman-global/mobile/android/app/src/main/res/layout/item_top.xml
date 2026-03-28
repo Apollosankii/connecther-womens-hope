@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Hello"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:text="Welcome to ConnectHer"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/themeToggleButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="10dp"
+            android:background="@drawable/rounded_button_background"
+            android:backgroundTint="@color/accent_color"
+            android:contentDescription="Toggle theme"
+            android:padding="8dp"
+            android:src="@drawable/ic_moon_24"
+            app:tint="@android:color/white" />
+    </LinearLayout>
+
+    <!-- Search bar layout with EditText and Audio Search Button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginBottom="16dp"
+        android:gravity="center"
+        android:orientation="horizontal">
+
+        <!-- Search EditText with search icon -->
+        <EditText
+            android:id="@+id/searchField"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="@drawable/rounded_et_background"
+            android:drawableStart="@drawable/baseline_search_24"
+            android:drawablePadding="8dp"
+            android:drawableTint="@color/black_translucent"
+            android:hint="Search..."
+            android:paddingStart="10dp" />
+
+        <!-- Audio Search Button with rounded corners -->
+        <ImageButton
+            android:id="@+id/audioSearchButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:scaleType="centerInside"
+            android:padding="2dp"
+            android:background="@drawable/rounded_button_background"
+            android:backgroundTint="@color/accent_color"
+            android:src="@android:drawable/ic_btn_speak_now"
+            app:tint="@color/white" />
+    </LinearLayout>
+
+    <!-- Banner Image with rounded corners -->
+<!--    <ImageView-->
+<!--        android:id="@+id/bannerImage"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="150dp"-->
+<!--        android:layout_marginBottom="16dp"-->
+<!--        android:background="@drawable/rounded_banner_image_background"-->
+<!--        android:scaleType="centerCrop"-->
+<!--        android:src="@mipmap/ad" />-->
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/bannerViewPager"
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:layout_marginBottom="16dp" />
+
+</LinearLayout>

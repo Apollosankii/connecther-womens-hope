@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="220dp"
+    android:height="220dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Browse → Connect → Book steps -->
+    <path android:pathData="M25,50 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0" android:fillColor="#C2185B"/>
+    <path android:pathData="M37,50 L63,50" android:strokeWidth="3" android:strokeColor="#E0B0BF" android:fillColor="#00000000"/>
+    <path android:pathData="M75,50 m-12,0 a12,12 0 1,1 24,0 a12,12 0 1,1 -24,0" android:fillColor="#C2185B"/>
+    <path android:pathData="M50,62 L50,88" android:strokeWidth="2" android:strokeColor="#E0B0BF" android:fillColor="#00000000"/>
+    <path android:pathData="M42,80 L50,88 L58,80" android:strokeWidth="2" android:strokeColor="#C2185B" android:fillColor="#00000000"/>
+    <path android:pathData="M15,35 L25,50 L35,35" android:strokeWidth="2" android:strokeColor="#E0B0BF" android:fillColor="#00000000"/>
+</vector>

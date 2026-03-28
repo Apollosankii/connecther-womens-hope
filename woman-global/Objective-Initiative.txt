@@ -1,0 +1,44 @@
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySUQiOiI1NzEyZDciLCJleHBpcnkiOjE3MzUyOTAxMTIuNTIwNjUxNn0.plWsmkHJYRMoC4ydUc5553PQqS7O1Hzv3-mF_rcLzg0"
+}
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySUQiOiI1NzEyZDciLCJleHBpcnkiOjE3MzUyOTUwNDcuMDQxMTIwM30.VjiqtG68DZdQfuURwqyC4NVdBigvRbGH1Wf33lZuTeA"
+}
+
+
+user = {
+'name': 'John Doe',
+'phone':'0987123412'
+}
+policy = {
+'start':'1st June, 1995',
+'maturity':'1st June, 2024',
+'frequency':'Annual',
+'premium':'3,200.00',
+'total':'9,800.00'
+}
+
+receipts =[{'date':'12/10/2024','recno':'SWMOS123','amount':3,200.00,'paymode':'M-PESA'},
+{'date':'12/11/2024','recno':'SWMPS153','amount':3,200.00,'paymode':'CASH'},
+{'date':'12/12/2024','recno':'SWQNS193','amount':3,200.00,'paymode':'CHEQUE'}]
+}]
+
+policies = [{
+'policy_num':'12345NBCS',
+'product':'Kimchi',
+'start':'1st June, 1995',
+'maturity':'1st June, 2024',
+'frequency':'Annual',
+'premium':'3,200.00',
+'total':'9,800.00',
+'term':4
+},
+{
+'policy_num':'12345NBCS',
+'product':'Zoza',
+'start':'1st June, 1995',
+'maturity':'1st June, 2024',
+'frequency':'Annual',
+'premium':'3,200.00',
+'total':'9,800.00',
+'term':4
+}]

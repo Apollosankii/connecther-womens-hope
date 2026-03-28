@@ -1,0 +1,50 @@
+{%extends 'portemp.html'%} {%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9">
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="fz20 mb30">Service Providers</h4>
+        </div>
+        <div class="col-lg-12">
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" placeholder="e.g. provider name" aria-label="Recipient's username" aria-describedby="button-addon2" 
+                name="query" id="searchbar" hx-get="/search" hx-trigger="keyup changed delay:500ms" hx-target="#results" min-length="2">
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary" type="button" id="button-addon2"><span class="flaticon-search"></span></button>
+                </div>
+            </div>
+            <div class="candidate_job_reivew style2">
+                <div class="table-responsive job_review_table mt0">
+                    <table class="table">
+                        <thead class="thead-light">
+                            <tr>
+                                <th scope="col">National ID</th>
+                                <th scope="col">First Name</th>
+                                <th scope="col">Last Name</th>
+                                <th scope="col">Phone</th>
+                                <th scope="col">Jobs Completed</th>
+                                <th scope="col">Approval Status</th>
+                                <th scope="col">Update</a></th>
+                            </tr>
+                        </thead>
+                        <tbody id="results">
+                            {%for provider in providers%}
+                            <tr>
+                                <th scope="row">{{provider.nat_id}}</th>
+                                <td>{{provider.first_name}}</td>
+                                <td>{{provider.last_name}}</td>
+                                <td>{{provider.phone}}</td>
+                                                          
+                                <td>200</td>
+                                <td>{{provider.WH_Badge}}</td>
+                                <td scope="col"><a href="{{url_for('edit_user',user_id=provider.user_id)}}">Edit</a></td>
+                              </tr>
+                          {%endfor%}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{%endblock content%}

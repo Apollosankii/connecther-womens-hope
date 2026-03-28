@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="keywords" content="candidates, career, employment, freelance, glassdoor, Human Resource Management, indeed, job board, job listing, job portal, job postings, jobs, listings, recruitment, resume">
+<meta name="CreativeLayers" content="ATFN">
+<!-- css file -->
+<link rel="stylesheet" href="{{url_for('static', filename='css/bootstrap.min.css', _external=True)}}">
+<link rel="stylesheet" href="{{url_for('static', filename='css/style.css', _external=True)}}">
+<!-- Responsive stylesheet -->
+<link rel="stylesheet" href="{{url_for('static', filename='css/responsive.css', _external=True)}}">
+<!-- Title -->
+<title>Kenyan Alliance Insurance</title>
+<!-- Favicon -->
+<link href="{{url_for('static', filename='images/favicon.ico', _external=True)}}" sizes="128x128" rel="shortcut icon" type="image/x-icon" />
+<link href="{{url_for('static', filename='images/favicon.ico', _external=True)}}" sizes="128x128" rel="shortcut icon" />
+
+<!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+      <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+</head>
+
+<body>
+<div class="wrapper">
+	{#<div class="preloader"></div>#}
+
+	<!-- Our Invoice Table -->
+	
+	<section class="our-invoice bgc-fa pb85">
+		<div class="container">
+			{#<div class="row">
+				<div class="col-lg-10 offset-lg-1">
+					<form action="{{ url_for('to_pdf_stat') }}" method="POST">
+						<button type="submit" class="btn btn-success">Generate pdf</button>
+					</form>
+					{#<ul class="invoice_down_print float-right">
+						<li><a href="#"><span class="flaticon-download"></span></a></li>
+						<li><a href="#"><span class="flaticon-printer"></span></a></li>
+					</ul>
+				</div>#}
+			
+			</div>
+			<div class="row mt20">
+				<div class="col-lg-10 offset-lg-1">
+					<div class="invoice_table">
+						<div class="row">
+							<div class="col-lg-12 mb40">
+								<div class="main_logo"><img class="img-fluid" src="{{url_for('static', filename='images/logo1.png', _external=True)}}" alt="header-logo1.png"></div>
+							</div>
+						</div>
+						
+						<div class="row">
+							<div class="col-lg-12">
+								<div class="invoice_title">
+									<h3>Terms & Conditions</h3>
+								</div>
+								
+							</div>
+						</div>
+					
+						<div class="row mt50">
+							<div class="col-lg-12">
+								<p>This portal is available for use subject to these terms of use.</p>
+								<p>By accessing this portal, you IRREVOCABLY AGREE to be bound by the following terms and conditions and the discontinued use of the portal means withdrawal of consent and terminates your right to use this portal as granted under the terms. </p>
+									<ol>
+										<li><h3>1. Third Party Information Sharing</h3>
+											<p>There are some external third-party links that have been provided in this portal for information services. Collection of personal information from these sites is entirely up to you as a customer. Click on the links at your own risk, Kenyan Alliance Insurance is not liable for any loss or damage whatsoever. You agree to indemnify and hold Kenyan Alliance Insurance harmless from any losses from any third-party made against Kenyan Alliance Insurance due to negligent default, acts or commissions done using your specific and identified account details including login or user password which negligent act or default was committed in violation of any of these Terms.</p>
+										 </li>
+										 <li><h3>2.	No warranty</h3>
+											<p>Kenyan Alliance does not warranty that this portal will be free of downtimes whether scheduled or unscheduled. However, we will ensure that the number of downtimes have been reduced. Any erroneous submissions or consequences during that time will not have Kenyan Alliance held responsible. Kenyan Alliance does not guarantee that any of the files available for download are virus free. Users will download and access external links at their own risks. Kenyan Alliance shall not be liable for any wrong use of information provided by you to third parties.
+												</p>
+												
+										 </li>
+										 <li><h3>3.	Our rights to use your information</h3>
+											<p>By using this portal, you agree to have us use your information for the following purposes. We will use your information based on most clicked links to direct the right information to your page based on your interests. Information collected from this site, which includes bio data information, physical and postal addresses, card information for any payments made, and mobile number might be stored in the company database for future use. You accept the risks inherent of any electronic communication. YOU HEREBY ACKNOWLEDGE TO OUR TERMS AND CONSENT to use and transfer your data for our own internal purposes as allowed by the law.
+												</p>
+										 </li>
+										 <li><h3>4.	Restricted Use</h3>
+											<p>There are several restrictions on what may or may not be done on this site.</p>
+											<p>You may not:</p>
+											<ul>
+												<li><p>•Reproduce, reverse engineering, or share information from Kenyan Alliance portal without prior written consent. </p></li>
+												<li><p>•Create a link from this Kenyan Alliance website for use in another website without prior written information to K.A.I</p></li>
+												<li><p>•Frame the website or any of its page without consent. </p></li>
+												<li><p>•Post or submit to the website any information of unlawful nature.</p></li>
+											</ul>
+										 </li>
+										 <li><h3>5.	Secure Payments</h3>
+											<p>If any payments are to be made to Kenyan Alliance using this portal, it is your responsibility to ensure that you use a safe payment process. Kenyan Alliance shall be liable for any damage caused by payment processes authorized by K.A.I</p>
+										 </li>
+										 <li><h3>6.	Account Credentials</h3>
+											<p>If you use any functionality in Kenyan Alliance that requires your username and password, it is your responsibility to maintain the confidentiality of these credentials. It is also a user responsibility to ensure that any activity done using these credentials, with or without their consent cannot hold Kenyan Alliance responsible. Notify Kenyan Alliance immediately in a case where these credentials are breached.
+												</p>
+											</li>
+											<li>
+												<h3>7. Termination to use this portal</h3>
+												<p>We hold all rights whatsoever to temporarily or permanently discontinue the access to this portal whenever a breach of any of these terms and conditions occur. </p>
+												
+										 </li>
+										 <li>
+											 <h3>8.	Miscellaneous</h3>
+											 <p> In the event any provision of these Terms and Conditions is held by a court of competent jurisdiction to be invalid, void or unenforceable, such offending provision(s) shall be stricken, and the remainder of the Terms and Conditions shall remain legal, valid and binding.</p>
+											 <p>These Terms and Conditions constitute the entire understanding between You and Us. All prior written or oral agreements, understandings, communications or practices between You and Us are hereby superseded insofar as they relate to the Service. </p>
+											 <p>These Terms and Conditions shall be governed by the Laws of Kenya. You may contact Us through our customer care contacts provided on our Website to report any disputes, claims or discrepancies in relating to the Service.</p>
+										 </li>
+										
+									</ol>
+							
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	
+<a class="scrollToHome text-thm" href="#"><i class="flaticon-rocket-launch"></i></a>
+</div>
+<!-- Wrapper End -->
+<!-- Wrapper End -->
+<script type="text/javascript" src="{{url_for('static', filename='js/jquery-3.3.1.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/jquery-migrate-3.0.0.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/popper.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/bootstrap.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/jquery.mmenu.all.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/ace-responsive-menu.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/bootstrap-select.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/snackbar.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/simplebar.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/parallax-new.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/parallax.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/scrollto.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/jquery-scrolltofixed-min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/jquery.counterup.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/wow.min.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/progressbar.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/slider.js', _external=True)}}"></script>
+<script type="text/javascript" src="{{url_for('static', filename='js/timepicker.js', _external=True)}}"></script>
+<!-- Custom script for all pages --> 
+<script type="text/javascript" src="{{url_for('static', filename='js/script.js', _external=True)}}"></script>
+</body>
+</html>

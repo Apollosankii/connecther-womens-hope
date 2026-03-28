@@ -1,0 +1,49 @@
+{%extends 'portemp.html'%}
+
+{%block content%}
+    
+<div class="col-lg-8 col-xl-9">
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="fz18 mb30">My Policies</h4>
+        </div>
+    </div>
+    {%for policy in policies%}
+    <div class="row applyed_job">
+        
+        <div class="col-sm-12 col-lg-12">
+            <div class="fj_post">
+                <div class="details">
+                    <h5 class="job_chedule text-thm mt0">{{policy.policy_num}}</h5>
+                    <div class="thumb fn-smd">
+                        <img class="img-fluid" src="{{url_for('static',filename='images/partners/house.jpg')}}" alt="3.jpg">
+                    </div>
+                    <h4>{{policy.product}}</h4>
+                    <span><h5>Term <a class="text-thm" href="#">{{policy.term}} Year(s)  </a></h5></span>
+                    <p>Tax free contributions up to a maximum of 
+                        <a class="text-thm" href="#">Kshs. 8,000/- </a>  per month or <a class="text-thm" href="#"> Kshs. 96,000/-</a>per annum.</p>
+                   <ul class="featurej_post">
+                        <li class="list-inline-item"><span class="flaticon-clock"></span> <a href="#">Start Date: {{policy.start}}</a></li>
+                        <li class="list-inline-item"><span class="flaticon-clock"></span> <a href="#">Maturity Date: {{policy.maturity}}</a></li>
+                        <li class="list-inline-item"><span class="flaticon-money"></span> <a href="#">Premium: KES <em>{{policy.premium}}</em></a></li>
+                        <li class="list-inline-item"><span class="flaticon-location-pin"></span> Frequency:<a href="#"><em> {{policy.freq}}</em></a></li>
+                        
+                    </ul>
+             
+                </div>
+                <ul class="view_edit_delete_list float-right">
+                  {#  <li class="list-inline-item"><a href="{{url_for('policyzoom',policy_num=policy.policy_num)}}" data-toggle="tooltip" data-placement="top" title="Review"><span class="flaticon-resume"></span></a></li>#}
+                    
+                </ul>
+            </div>
+        </div>
+        
+        
+    </div>
+    {%endfor%}
+    
+</div>
+    
+
+
+{%endblock%}

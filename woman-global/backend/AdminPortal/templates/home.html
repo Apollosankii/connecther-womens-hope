@@ -1,0 +1,150 @@
+{%extends 'base.html'%}
+
+{%block content%}
+
+<!-- Home Design -->
+<div class="home5-slider">
+    <div class="container-fluid">
+        <div class="row">
+            <div class="pogoSlider pogoSlider--dirCenterHorizontal pogoSlider--navBottom" id="js-main-slider">
+                <div class="pogoSlider-slide bgc-overlay-black7" data-transition="slideRevealLeft" data-duration="1500" style="background-image: url(&quot;{{url_for('static', filename='images/home/finance.jpg')}}&quot;);">
+                    <div class="home_content">
+                        <div class="container text-center">
+                            <div class="slider-text1">Live Your Best Life</div>
+                            <h4> Save Time. Save Money. Get Covered
+                            </h4>
+                            <p>Fun is like life insurance; the older you get, the more it costs.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="pogoSlider-slide bgc-overlay-black7" data-transition="slideRevealLeft" data-duration="1500" style="background-image:url(&quot;{{url_for('static', filename='images/home/sliderbg.jpg')}}&quot;);">
+                    <div class="home_content">
+                        <div class="container text-center">
+                            <div class="slider-text1">Protect Your Family</div>
+                            <h4> Your Wealth and Your Future</h4>
+                            <p>Remember when disaster strikes the time to prepare has passed</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="pogoSlider-slide bgc-overlay-black7" data-transition="slideRevealLeft" data-duration="2000" style="background-image:url(&quot;{{url_for('static', filename='images/home/school.jpg')}}&quot;">
+                    <div class="home_content">
+                        <div class="container text-center">
+                            <div class="slider-text1">The Future</div>
+                            <h4>You cant predict it</h4>
+                            <p> But you can protect it. Get covered today!</p>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- .pogoSlider -->
+        </div>
+    </div>
+</div>
+<!-- Popular Job Categories -->
+<section class="popular-job bgc-fa">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-12 text-center">
+                <div class="ulockd-main-title">
+                    <h3 class="mt0">Our Products</h3>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg1">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-pen"></span></div>
+                        <div class="details">
+                            <h5>Education Provider</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg2">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-mortarboard"></span></div>
+                        <div class="details">
+                            <h5>The Edplan</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg3">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-bars"></span></div>
+                        <div class="details">
+                            <h5>Income Booster</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg4">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-interview"></span></div>
+                        <div class="details">
+                            <h5>Family Protector</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg5">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-money"></span></div>
+                        <div class="details">
+                            <h5>Capital Creator</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg6">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-resume"></span></div>
+                        <div class="details">
+                            <h5>Renewable Term Assurance</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg7">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-work"></span></div>
+                        <div class="details">
+                            <h5>Planned Income Provider</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-sm-6 col-lg-3">
+                <a href="#" class="icon_hvr_img_box style2 sbbg8">
+                    <div class="overlay">
+                        <div class="icon"><span class="flaticon-care"></span></div>
+                        <div class="details">
+                            <h5>Living Assurance</h5>
+                            
+                        </div>
+                    </div>
+                </a>
+            </div>
+           {# <div class="col-lg-6 offset-lg-3">
+                <div class="pjc_all_btn text-center">
+                    <a class="btn btn-thm" href="#">Browse All Products <span class="flaticon-right-arrow pl10"></span></a>
+                </div>
+            </div>#}
+        </div>
+    </div>
+</section>
+
+{%endblock content%}

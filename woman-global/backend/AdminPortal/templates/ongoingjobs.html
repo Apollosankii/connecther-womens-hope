@@ -1,0 +1,43 @@
+{%extends 'portemp.html'%} {%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9">
+    <div class="row">
+        <div class="col-lg-12">
+            <h4 class="fz20 mb30">Pending Jobs</h4>
+        </div>
+        <div class="col-lg-12">
+            <div class="candidate_job_reivew style2">
+                <div class="table-responsive job_review_table mt0">
+                    <table class="table">
+                        <thead class="thead-light">
+                            <tr>
+                                <th scope="col">Quote No</th>
+                                <th scope="col">Client</th>
+                                <th scope="col">Provider</th>
+                                <th scope="col">Service</th>
+                                <th scope="col">Date</th>
+                                <th scope="col">Price</th>
+
+                                
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {%for job in jobs%}
+                            <tr>
+                    
+                                <th scope="row"><a href="#" style="color: pink">{{job.quote}}</a></th>
+                                <td>{{job.client}}</td>
+                                <td>{{job.provider}}</td>
+                                <td>{{job.service}}</td>
+                                <td>{{job.date}}</td>
+                                <td><a href="#" style="color: pink">{{job.price}}</a></td>
+                            </tr>
+                            {%endfor%}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{%endblock content%}

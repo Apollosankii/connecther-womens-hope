@@ -1,0 +1,74 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">{% if is_edit %}Edit plan{% else %}Add subscription plan{% endif %}</h2>
+        <p class="ch-page-subtitle">{% if is_edit %}Update plan details.{% else %}Create a new plan for the app.{% endif %}</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label for="name">Name <span class="text-danger">*</span></label>
+                    <input type="text" id="name" name="name" class="form-control" value="{{ plan.name if plan else '' }}" placeholder="e.g. Premium" required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" class="form-control" rows="2" placeholder="Short description for the app">{{ plan.description if plan else '' }}</textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label for="price">Price <span class="text-danger">*</span></label>
+                        <input type="number" id="price" name="price" class="form-control" step="0.01" min="0" value="{{ plan.price if plan else '' }}" placeholder="999" required>
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="currency">Currency</label>
+                        <input type="text" id="currency" name="currency" class="form-control" value="{{ plan.currency if plan else 'KES' }}" placeholder="KES">
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label for="duration_value">Duration value</label>
+                        <input type="number" id="duration_value" name="duration_value" class="form-control" value="{{ plan.duration_value if plan else 1 }}" min="1">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="duration_type">Duration type</label>
+                    <select id="duration_type" name="duration_type" class="form-control">
+                        <option value="month" {% if plan and plan.duration_type == 'month' %}selected{% endif %}>Month</option>
+                        <option value="year" {% if plan and plan.duration_type == 'year' %}selected{% endif %}>Year</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="features">Features (one per line)</label>
+                    <textarea id="features" name="features" class="form-control" rows="4" placeholder="Unlimited consultations&#10;24/7 support">{% if plan and plan.get('features') %}{{ plan.features | join('\n') }}{% endif %}</textarea>
+                    <small class="form-text text-muted">Bullet points shown in the app for this plan.</small>
+                </div>
+                <div class="form-group">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_active" name="is_active" value="1" {% if not plan or plan.is_active %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_active">Active (show in app)</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="is_popular" name="is_popular" value="1" {% if plan and plan.is_popular %}checked{% endif %}>
+                        <label class="custom-control-label" for="is_popular">Mark as popular</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="sort_order">Sort order</label>
+                    <input type="number" id="sort_order" name="sort_order" class="form-control" value="{{ plan.sort_order if plan else 0 }}" min="0">
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">{% if is_edit %}Update plan{% else %}Create plan{% endif %}</button>
+                    <a href="{{ url_for('subscription_plans') }}" class="btn btn-outline-secondary ml-2">Cancel</a>
+                    {% if is_edit and plan %}
+                    <button type="submit" name="_action" value="toggle_active" class="btn btn-outline-info ml-2">{% if plan.is_active %}Deactivate{% else %}Activate{% endif %}</button>
+                    <button type="submit" name="_action" value="delete" class="btn btn-outline-danger ml-2" onclick="return confirm('Delete this plan? Active subscriptions will prevent hard delete.');">Delete</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

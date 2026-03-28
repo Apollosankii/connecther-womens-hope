@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background"
+    android:gravity="center_horizontal"
+    android:padding="16dp">
+
+    <!-- Top section (Welcome Back) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="2"
+        android:background="@drawable/curved_top_background"
+        android:gravity="center"
+        android:paddingTop="50dp">
+
+        <TextView
+            android:id="@+id/loginWelcomeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Welcome Back!"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="@color/nav_item_color"
+            android:fontFamily="@font/poppins" />
+    </LinearLayout>
+
+    <!-- Bottom section (Curved Upwards) -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="7"
+        android:background="@drawable/curved_bottom_background"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:paddingTop="20dp">
+
+        <EditText
+            android:id="@+id/emailInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/rounded_edittext"
+            android:hint="Email address"
+            android:inputType="textEmailAddress"
+            android:fontFamily="@font/poppins"
+            android:textColor="@color/nav_item_color"
+            android:textColorHint="@color/grey"
+            android:padding="14dp" />
+
+        <EditText
+            android:id="@+id/passwordInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/rounded_edittext"
+            android:hint="Password"
+            android:inputType="textPassword"
+            android:fontFamily="@font/poppins"
+            android:textColor="@color/nav_item_color"
+            android:textColorHint="@color/grey"
+            android:padding="14dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:paddingBottom="10dp"
+            android:paddingTop="10dp"
+            android:layout_marginBottom="24dp">
+
+            <CheckBox
+                android:id="@+id/rememberPasswordCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Remember Password"
+                android:layout_gravity="center_horizontal"
+                android:textSize="14sp"
+                android:textColor="@color/nav_item_color"
+                android:fontFamily="@font/poppins" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/forgotPasswordText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="Forgot Password?"
+            android:textSize="14sp"
+            android:textColor="@color/nav_item_color"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="18dp"
+            android:fontFamily="@font/poppins" />
+
+        <Button
+            android:id="@+id/loginButton"
+            style="@style/main_button"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginBottom="12dp"
+            android:text="Login"
+            android:visibility="visible"
+            android:textAllCaps="false"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/googleSignInButton"
+            android:layout_width="match_parent"
+            android:layout_height="54dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/button_google_outline"
+            android:textColor="@color/nav_item_color"
+            android:fontFamily="@font/poppins"
+            android:text="Continue with Google"
+            android:textAllCaps="false"
+            android:textStyle="bold" />
+
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/registerText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:paddingTop="16dp"
+            android:text="Don't have an account? Register"
+            android:textColor="@color/nav_item_color"
+            android:textSize="14sp"
+            android:gravity="center"
+            android:fontFamily="@font/poppins" />
+
+    </LinearLayout>
+
+</LinearLayout>

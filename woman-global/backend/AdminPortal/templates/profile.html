@@ -1,0 +1,86 @@
+{%extends 'portemp.html'%}
+
+{%block content%} 
+<div class="col-sm-12 col-lg-8 col-xl-9">
+    <div class="my_profile_form_area">
+        <form action="#" method="POST">
+           {# <!-- <form action="{{url_for('profileupdate')}}" method="POST"> -->#}
+        <div class="row">
+            
+            <div class="col-lg-12">
+                <h4 class="fz20 mb20">My Profile</h4>
+            </div>
+            <div class="col-lg-12">
+                <div class="my_profile_thumb_edit"></div>
+            </div>
+            
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput1">Full Name</label>
+                    <input type="text" readonly class="form-control" id="formGroupExampleInput1" value="{{user.name}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput2">ID Number</label>
+                    <input type="text" readonly class="form-control" id="formGroupExampleInput2" name="idnum" value="{{user.id}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput2">Gender</label>
+                    <input type="text" readonly class="form-control" id="exampleFormControlInput2"  value='{{user.gender}}'>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleInputPhone">Phone</label>
+                    <input type="text" class="form-control" name="phone" id="exampleInputPhone" aria-describedby="phoneNumber" value="{{user.phone}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput1">Email address</label>
+                    <input type="email" class="form-control" id="exampleFormControlInput1" name='email' value="{{user.email}}">
+                </div>
+            </div>
+            
+            
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput2">Registration Date</label>
+                    <input type="text" readonly class="form-control" id="exampleFormControlInput2"  value='{{user.regdate}}'>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput2">KRA PIN</label>
+                    <input type="text" readonly class="form-control" id="exampleFormControlInput2"  value='{{user.pin}}'>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="formGroupExampleInput2">Postal Address</label>
+                    <input type="text" class="form-control" id="formGroupExampleInput2" name="postal" value="{{user.postal}}">
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-6">
+                <div class="my_profile_input form-group">
+                    <label for="exampleFormControlInput2">Physical Address</label>
+                    <input type="text" class="form-control" id="exampleFormControlInput2" name="physical" value='{{user.physicaladd}}'>
+                </div>
+            </div>
+            
+            
+            <div class="col-lg-4">
+                <div class="my_profile_input">
+                    <button type="submit" class="btn btn-log btn-block btn-dark">Save Changes</button>									
+                </div>
+            </div>
+        
+        </div>
+    </form>
+    </div>
+</div>
+
+{%endblock%}

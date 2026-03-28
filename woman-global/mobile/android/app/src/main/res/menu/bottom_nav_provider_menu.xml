@@ -1,0 +1,22 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/navigation_home"
+        android:icon="@mipmap/home"
+        android:title="Home" />
+    <item
+        android:id="@+id/navigation_messages"
+        android:icon="@drawable/chat_bubble_icon"
+        android:title="Messages" />
+    <item
+        android:id="@+id/navigation_jobs"
+        android:icon="@drawable/jobs_icon"
+        android:title="Jobs" />
+    <item
+        android:id="@+id/navigation_services"
+        android:icon="@drawable/ic_services_nav"
+        android:title="Services" />
+    <item
+        android:id="@+id/navigation_profile"
+        android:icon="@mipmap/profile"
+        android:title="Profile" />
+</menu>

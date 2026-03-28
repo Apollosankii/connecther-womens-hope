@@ -1,0 +1,135 @@
+Geo Points
+Lat: -1.404 - Long: 36.782
+Lat: -1.399 - Long: 36.787
+Lat: -1.347 - Long: 36.757
+Lat: -1.334 - Long: 36.749
+Lat: -1.33 - Long: 36.777
+Lat: -1.28 - Long: 36.782
+Lat: -1.254 - Long: 36.715
+Lat: -1.257 - Long: 36.739
+Lat: -1.278 - Long: 36.736
+Lat: -1.253 - Long: 36.836
+Lat: -1.267 - Long: 36.782
+Lat: -1.256 - Long: 36.965
+Lat: -1.258 - Long: 36.985
+Lat: -1.237 - Long: 36.933
+Lat: -1.234 - Long: 36.843
+
+Lat: -1.265 - Long: 36.749 Mountain View
+Lat: -1.259 - Long: 36.775 Kitusuru
+Lat: -1.26 - Long: 36.707 Uthiru
+Lat: -1.265 - Long: 36.837 Pangani
+Lat: -1.274 - Long: 36.826 Ngara
+Lat: -1.279 - Long: 36.752 Kawangware
+Lat: -1.266 - Long: 36.696 Kagondo
+Lat: -1.291 - Long: 36.726 Kabiria
+Lat: -1.267 - Long: 36.904 Komarock
+Lat: -1.265 - Long: 36.892 Mowlem
+
+
+insert into test_cities (location, latitude, longitude) values ('Mountain View', -1.265, 36.749);
+insert into test_cities (location, latitude, longitude) values ('Kitusuru', -1.259, 36.775);
+insert into test_cities (location, latitude, longitude) values ('Uthiru', -1.26, 36.707); Control (Test user: Thurstan)
+insert into test_cities (location, latitude, longitude) values ('Pangani', -1.265, 36.837); Control (Test user: Rafaello, Role: Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Ngara', -1.274, 36.826); Control (Test user: Byran Role: Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Kawangware', -1.279, 36.752); Control (Test user: Ebonee Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Kagondo', -1.266, 36.696); Control (Test user: Carroll Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Kabiria', -1.291, 36.726); Control (Test user: Giffie Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Komarock', -1.291, 36.904); Control (Test user: Cyril Service Provider)
+insert into test_cities (location, latitude, longitude) values ('Mowlem', -1.265, 36.904); Control (Test user: Nona Service Provider)
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySUQiOiI1NzEyZDciLCJleHBpcnkiOjE3MzE0OTIyNTEuNjQ4NzA3Nn0.sw4LqdSrHe7SEtzL020sT2Mm0FY3jhI9zwHSgLLczqA"
+}
+[{
+  "first_name": "Eddi",
+  "last_name": "Poynser",
+  "phone": "993-655-3294",
+  "email": "epoynser0@unicef.org",
+  "title": "Rev",
+  "password": "stringst123"
+}, {
+  "first_name": "Thurstan",
+  "last_name": "Waylen",
+  "phone": "843-569-2944",
+  "email": "twaylen1@arstechnica.com",
+  "title": "Mrs",
+  "password": "stringst123"
+}, {
+  "first_name": "Rafaello",
+  "last_name": "Colebourn",
+  "phone": "301-173-9585",
+  "email": "rcolebourn2@discuz.net",
+  "title": "Ms",
+  "password": "rC6(C}RyUt"
+}, {
+  "first_name": "Byran",
+  "last_name": "Marioneau",
+  "phone": "907-895-9762",
+  "email": "bmarioneau3@discuz.net",
+  "title": "Ms",
+  "password": "sP5\\k$E/f7Q"
+}, {
+  "first_name": "Ebonee",
+  "last_name": "Danneil",
+  "phone": "523-695-5911",
+  "email": "edanneil4@cocolog-nifty.com",
+  "title": "Honorable",
+  "password": "tH3!>/'8Q<UIt"
+}, {
+  "first_name": "Carroll",
+  "last_name": "Ballin",
+  "phone": "984-967-9864",
+  "email": "cballin5@home.pl",
+  "title": "Ms",
+  "password": "tU1`F&aUornDm"
+}, {
+  "first_name": "Giffie",
+  "last_name": "Hoble",
+  "phone": "527-233-1008",
+  "email": "ghoble6@amazon.co.uk",
+  "title": "Ms",
+  "password": "jX3_MQ)~C25I\"1"
+}, {
+  "first_name": "Cyril",
+  "last_name": "Madsen",
+  "phone": "792-128-8429",
+  "email": "cmadsen7@usda.gov",
+  "title": "Mrs",
+  "password": "yS8>\"RVWx#P\\6"
+}, {
+  "first_name": "Nona",
+  "last_name": "Harlick",
+  "phone": "644-209-4765",
+  "email": "nharlick8@aol.com",
+  "title": "Mrs",
+  "password": "gF6\\midm"
+}, {
+  "first_name": "Celeste",
+  "last_name": "Boseley",
+  "phone": "770-694-4874",
+  "email": "cboseley9@ow.ly",
+  "title": "Mrs",
+  "password": "mN7$\"R??n8."
+}]
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySUQiOiI1NzEyZDciLCJleHBpcnkiOjE3MzY4NjUzNzYuNjYzNTU2OH0.srkeqMhR0Hw_Xpx8Km_a_VtCZ5tIU90QFcMJCLURUDg"
+}
+
+{
+  "info": "Login Successfull",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySUQiOiIwOGM4NWYiLCJleHBpcnkiOjE3MzgzMjIxNTEuOTM5MjMyM30.SflknULtrtlJxHV-SyRLTbGWTOj0Hg59c2o24mhON2o"
+}
+
+5b2d72
+{
+  "phone": "843-569-2944",
+  "password": "stringst123"
+}
+
+from models.models import User,Quote,Chat,Message
+from models.dbfx import session,load_quotes,distress_call
+chat=session.query(Chat).filter(Chat.quote_id==2).first()
+
+22c7b7
+
+41.139.230.2
+

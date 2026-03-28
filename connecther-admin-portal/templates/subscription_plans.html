@@ -1,0 +1,42 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Subscription Plans</h2>
+            <p class="ch-page-subtitle">Create, edit, and activate plans shown in the app (Basic, Premium, Yearly).</p>
+        </div>
+        <a href="{{ url_for('subscription_plan_add') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">+ Add plan</a>
+    </div>
+
+    <div class="row">
+        {% for plan in plans %}
+        <div class="col-sm-6 col-xl-4 mb-3">
+            <div class="ch-service-card h-100">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="ch-service-id">#{{ plan.id }}</span>
+                    {% if plan.is_popular %}<span class="badge badge-success">Popular</span>{% endif %}
+                </div>
+                <h4 class="ch-service-name">{{ plan.name }}</h4>
+                <p class="ch-service-desc">{{ plan.description }}</p>
+                <div class="ch-service-footer">
+                    <span class="ch-service-price"><span class="flaticon-money"></span> {{ plan.currency }} {{ plan.price }} / {{ plan.duration_value }} {{ plan.duration_type }}{% if plan.duration_value != 1 %}s{% endif %}</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center mt-2 pt-2 border-top">
+                    <span class="mr-2"><strong>Active:</strong> {% if plan.is_active %}<span class="text-success">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</span>
+                    <span class="mr-2 text-muted">Order: {{ plan.sort_order }}</span>
+                    <a href="{{ url_for('subscription_plan_edit', plan_id=plan.id) }}" class="ch-btn-sm ml-auto">Edit</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if not plans %}
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <p class="ch-empty-state mb-0">No subscription plans. Add one to get started.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

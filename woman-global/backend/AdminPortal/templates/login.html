@@ -1,0 +1,100 @@
+{%extends 'base.html'%}
+
+{%block content%}
+<!-- Our LogIn Register -->
+<section class="our-log-reg bgc-fa">
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12 col-lg-6">
+                <div class="login_form">
+                    <form action="{{url_for('sign_in')}}" method="POST">
+                        <div class="heading">
+                            <h3 class="text-center">Admin Login</h3>
+                           
+                        </div>
+                         <div class="form-group">
+                            <input type="text" class="form-control" id="exampleInputEmail1" placeholder="Enter Email/ID Number" name='identifier'>
+                        </div>
+                        <div class="form-group">
+                            <input type="password" class="form-control" id="exampleInputPassword1" name="password" placeholder="Password">
+                        </div>
+                        <div class="form-group form-check">
+                            <input type="checkbox" class="form-check-input" id="exampleCheck1">
+                            <label class="form-check-label" for="exampleCheck1">Remember me</label>
+                            {#<a class="tdu text-thm float-right" href="#">Forgot Password?</a>#}
+                        </div>
+                        <button type="submit" class="btn btn-log btn-block btn-thm">Login</button>
+                        <hr>
+                        
+                    </form>
+                </div>
+            </div>
+            <div class="col-sm-12 col-lg-6">
+                <div class="sign_up_form">
+                    <div class="heading">
+                        <h3 class="text-center">Create New Account</h3>
+                        
+                    </div>
+                    
+                    <div class="tab-content" id="pills-tabContent">
+                        <div class="tab-pane fade show active" id="pills-home" role="tabpanel" aria-labelledby="pills-home-tab">
+                            <form action="{{url_for('sign_up')}}">
+                                <div class="form-group">
+							    	<input type="text" class="form-control" id="exampleInputName1" name="fullname" placeholder="Full Name">
+								</div>
+                                <div class="form-group">
+                                    <input type="text" class="form-control" id="exampleInputName1" placeholder="ID Number" name="idno">
+                                </div>
+                                 <div class="form-group">
+                                    <input type="email" class="form-control" id="exampleInputEmail2" placeholder="Email" name="email">
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" class="form-control" id="exampleInputPhone1" placeholder="0712345689" name="phone">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <input type="password" class="form-control" id="exampleInputPassword2" placeholder="Password" name="password">
+                                </div>
+                                <div class="form-group form-check">
+                                    <input type="checkbox" class="form-check-input" id="exampleCheck2">
+                                    <label class="form-check-label" for="exampleCheck2">By Registering You Confirm That You Accept <a class="text-thm" href="page-terms-and-policies.html">Terms & Conditions</a> And <a class="text-thm" href="page-terms-and-policies.html">Privacy Policy</a></label>
+                                </div>
+                                <button type="submit" class="btn btn-log btn-block btn-dark">Register</button>
+                                <hr>
+                                
+                            </form>
+                        </div>
+                        <div class="tab-pane fade" id="pills-profile" role="tabpanel" aria-labelledby="pills-profile-tab">
+                            <form action="#">
+                                <div class="form-group">
+                                    <input type="text" class="form-control" id="exampleInputName2" placeholder="User Name">
+                                </div>
+                                 <div class="form-group">
+                                    <input type="email" class="form-control" id="exampleInputEmail3" placeholder="Email">
+                                </div>
+                                <div class="form-group">
+                                    <input type="number" class="form-control" id="exampleInputPhone2" placeholder="Phone Number">
+                                </div>
+                               
+                                <div class="form-group">
+                                    <input type="password" class="form-control" id="exampleInputPassword3" placeholder="Password">
+                                </div>
+                                <div class="form-group form-check">
+                                    <input type="checkbox" class="form-check-input" id="exampleCheck3">
+                                    <label class="form-check-label" for="exampleCheck3">By Registering You Confirm That You Accept <a class="text-thm" href="page-terms-and-policies.html">Terms & Conditions</a> And <a class="text-thm" href="page-terms-and-policies.html">Privacy Policy</a></label>
+                                </div>
+                                <button type="submit" class="btn btn-log btn-block btn-dark">Register</button>
+                                <hr>
+                                <div class="row mt40">
+                                   
+                                   
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{%endblock content%}

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@color/background">
+
+    <TextView
+        android:id="@+id/paymentTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="How To Pay"
+        android:layout_gravity="center_horizontal"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:paddingTop="30dp"
+        android:layout_marginBottom="16dp" />
+
+
+    <LinearLayout
+        android:id="@+id/mpesaPaymentLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <ImageView
+            android:id="@+id/mpesaLogo"
+            android:layout_width="wrap_content"
+            android:layout_height="40dp"
+            android:layout_margin="8dp"
+            android:src="@mipmap/mpesa_logo"
+           />
+
+        <TextView
+            android:id="@+id/customerPromptInstructionsTxt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="16dp"
+            android:text="Dear Customer...." />
+
+        <TextView
+            android:id="@+id/txtAmountInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:padding="8dp"
+            android:textAlignment="center"
+            android:textColor="@android:color/black"
+            android:textStyle="bold" />
+
+        <EditText
+            android:id="@+id/edTillNumber"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Till No : 514132"
+            android:focusable="false"
+            android:clickable="false"
+            android:inputType="none"
+            android:background="@drawable/rounded_edittext"
+            android:padding="12dp"
+            android:textStyle="bold"
+            android:paddingStart="130dp"
+            android:layout_gravity="center"/>
+
+        <TextView
+            android:id="@+id/tillInstructionsTxt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="16dp"
+            android:text="1. Go to Lipa na M-Pesa\n2. Buy Goods and Services\n3. Enter Till Shown Above\n4. Enter Amount: {Price}\n5. Enter M-Pesa Pin" />
+
+        <Button
+            android:id="@+id/btnPayButton"
+            style="@style/main_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Pay"
+            android:textAllCaps="false" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,201 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Dashboard</h2>
+        <p class="ch-page-subtitle">Overview of your ConnectHer admin panel</p>
+    </div>
+
+    <div class="row ch-stat-row">
+        <div class="col-sm-6 col-xl-3">
+            <div class="ch-stat-card ch-stat-1">
+                <div class="ch-stat-icon"><span class="flaticon-resume"></span></div>
+                <div class="ch-stat-info">
+                    <span class="ch-stat-number">{{ quotes_count|default(0) }}</span>
+                    <span class="ch-stat-label">Quotes</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="ch-stat-card ch-stat-2">
+                <div class="ch-stat-icon"><span class="flaticon-money"></span></div>
+                <div class="ch-stat-info">
+                    <span class="ch-stat-number">KES {{ balance|default(0) }}</span>
+                    <span class="ch-stat-label">Transactions</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="ch-stat-card ch-stat-3">
+                <div class="ch-stat-icon"><span class="flaticon-profile"></span></div>
+                <div class="ch-stat-info">
+                    <span class="ch-stat-number">{{ users_count|default(0) }}</span>
+                    <span class="ch-stat-label">All Users</span>
+                </div>
+            </div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="ch-stat-card ch-stat-4">
+                <div class="ch-stat-icon"><span class="flaticon-tag"></span></div>
+                <div class="ch-stat-info">
+                    <span class="ch-stat-number">{{ (approvals|length)|default(0) }}</span>
+                    <span class="ch-stat-label">Pending Approvals</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="ch-card">
+                <div class="ch-card-header">
+                    <h5 class="ch-card-title">Quick links</h5>
+                </div>
+                <div class="ch-card-body">
+                    <div class="row">
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('service_providers') }}" class="ch-quick-link">
+                                <span class="flaticon-work ch-quick-icon"></span>
+                                <span>Providers</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('app_users') }}" class="ch-quick-link">
+                                <span class="flaticon-profile ch-quick-icon"></span>
+                                <span>App Users</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('services') }}" class="ch-quick-link">
+                                <span class="flaticon-analysis ch-quick-icon"></span>
+                                <span>Services</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('get_approvals') }}" class="ch-quick-link">
+                                <span class="flaticon-paper-plane ch-quick-icon"></span>
+                                <span>Approvals</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('pending_jobs') }}" class="ch-quick-link">
+                                <span class="flaticon-job ch-quick-icon"></span>
+                                <span>Ongoing Jobs</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('complete_jobs') }}" class="ch-quick-link">
+                                <span class="flaticon-job ch-quick-icon"></span>
+                                <span>Complete Jobs</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('subscription_plans') }}" class="ch-quick-link">
+                                <span class="flaticon-money ch-quick-icon"></span>
+                                <span>Subscription Plans</span>
+                            </a>
+                        </div>
+                        <div class="col-6 col-md-4 mb-3">
+                            <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-quick-link">
+                                <span class="flaticon-profile ch-quick-icon"></span>
+                                <span>User Subscriptions</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+{% if context|length > 0 %}
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Analytics</h5>
+            <ul class="nav nav-pills ch-pills" id="pills-tab" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="pills-home-tab" data-toggle="pill" href="#pills-home" role="tab">{{first_pol}}</a>
+                </li>
+            </ul>
+        </div>
+        <div class="ch-card-body">
+            <div class="tab-content" id="pills-tabContent">
+                <div class="tab-pane fade show active" id="pills-home" role="tabpanel">
+                    <div class="ch-chart-area">
+                    {%for each in context.first%}
+                        <embed type="image/svg+xml" src="{{each|safe}}" style="max-width:100%" />
+                    {%endfor%}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{%else%}
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Analytics</h5>
+            <ul class="nav nav-pills ch-pills" id="pills-tab" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" id="pills-home-tab" data-toggle="pill" href="#pills-home" role="tab">Jobs</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="pills-profile-tab" data-toggle="pill" href="#pills-profile" role="tab">Users</a>
+                </li>
+            </ul>
+        </div>
+        <div class="ch-card-body">
+            <div class="tab-content" id="pills-tabContent">
+                <div class="tab-pane fade show active" id="pills-home" role="tabpanel">
+                    <div class="ch-chart-area c_container" style="min-height: 260px;">
+                        <canvas id="chart-jobs" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="pills-profile" role="tabpanel">
+                    <div class="ch-chart-area" style="min-height: 260px;">
+                        <canvas id="chart-users" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function() {
+        var cd = {{ (chart_data or {})|tojson|safe }};
+        if (typeof Chart !== 'undefined' && cd) {
+            var jobsCtx = document.getElementById('chart-jobs');
+            if (jobsCtx) {
+                new Chart(jobsCtx.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Pending Jobs', 'Complete Jobs'],
+                        datasets: [{
+                            label: 'Jobs',
+                            data: [cd.pending_jobs || 0, cd.complete_jobs || 0],
+                            backgroundColor: ['#f59e0b', '#10b981'],
+                            borderColor: ['#d97706', '#059669'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true, scales: { y: { beginAtZero: true } } }
+                });
+            }
+            var usersCtx = document.getElementById('chart-users');
+            if (usersCtx) {
+                new Chart(usersCtx.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Providers', 'App Users', 'Pending Approvals'],
+                        datasets: [{
+                            data: [cd.providers || 0, cd.app_users || 0, cd.approvals_count || 0],
+                            backgroundColor: ['#6366f1', '#0ea5e9', '#f59e0b'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: { responsive: true, maintainAspectRatio: true }
+                });
+            }
+        }
+    })();
+    </script>
+{%endif%}
+</div>
+{%endblock content%}

@@ -1,0 +1,162 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Provider Proposal</h2>
+            <p class="ch-page-subtitle">Review {{provider.first_name}} {{provider.last_name}}'s application</p>
+        </div>
+        <a href="{{url_for('get_approvals')}}" class="ch-btn-sm">&larr; Back to Approvals</a>
+    </div>
+
+    <form action="{{url_for('approve')}}" method="POST" enctype="multipart/form-data">
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Personal Information</h5>
+            <span class="ch-badge ch-badge-warning">Pending Approval</span>
+        </div>
+        <div class="ch-card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">First Name</label>
+                        <div class="ch-field-value">{{provider.first_name}}</div>
+                        <input type="hidden" name="first_name" value="{{provider.first_name}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Last Name</label>
+                        <div class="ch-field-value">{{provider.last_name}}</div>
+                        <input type="hidden" name="last_name" value="{{provider.last_name}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Title</label>
+                        <input type="text" class="form-control" name="title" value="{{provider.title}}" style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Phone</label>
+                        <div class="ch-field-value">{{provider.phone}}</div>
+                        <input type="hidden" name="phone" value="{{provider.phone}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Gender</label>
+                        <div class="ch-field-value">Female</div>
+                        <input type="hidden" name="gender" value="Female">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Email</label>
+                        <div class="ch-field-value">{{provider.phone}}</div>
+                        <input type="hidden" name="email" value="{{provider.phone}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Date of Birth</label>
+                        <div class="ch-field-value">{{provider.dob}}</div>
+                        <input type="hidden" name="dob" value="{{provider.dob}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Country</label>
+                        <div class="ch-field-value">{{provider.country}}</div>
+                        <input type="hidden" name="country" value="{{provider.country}}">
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="ch-field">
+                        <label class="ch-field-label">National ID</label>
+                        <div class="ch-field-value"><code class="ch-code">{{provider.nat_id}}</code></div>
+                        <input type="hidden" name="nat_id" value="{{provider.nat_id}}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">County</label>
+                        <div class="ch-field-value">{{provider.county}}</div>
+                        <input type="hidden" name="county" value="{{provider.county}}">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Area Name</label>
+                        <div class="ch-field-value">{{provider.area_name}}</div>
+                        <input type="hidden" name="mtaa" value="{{provider.area_name}}">
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="internal_id" value="{{ internal_id }}">
+        </div>
+        <div class="ch-card" style="margin-top:1rem;">
+            <div class="ch-card-header">
+                <h5 class="ch-card-title">Services this provider will offer</h5>
+                <span class="ch-badge ch-badge-info">Select at least one so they appear in the app</span>
+            </div>
+            <div class="ch-card-body">
+                <div class="row">
+                    {% for service in services %}
+                    <div class="col-md-6 col-lg-4" style="margin-bottom:0.75rem;">
+                        <div class="custom-control custom-switch">
+                            <input type="checkbox" class="custom-control-input" id="service{{service.service_id}}" name="subscriptions" value="{{service.service_id}}"{% if application_service_ids and service.service_id in application_service_ids %} checked{% endif %}>
+                            <label class="custom-control-label" for="service{{service.service_id}}" style="color:var(--ch-text);font-weight:500;">{{service.name}}</label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if not services %}
+                <p class="text-muted small">No services available. Add services first.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="ch-card" style="margin-top:1rem;">
+            <div class="ch-card-header">
+                <h5 class="ch-card-title">Verification documents</h5>
+                <span class="ch-badge ch-badge-info">National ID / DL &amp; certifications from the applicant</span>
+            </div>
+            <div class="ch-card-body">
+                {% if application_documents and application_documents|length > 0 %}
+                <div class="table-responsive">
+                    <table class="table table-sm" style="color:var(--ch-text);">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>File</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for doc in application_documents %}
+                            <tr>
+                                <td>{{ doc.doc_type_name or 'Document' }}</td>
+                                <td>
+                                    {% if doc.name and (doc.name.startswith('http://') or doc.name.startswith('https://')) %}
+                                    <a href="{{ doc.name }}" target="_blank" rel="noopener noreferrer" class="ch-btn-sm" style="display:inline-block;">Open / download</a>
+                                    {% else %}
+                                    <span class="text-muted small">{{ doc.name }}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">No documents uploaded yet for this applicant. They may need to re-submit from the app after applying the verification document types SQL migration, or upload under Profile → Portfolio.</p>
+                {% endif %}
+            </div>
+        </div>
+        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;margin-top:1rem;">
+            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Approve Provider</button>
+        </div>
+    </div>
+    </form>
+</div>
+{%endblock%}

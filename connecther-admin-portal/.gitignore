@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+*.pem
+firebase_service_account.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+debug.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,103 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Edit Provider</h2>
+            <p class="ch-page-subtitle">{{provider.first_name}} {{provider.last_name}}</p>
+        </div>
+        <a href="{{url_for('service_providers')}}" class="ch-btn-sm">&larr; Back to Providers</a>
+    </div>
+
+    <form action="{{url_for('flush_provider')}}" method="POST">
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Profile Information</h5>
+        </div>
+        <div class="ch-card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">First Name</label>
+                        <input type="text" class="form-control" name="first_name" value="{{provider.first_name}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Last Name</label>
+                        <input type="text" class="form-control" name="last_name" value="{{provider.last_name}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">National ID</label>
+                        <input type="text" class="form-control" name="nat_id" value="{{provider.nat_id}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Phone</label>
+                        <input type="text" class="form-control" name="phone" value="{{provider.phone}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">County</label>
+                        <input type="text" class="form-control" name="county" value="{{provider.county}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Area Name</label>
+                        <input type="text" class="form-control" name="area_name" value="{{provider.area_name}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Emergency Contact 1</label>
+                        <input type="text" class="form-control" name="emm_cont_1" value="{{provider.emm_cont_1}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Emergency Contact 2</label>
+                        <input type="text" class="form-control" name="emm_cont_2" value="{{provider.emm_cont_2}}"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" name="user_id" value="{{provider.user_name}}">
+            <input type="hidden" name="title" value="{{provider.title}}">
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Services Offered</h5>
+        </div>
+        <div class="ch-card-body">
+            <div class="row">
+                {%for service in services%}
+                <div class="col-md-6 col-lg-4" style="margin-bottom:0.75rem;">
+                    <div class="custom-control custom-switch">
+                        <input type="checkbox" class="custom-control-input" id="customSwitch{{service.service_id}}" name="subscriptions" value="{{service.service_id}}">
+                        <label class="custom-control-label" for="customSwitch{{service.service_id}}" style="color:var(--ch-text);font-weight:500;">{{service.name}}</label>
+                    </div>
+                </div>
+                {%endfor%}
+            </div>
+        </div>
+        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;">
+            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Save Changes</button>
+        </div>
+    </div>
+    </form>
+</div>
+{%endblock%}

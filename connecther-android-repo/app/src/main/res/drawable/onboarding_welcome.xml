@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="220dp"
+    android:height="220dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Handshake / connection icon -->
+    <path
+        android:pathData="M20,60 Q30,50 40,55 L60,45 Q70,40 80,50"
+        android:strokeWidth="4"
+        android:strokeColor="#C2185B"
+        android:fillColor="#00000000"/>
+    <path
+        android:pathData="M35,55 L45,65 L55,55"
+        android:strokeWidth="3"
+        android:strokeColor="#C2185B"
+        android:fillColor="#00000000"/>
+    <path android:pathData="M25,70 m-8,0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0" android:fillColor="#C2185B"/>
+    <path android:pathData="M75,60 m-8,0 a8,8 0 1,1 16,0 a8,8 0 1,1 -16,0" android:fillColor="#C2185B"/>
+    <path
+        android:pathData="M50,85 Q50,75 50,65"
+        android:strokeWidth="2"
+        android:strokeColor="#E0B0BF"
+        android:fillColor="#00000000"/>
+</vector>

@@ -1,0 +1,42 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">App Users</h2>
+        <p class="ch-page-subtitle">Users registered on the ConnectHer mobile app</p>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">All App Users</h5>
+        </div>
+        <div class="ch-card-body ch-card-body--table">
+            <table class="ch-table">
+                <thead>
+                    <tr>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Recruited</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {%for app_user in app_users%}
+                    <tr>
+                        <td class="ch-td-name">{{app_user.first_name}}</td>
+                        <td class="ch-td-name">{{app_user.last_name}}</td>
+                        <td>{{app_user.phone}}</td>
+                        <td>{{app_user.email or '—'}}</td>
+                        <td>{% if app_user.WH_Badge %}<span class="ch-badge ch-badge-success">Yes</span>{% else %}<span class="ch-badge ch-badge-muted">No</span>{% endif %}</td>
+                    </tr>
+                    {%endfor%}
+                    {%if not app_users%}
+                    <tr><td colspan="5" class="ch-empty-state">No app users yet</td></tr>
+                    {%endif%}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{%endblock content%}
