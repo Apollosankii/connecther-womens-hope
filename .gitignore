@@ -16,6 +16,10 @@ Thumbs.db
 **/captures/
 **/.cxx/
 **/.externalNativeBuild/
+# Never commit heap dumps, release APKs, or local log dumps (they break pushes and blow repo size)
+*.hprof
+**/app/release/*.apk
+**/latest-logcat.txt
 
 # Python
 __pycache__/
