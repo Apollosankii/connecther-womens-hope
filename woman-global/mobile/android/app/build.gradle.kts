@@ -62,9 +62,10 @@ android {
     defaultConfig {
         applicationId = "com.womanglobal.connecther"
         minSdk = 24
-        targetSdk = 34
-        versionCode = 5
-        versionName = "1.5"
+        // Align with compileSdk and Google Play target API requirements for app updates.
+        targetSdk = 35
+        versionCode = 6
+        versionName = "1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

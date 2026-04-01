@@ -15,6 +15,9 @@
 .cxx
 local.properties
 
+# Kotlin incremental / IDE (Android Studio)
+.kotlin/
+
 # Signing — never commit secrets
 keystore.properties
 release-key.keystore
