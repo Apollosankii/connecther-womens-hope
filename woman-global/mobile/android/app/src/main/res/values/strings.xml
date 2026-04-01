@@ -57,6 +57,21 @@
     <string name="paystack_activation_pending">Payment received. Your plan may take a moment to show up—open Subscriptions and pull to refresh.</string>
     <string name="paystack_init_no_checkout">Couldn’t start checkout. Check your connection and try again.</string>
 
+    <!-- Subscriptions (membership screen) -->
+    <string name="subscriptions_title">Subscriptions</string>
+    <string name="subscriptions_current_plan_section_title">Current plan</string>
+    <string name="subscriptions_current_plan_subtitle">You’re on this plan. Renewals and billing use the terms shown at checkout.</string>
+    <string name="subscriptions_current_plan_renews">Renews / access until: %1$s</string>
+    <string name="subscriptions_current_plan_active_no_end">Active — unlimited period for this plan type</string>
+    <string name="subscriptions_section_all_plans">All plans</string>
+    <string name="subscriptions_empty_plans">No plans available</string>
+    <string name="subscriptions_badge_current_plan">Current plan</string>
+    <string name="subscriptions_badge_popular">Popular</string>
+    <string name="subscriptions_subscribe">Subscribe</string>
+    <string name="subscriptions_row_current_plan_footer">Your current plan</string>
+    <string name="subscriptions_connects_unlimited">Service connects on this plan: unlimited for this period.</string>
+    <string name="subscriptions_connects_remaining">Service connects left: %1$d remaining (%2$d used of %3$d).</string>
+
     <string name="panic_medical_opening_hotline">Opening Nairobi Women\'s GBV hotline…</string>
     <string name="panic_gbv_contacts_notified">Your emergency contacts have been notified by SMS.</string>
     <string name="panic_gbv_add_contacts_hint">Add emergency contacts on the Emergency contacts screen to receive SMS alerts.</string>
@@ -108,9 +123,16 @@
     <string name="profile_engagement_blocked_busy">This provider is not taking new bookings until their current job is completed.</string>
     <string name="provider_self_busy_banner">You have an active job in progress. New booking requests are paused until the client marks that job complete. Your listing stays hidden from the marketplace in the meantime.</string>
     <string name="profile_reviews_title">Ratings &amp; reviews</string>
+    <string name="profile_reviews_seeker_hint">Shown when clients choose to publish feedback after a completed job.</string>
     <string name="profile_reviews_average">%1$.1f average · %2$d public review(s)</string>
     <string name="profile_reviews_empty">No public reviews yet.</string>
     <string name="profile_review_line">%1$d★ %2$s · %3$s\n%4$s</string>
+    <string name="profile_documents_title">Credentials &amp; portfolio</string>
+    <string name="profile_documents_empty">This provider has not uploaded verification documents yet.</string>
+    <string name="profile_documents_sign_in">Sign in to view uploaded documents.</string>
+    <string name="profile_documents_open">View %1$s</string>
+    <string name="profile_documents_unavailable">Couldn\'t open this file. Try again later.</string>
+    <string name="profile_documents_verified">Verified</string>
 
     <string name="history_label_client">Client: %1$s</string>
     <string name="history_label_provider">Provider: %1$s</string>

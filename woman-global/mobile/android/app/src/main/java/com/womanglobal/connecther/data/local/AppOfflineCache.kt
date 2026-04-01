@@ -17,6 +17,8 @@ private data class ActiveSubBlob(
     val planId: Int,
     val planName: String,
     val expiresAt: String?,
+    val connectsGranted: Int? = null,
+    val connectsUsed: Int? = null,
 )
 
 /**
@@ -29,7 +31,7 @@ object AppOfflineCache {
 
     private const val KEY_BOOKINGS = "v1:my_booking_requests"
     private const val KEY_PLANS = "v1:subscription_plans"
-    private const val KEY_ACTIVE_SUB = "v1:active_subscription"
+    private const val KEY_ACTIVE_SUB = "v2:active_subscription"
     private const val KEY_PENDING_JOBS = "v2:pending_jobs"
     private const val KEY_CONVERSATIONS = "v1:conversations"
 
@@ -71,15 +73,33 @@ object AppOfflineCache {
     }
 
     suspend fun readActiveSubscription(context: Context): SupabaseData.ActiveSubscription? = withContext(Dispatchers.IO) {
-        val raw = prefs(context).getString(KEY_ACTIVE_SUB, null) ?: return@withContext null
+        val raw = prefs(context).getString(KEY_ACTIVE_SUB, null)
+            ?: prefs(context).getString("v1:active_subscription", null)
+            ?: return@withContext null
         val blob = runCatching { gson.fromJson(raw, ActiveSubBlob::class.java) }.getOrNull() ?: return@withContext null
-        SupabaseData.ActiveSubscription(blob.planId, blob.planName, blob.expiresAt)
+        SupabaseData.ActiveSubscription(
+            blob.planId,
+            blob.planName,
+            blob.expiresAt,
+            blob.connectsGranted,
+            blob.connectsUsed,
+        )
     }
 
     suspend fun writeActiveSubscription(context: Context, sub: SupabaseData.ActiveSubscription?) = withContext(Dispatchers.IO) {
-        if (sub == null) return@withContext
-        val blob = ActiveSubBlob(sub.planId, sub.planName, sub.expiresAt)
-        prefs(context).edit().putString(KEY_ACTIVE_SUB, gson.toJson(blob)).apply()
+        val e = prefs(context).edit()
+        if (sub == null) {
+            e.remove(KEY_ACTIVE_SUB).apply()
+            return@withContext
+        }
+        val blob = ActiveSubBlob(
+            sub.planId,
+            sub.planName,
+            sub.expiresAt,
+            sub.connectsGranted,
+            sub.connectsUsed,
+        )
+        e.putString(KEY_ACTIVE_SUB, gson.toJson(blob)).apply()
     }
 
     suspend fun readPendingJobs(context: Context): List<Job>? = withContext(Dispatchers.IO) {

@@ -10,7 +10,7 @@
         android:layout_width="match_parent"
         android:layout_height="?attr/actionBarSize"
         android:background="@color/surface"
-        android:title="Subscriptions"
+        android:title="@string/subscriptions_title"
         android:titleTextColor="@color/on_background"
         android:navigationIcon="@drawable/arrow_back_24px" />
 
@@ -28,19 +28,29 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Active Subscription"
-            android:textColor="@color/primary"
-            android:textSize="13sp"
-            android:textStyle="bold" />
+            android:text="@string/subscriptions_current_plan_section_title"
+            android:textColor="@color/on_background"
+            android:textSize="12sp"
+            android:letterSpacing="0.06"
+            android:textAllCaps="true" />
 
         <TextView
             android:id="@+id/activeSubPlan"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textColor="@color/on_background"
-            android:textSize="17sp"
+            android:textSize="20sp"
             android:textStyle="bold"
-            android:layout_marginTop="4dp" />
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/activeSubSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="14sp"
+            android:layout_marginTop="6dp"
+            android:text="@string/subscriptions_current_plan_subtitle" />
 
         <TextView
             android:id="@+id/activeSubExpires"
@@ -48,8 +58,31 @@
             android:layout_height="wrap_content"
             android:textColor="@color/on_surface_variant"
             android:textSize="13sp"
-            android:layout_marginTop="2dp" />
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/activeSubConnects"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/on_background"
+            android:textSize="14sp"
+            android:layout_marginTop="10dp"
+            android:visibility="gone" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/plansSectionTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="4dp"
+        android:text="@string/subscriptions_section_all_plans"
+        android:textColor="@color/on_background"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -64,7 +97,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="16dp"
-        android:text="No plans available"
+        android:text="@string/subscriptions_empty_plans"
         android:textColor="@color/on_surface_variant"
         android:visibility="gone" />
 

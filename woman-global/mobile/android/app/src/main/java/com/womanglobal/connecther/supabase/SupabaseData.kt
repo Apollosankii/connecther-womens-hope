@@ -444,12 +444,17 @@ object SupabaseData {
         @SerialName("payment_reference") val payment_reference: String? = null,
         @SerialName("started_at") val started_at: String? = null,
         @SerialName("expires_at") val expires_at: String? = null,
+        @SerialName("connects_granted") val connects_granted: Int? = null,
+        @SerialName("connects_used") val connects_used: Int? = null,
     )
 
     data class ActiveSubscription(
         val planId: Int,
         val planName: String,
         val expiresAt: String?,
+        /** When non-null, subscription bookings draw from this capped pool. Null means uncapped for this row. */
+        val connectsGranted: Int? = null,
+        val connectsUsed: Int? = null,
     )
 
     /**
@@ -480,11 +485,21 @@ object SupabaseData {
         return runCatching {
             val rows = SupabaseClientProvider.client.from("user_plan_subscriptions").select {
                 filter { eq("status", "active") }
+                order(column = "expires_at", order = Order.DESCENDING)
+                limit(1)
             }.decodeList<DbPlanSubRow>()
             val active = rows.firstOrNull() ?: return@runCatching null
             val plans = getSubscriptionPlans()
             val planName = plans.firstOrNull { it.id == active.plan_id.toString() }?.name ?: "Plan #${active.plan_id}"
-            ActiveSubscription(planId = active.plan_id, planName = planName, expiresAt = active.expires_at)
+            ActiveSubscription(
+                planId = active.plan_id,
+                planName = planName,
+                expiresAt = active.expires_at,
+                connectsGranted = active.connects_granted,
+                connectsUsed = active.connects_used,
+            )
+        }.onFailure { e ->
+            Log.e("SupabaseData", "getActiveSubscription failed", e)
         }.getOrNull()
     }
 
@@ -1449,6 +1464,49 @@ object SupabaseData {
         }
     }
 
+    /**
+     * Portfolio / verification files for another provider (seeker view on profile).
+     * Requires auth + [documents_seeker_read_portfolio] RLS and storage read policy on `provider-docs`.
+     */
+    suspend fun listProviderPortfolioDocuments(providerUserDbId: Int): List<VerificationDocumentItem> {
+        if (!isConfigured() || providerUserDbId < 1) return emptyList()
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return emptyList()
+        val client = SupabaseClientProvider.client
+        val typeNames: Map<Int, String?> = runCatching {
+            client.from("document_type").select().decodeList<DbDocumentTypeRow>().associate { it.id to it.name }
+        }.getOrElse { emptyMap() }
+        val rows = runCatching {
+            client.from("documents").select {
+                filter { eq("user_id", providerUserDbId) }
+                order(column = "id", order = Order.DESCENDING)
+            }.decodeList<DbDocumentRow>()
+        }.onFailure { e ->
+            Log.w("SupabaseData", "listProviderPortfolioDocuments select failed", e)
+        }.getOrElse { emptyList() }
+        val bucket = client.storage.from(PROVIDER_DOCS_BUCKET)
+        return rows.mapNotNull { row ->
+            val path = storagePathFromStoredDocName(row.name, PROVIDER_DOCS_BUCKET) ?: run {
+                Log.w("SupabaseData", "listProviderPortfolioDocuments: bad path doc id=${row.id}")
+                return@mapNotNull null
+            }
+            val label = path.substringAfterLast('/').ifBlank { "document-${row.id}" }
+            val rawLabel = row.doc_type_id?.let { typeNames[it] }
+            val typeName = rawLabel?.takeIf { !it.isNullOrBlank() } ?: "Document #${row.doc_type_id ?: "?"}"
+            val signed = runCatching {
+                bucket.createSignedUrl(path, 3600.seconds)
+            }.onFailure { e ->
+                Log.w("SupabaseData", "portfolio createSignedUrl failed id=${row.id}", e)
+            }.getOrNull()
+            VerificationDocumentItem(
+                id = row.id,
+                docTypeName = typeName,
+                verified = row.verified == true,
+                fileLabel = label,
+                signedUrl = signed,
+            )
+        }
+    }
+
     private fun storagePathFromStoredDocName(name: String?, bucketId: String): String? {
         if (name.isNullOrBlank()) return null
         val n = name.trim()
@@ -1641,6 +1699,7 @@ object SupabaseData {
             area_name = p.area_name,
             email = null,
             userDbId = p.id,
+            isServiceProvider = true,
             professionalTitle = p.title,
             workingHours = p.working_hours,
         )

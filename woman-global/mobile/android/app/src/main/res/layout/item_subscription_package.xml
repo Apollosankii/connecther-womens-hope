@@ -34,6 +34,22 @@
                 tools:text="Premium" />
 
             <TextView
+                android:id="@+id/currentPlanBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/subscription_current_plan_badge"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:paddingTop="2dp"
+                android:paddingBottom="2dp"
+                android:text="@string/subscriptions_badge_current_plan"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/popularBadge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -42,7 +58,7 @@
                 android:paddingEnd="8dp"
                 android:paddingTop="2dp"
                 android:paddingBottom="2dp"
-                android:text="Popular"
+                android:text="@string/subscriptions_badge_popular"
                 android:textSize="11sp"
                 android:textColor="@color/on_primary"
                 android:visibility="gone" />
@@ -95,12 +111,26 @@
             android:lineSpacingExtra="2dp"
             tools:text="• Unlimited consultations\n• 24/7 support\n• Discount on services" />
 
+        <TextView
+            android:id="@+id/currentPlanFooter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:paddingTop="10dp"
+            android:paddingBottom="10dp"
+            android:text="@string/subscriptions_row_current_plan_footer"
+            android:textColor="@color/primary"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/subscribeButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Subscribe"
+            android:text="@string/subscriptions_subscribe"
             android:textAllCaps="false"
             app:backgroundTint="@color/primary" />
     </LinearLayout>

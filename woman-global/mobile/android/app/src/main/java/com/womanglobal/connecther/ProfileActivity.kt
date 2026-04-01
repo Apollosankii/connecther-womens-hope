@@ -1,10 +1,12 @@
 package com.womanglobal.connecther
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -12,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
 import com.womanglobal.connecther.data.User
+import com.womanglobal.connecther.supabase.SupabaseClientProvider
 import com.womanglobal.connecther.supabase.SupabaseData
 import kotlinx.coroutines.launch
 
@@ -33,9 +36,11 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var buttonMessageProvider: MaterialButton
     private lateinit var recommendButton: Button
     private lateinit var engageButton: Button
-    private lateinit var profileReviewsCard: View
+    private lateinit var profileSeekerExtrasSection: View
     private lateinit var profileRatingSummary: TextView
     private lateinit var profileReviewsBody: TextView
+    private lateinit var profileDocumentsList: LinearLayout
+    private lateinit var profileDocumentsMessage: TextView
     private lateinit var profileBusyBanner: View
 
     private lateinit var providerRef: String
@@ -65,9 +70,11 @@ class ProfileActivity : AppCompatActivity() {
         buttonMessageProvider = findViewById(R.id.buttonMessageProvider)
         recommendButton = findViewById(R.id.recommendButton)
         engageButton = findViewById(R.id.engageButton)
-        profileReviewsCard = findViewById(R.id.profileReviewsCard)
+        profileSeekerExtrasSection = findViewById(R.id.profileSeekerExtrasSection)
         profileRatingSummary = findViewById(R.id.profileRatingSummary)
         profileReviewsBody = findViewById(R.id.profileReviewsBody)
+        profileDocumentsList = findViewById(R.id.profileDocumentsList)
+        profileDocumentsMessage = findViewById(R.id.profileDocumentsMessage)
         profileBusyBanner = findViewById(R.id.profileBusyBanner)
 
         val user = intent.getSerializableExtra("user") as? User
@@ -196,19 +203,26 @@ class ProfileActivity : AppCompatActivity() {
         engageButton.alpha = if (bookable) 1f else 0.45f
     }
 
+    /**
+     * Public reviews (seeker → provider, [job_reviews.is_public]) and portfolio docs live under
+     * Experience & skills so seekers see them in one place.
+     */
     private fun loadProviderPublicReviews(user: User) {
         val uid = user.userDbId
         if (user.isServiceProvider != true || uid == null) {
-            profileReviewsCard.visibility = View.GONE
+            profileSeekerExtrasSection.visibility = View.GONE
             return
         }
-        profileReviewsCard.visibility = View.VISIBLE
+        profileSeekerExtrasSection.visibility = View.VISIBLE
         profileRatingSummary.text = getString(R.string.profile_reviews_empty)
         profileReviewsBody.text = ""
+        profileDocumentsMessage.visibility = View.GONE
+        profileDocumentsList.removeAllViews()
+
         lifecycleScope.launch {
             val stats = SupabaseData.getPublicRatingStatsForUser(uid)
             val reviews = SupabaseData.listPublicReviewsForUser(uid, 25)
-            val count = stats?.second ?: reviews.size
+            val count = stats?.second ?: 0
             val avg = stats?.first ?: 0.0
             if (count == 0 && reviews.isEmpty()) {
                 profileRatingSummary.text = getString(R.string.profile_reviews_empty)
@@ -226,6 +240,53 @@ class ProfileActivity : AppCompatActivity() {
                             r.reviewText.ifBlank { "" },
                         )
                     }
+                }
+            }
+
+            if (!SupabaseClientProvider.ensureSupabaseSession()) {
+                profileDocumentsMessage.visibility = View.VISIBLE
+                profileDocumentsMessage.text = getString(R.string.profile_documents_sign_in)
+                return@launch
+            }
+            val docs = SupabaseData.listProviderPortfolioDocuments(uid)
+            if (docs.isEmpty()) {
+                profileDocumentsMessage.visibility = View.VISIBLE
+                profileDocumentsMessage.text = getString(R.string.profile_documents_empty)
+            } else {
+                profileDocumentsMessage.visibility = View.GONE
+                val gap = (8 * resources.displayMetrics.density).toInt()
+                docs.forEach { doc ->
+                    val btn = MaterialButton(
+                        this@ProfileActivity,
+                        null,
+                        com.google.android.material.R.attr.materialButtonOutlinedStyle,
+                    ).apply {
+                        layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT,
+                        ).apply { topMargin = gap }
+                        text = buildString {
+                            append(getString(R.string.profile_documents_open, doc.docTypeName))
+                            if (doc.verified) {
+                                append(" · ")
+                                append(getString(R.string.profile_documents_verified))
+                            }
+                        }
+                        isEnabled = !doc.signedUrl.isNullOrBlank()
+                        setOnClickListener {
+                            val url = doc.signedUrl
+                            if (url.isNullOrBlank()) {
+                                Toast.makeText(
+                                    this@ProfileActivity,
+                                    R.string.profile_documents_unavailable,
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } else {
+                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                            }
+                        }
+                    }
+                    profileDocumentsList.addView(btn)
                 }
             }
         }

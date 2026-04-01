@@ -1122,16 +1122,17 @@ def list_users_for_plan_grant(session):
 
 def list_user_plan_subscriptions(session, status_filter=None, plan_filter=None):
     """List user plan subscriptions with user and plan names. status_filter, plan_filter optional."""
-    path = (
-        '/user_plan_subscriptions?select=id,user_id,plan_id,status,started_at,expires_at,cancelled_at,'
-        'payment_reference,notes,connects_granted,connects_used,connects_period_started_at'
-    )
-    params = {}
+    params = {
+        'select': (
+            'id,user_id,plan_id,status,started_at,expires_at,cancelled_at,'
+            'payment_reference,notes,connects_granted,connects_used,connects_period_started_at'
+        ),
+    }
     if status_filter:
         params['status'] = f'eq.{status_filter}'
     if plan_filter:
         params['plan_id'] = f'eq.{plan_filter}'
-    data = _req(session, 'GET', path, params=params if params else None)
+    data = _req(session, 'GET', '/user_plan_subscriptions', params=params)
     if not data or not isinstance(data, list):
         return []
     out = []
@@ -1347,7 +1348,13 @@ def grant_user_plan_subscription(session, user_id, plan_id, started_at, expires_
 
 def get_user_plan_subscription(session, sub_id):
     """Get one user plan subscription by id."""
-    data = _req(session, 'GET', f'/user_plan_subscriptions?id=eq.{sub_id}')
+    data = _req(session, 'GET', '/user_plan_subscriptions', params={
+        'id': f'eq.{sub_id}',
+        'select': (
+            'id,user_id,plan_id,status,started_at,expires_at,cancelled_at,'
+            'payment_reference,notes,connects_granted,connects_used,connects_period_started_at'
+        ),
+    })
     if not data or not isinstance(data, list) or len(data) == 0:
         return None
     r = data[0]
