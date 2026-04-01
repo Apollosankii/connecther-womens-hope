@@ -102,13 +102,16 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadServicesData() {
+        if (!isAdded) return
+        val cacheContext = requireContext().applicationContext
         viewLifecycleOwner.lifecycleScope.launch {
             val fromNetwork = runCatching { SupabaseData.getServices() }.getOrElse { emptyList() }
             if (fromNetwork.isNotEmpty()) {
-                saveServicesToCache(fromNetwork)
+                saveServicesToCache(fromNetwork, cacheContext)
             } else if (getCachedServices().isEmpty()) {
-                UIHelper.showToastShort(requireContext(), "Failed to load services")
+                context?.let { UIHelper.showToastShort(it, "Failed to load services") }
             }
+            if (_binding == null || !isAdded) return@launch
             val pool = fromNetwork.ifEmpty { getCachedServices() }.ifEmpty { SupabaseData.localFallbackServices() }
             setupRecyclerView(buildCategories(showcaseFromPool(pool)))
         }
@@ -127,8 +130,10 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerView(categories: List<Category>) {
-        binding.categoryRecyclerView.layoutManager = LinearLayoutManager(context)
-        binding.categoryRecyclerView.adapter = MultiTypeAdapter(categories, requireContext())
+        val bind = _binding ?: return
+        val ctx = context ?: return
+        bind.categoryRecyclerView.layoutManager = LinearLayoutManager(ctx)
+        bind.categoryRecyclerView.adapter = MultiTypeAdapter(categories, ctx)
     }
 
     companion object {
@@ -145,13 +150,15 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 
-    private fun saveServicesToCache(services: List<Service>) {
-        val sharedPreferences = requireContext().getSharedPreferences("app_cache", Context.MODE_PRIVATE)
+    private fun saveServicesToCache(services: List<Service>, appContext: Context? = null) {
+        val ctx = appContext ?: context?.applicationContext ?: return
+        val sharedPreferences = ctx.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
         sharedPreferences.edit().putString(sharedPrefKey, gson.toJson(services)).apply()
     }
 
     private fun getCachedServices(): List<Service> {
-        val sharedPreferences = requireContext().getSharedPreferences("app_cache", Context.MODE_PRIVATE)
+        val ctx = context?.applicationContext ?: return emptyList()
+        val sharedPreferences = ctx.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
         val json = sharedPreferences.getString(sharedPrefKey, null)
         return if (!json.isNullOrEmpty()) {
             val type = object : TypeToken<List<Service>>() {}.type
