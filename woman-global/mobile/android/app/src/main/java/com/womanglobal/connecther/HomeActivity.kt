@@ -1,6 +1,5 @@
 package com.womanglobal.connecther
 
-import ApiServiceFactory
 import android.Manifest
 import android.content.Context
 import android.content.Intent
@@ -14,10 +13,16 @@ import android.os.Looper
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.graphics.Insets
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.forEachIndexed
+import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -27,13 +32,10 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.womanglobal.connecther.databinding.ActivityHomeBinding
-import com.womanglobal.connecther.services.ApiService
-import com.womanglobal.connecther.services.LocationRequestBody
+import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.ui.adapter.ViewPagerAdapter
 import com.womanglobal.connecther.utils.UIHelper
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
     private lateinit var binding: ActivityHomeBinding
@@ -42,11 +44,11 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var locationRequest: LocationRequest
     private lateinit var locationCallback: LocationCallback
     private lateinit var bottomNavigationView: BottomNavigationView
-    private val apiService: ApiService by lazy { ApiServiceFactory.createApiService() }
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
 
         sharedPreferences = getSharedPreferences("user_session", Context.MODE_PRIVATE)
 
@@ -61,25 +63,33 @@ class HomeActivity : AppCompatActivity() {
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            binding.viewPager.updatePadding(
+                left = bars.left,
+                right = bars.right,
+                top = bars.top
+            )
+            binding.bottomNavigation.updatePadding(
+                left = bars.left,
+                right = bars.right,
+                bottom = bars.bottom
+            )
+            WindowInsetsCompat.Builder(insets)
+                .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
+                .build()
+        }
+
         val viewPager = binding.viewPager
         bottomNavigationView = binding.bottomNavigation
 
 
        // Initialize ViewPager with the appropriate adapter
-        val viewPagerAdapter = ViewPagerAdapter(this, sharedPreferences)
+        val viewPagerAdapter = ViewPagerAdapter(this)
         viewPager.adapter = viewPagerAdapter
 
 
-        // Get the fragment to open from the intent
-        val fragmentToOpen = intent.getStringExtra("fragment_to_open")
-
-        // Set the appropriate ViewPager page based on the notification
-        when (fragmentToOpen) {
-            "messages" -> viewPager.currentItem = 1  // Assuming messages fragment is at index 1
-            "jobs" -> viewPager.currentItem = 2  // Assuming jobs fragment is at index 2
-            "services" -> viewPager.currentItem = 3
-            else -> viewPager.currentItem = 0  // Default to home
-        }
+        applyFragmentFromIntent(intent)
 
         // Update bottom navigation menu based on user type
         setupBottomNavigation()
@@ -114,12 +124,10 @@ class HomeActivity : AppCompatActivity() {
             .setMinUpdateIntervalMillis(LOCATION_FASTEST_INTERVAL)
             .build()
 
-
         // Define the callback for location updates
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
                 locationResult.lastLocation?.let { location ->
-//                    UIHelper.showAlertDialog(this@HomeActivity, "New Location!", "${location.latitude}, ${location.longitude}")
                     sendLocationToServer(location.latitude, location.longitude)
                 }
             }
@@ -130,6 +138,29 @@ class HomeActivity : AppCompatActivity() {
 
         // Schedule periodic location updates every 5 minutes
         startLocationUpdates()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (::binding.isInitialized) {
+            applyFragmentFromIntent(intent)
+        }
+    }
+
+    /** Opens the tab matching FCM [fragment_to_open] (ViewPager: 0 Home … 4 Profile). */
+    private fun applyFragmentFromIntent(intent: Intent?) {
+        val fragmentToOpen = intent?.getStringExtra("fragment_to_open") ?: return
+        val viewPager = binding.viewPager
+        when (fragmentToOpen) {
+            "services" -> viewPager.currentItem = 1
+            "messages" -> viewPager.currentItem = 2
+            "jobs" -> viewPager.currentItem = 3
+            "profile" -> viewPager.currentItem = 4
+            "home" -> viewPager.currentItem = 0
+            else -> viewPager.currentItem = 0
+        }
+        bottomNavigationView.menu.getItem(viewPager.currentItem).isChecked = true
     }
 
     /**
@@ -267,20 +298,9 @@ class HomeActivity : AppCompatActivity() {
      * Send the location to the server.
      */
     private fun sendLocationToServer(latitude: Double, longitude: Double) {
-        val requestBody = LocationRequestBody(latitude, longitude)
-        apiService.sendLocationUpdate(requestBody).enqueue(object : Callback<Void> {
-            override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                if (response.isSuccessful) {
-                    Toast.makeText(this@HomeActivity, "Location updated", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@HomeActivity, "Failed to update location", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            override fun onFailure(call: Call<Void>, t: Throwable) {
-                Toast.makeText(this@HomeActivity, "Network error: ${t.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
+        lifecycleScope.launch {
+            SupabaseData.upsertLiveLocation(latitude, longitude)
+        }
     }
 
     /**

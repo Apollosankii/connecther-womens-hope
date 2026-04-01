@@ -9,6 +9,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -97,11 +98,7 @@ class RequestBookingActivity : AppCompatActivity() {
                     Toast.makeText(this@RequestBookingActivity, "Booking request sent", Toast.LENGTH_LONG).show()
                     finish()
                 } else {
-                    Toast.makeText(
-                        this@RequestBookingActivity,
-                        SupabaseData.bookingRequestErrorMessage(outcome.errorCode),
-                        Toast.LENGTH_LONG
-                    ).show()
+                    showBookingFailure(outcome.errorCode)
                 }
             } catch (e: Exception) {
                 val err = (e.message ?: "").lowercase()
@@ -111,20 +108,33 @@ class RequestBookingActivity : AppCompatActivity() {
                     err.contains("provider_not_found") -> "provider_not_found"
                     err.contains("provider_busy") -> "provider_busy"
                     err.contains("free_tier_exhausted") -> "free_tier_exhausted"
+                    err.contains("connects_exhausted") -> "connects_exhausted"
                     err.contains("insufficient_connects") -> "insufficient_connects"
                     err.contains("subscription") -> "subscription_required"
                     else -> "request_failed"
                 }
-                Toast.makeText(
-                    this@RequestBookingActivity,
-                    SupabaseData.bookingRequestErrorMessage(mapped),
-                    Toast.LENGTH_LONG
-                ).show()
+                showBookingFailure(mapped)
             } finally {
                 isSubmitting = false
                 progress.visibility = View.GONE
                 submitButton.isEnabled = true
             }
+        }
+    }
+
+    private fun showBookingFailure(code: String?) {
+        val msg = SupabaseData.bookingRequestErrorMessage(this, code)
+        if (SupabaseData.isBookingConnectLimitError(code)) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.booking_error_connects_title)
+                .setMessage(msg)
+                .setPositiveButton(R.string.booking_action_view_subscriptions) { _, _ ->
+                    startActivity(Intent(this, SubscriptionsActivity::class.java))
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        } else {
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
         }
     }
 }

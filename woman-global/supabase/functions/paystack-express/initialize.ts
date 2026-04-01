@@ -1,6 +1,22 @@
-import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 import { clerkBearerSource, corsJson, getClerkSubFromJwt } from "./helpers.ts";
 import { resolvePaystackChannels } from "./paystack_channels.ts";
+import { restInsert, restSelectFirst } from "./supabase_rest.ts";
+
+const PLAN_COLUMNS =
+  "id,price,currency,is_active,name,duration_type,duration_value,connects_limit_enabled,connects_per_period";
+
+type UserRow = { id: string | number };
+type PlanRow = {
+  id: unknown;
+  price: unknown;
+  currency: unknown;
+  is_active: unknown;
+  name: unknown;
+  duration_type: unknown;
+  duration_value: unknown;
+  connects_limit_enabled: unknown;
+  connects_per_period: unknown;
+};
 
 export async function handleInitialize(req: Request, parsed: Record<string, unknown>) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
@@ -24,44 +40,53 @@ export async function handleInitialize(req: Request, parsed: Record<string, unkn
   const email = typeof emailRaw === "string" ? emailRaw.trim() : "";
   if (!email) return corsJson({ error: "email required" }, 400);
 
-  const admin = createClient(supabaseUrl, serviceKey);
+  const userFilter = `clerk_user_id=eq.${encodeURIComponent(clerkSub)}`;
+  const planFilter = `id=eq.${planId}`;
 
-  const { data: userRow, error: userErr } = await admin
-    .from("users")
-    .select("id")
-    .eq("clerk_user_id", clerkSub)
-    .maybeSingle();
-  if (userErr || !userRow?.id) return corsJson({ error: "User not found for this session" }, 404);
+  const [userLookup, planLookup] = await Promise.all([
+    restSelectFirst<UserRow>(supabaseUrl, serviceKey, "users", userFilter, "id"),
+    restSelectFirst<PlanRow>(supabaseUrl, serviceKey, "subscription_plans", planFilter, PLAN_COLUMNS),
+  ]);
 
-  const { data: plan, error: planErr } = await admin
-    .from("subscription_plans")
-    .select("id, price, currency, is_active, name, duration_type, duration_value, connects_limit_enabled, connects_per_period")
-    .eq("id", planId)
-    .maybeSingle();
+  if (userLookup.error) {
+    return corsJson({ error: "Failed to load user", detail: userLookup.error }, 500);
+  }
+  if (!userLookup.row?.id) {
+    return corsJson({ error: "User not found for this session" }, 404);
+  }
 
-  if (planErr || !plan || !plan.is_active) return corsJson({ error: "Plan not found or inactive" }, 404);
+  if (planLookup.error) {
+    return corsJson({ error: "Failed to load plan", detail: planLookup.error }, 500);
+  }
+  const plan = planLookup.row;
+  if (!plan || plan.is_active !== true) {
+    return corsJson({ error: "Plan not found or inactive" }, 404);
+  }
 
   const priceNum = Number(plan.price);
   if (!Number.isFinite(priceNum) || priceNum <= 0) return corsJson({ error: "Invalid plan price" }, 400);
 
-  // Paystack expects smallest currency unit (kobo for KES)
-  const amountKobo = Math.round(priceNum * 100);
-  if (amountKobo < 1) return corsJson({ error: "Invalid amount" }, 400);
+  /** Smallest currency unit (kobo, cents, etc.) — must match [currency] sent to Paystack. */
+  const amountMinor = Math.round(priceNum * 100);
+  if (amountMinor < 1) return corsJson({ error: "Invalid amount" }, 400);
 
+  const currency = String(plan.currency || "KES").toUpperCase();
+
+  const userRow = userLookup.row;
   const reference = `PAY-${String(userRow.id).slice(0, 8)}-${planId}-${crypto.randomUUID()}`.slice(0, 36);
-  const redirectCallbackUrl = `${supabaseUrl}/functions/v1/paystack-express?redirect=1`;
+  const fnSlug = (Deno.env.get("PAYSTACK_EDGE_SLUG")?.trim() || "paystack-checkout").replace(/^\/+|\/+$/g, "");
+  const redirectCallbackUrl = `${supabaseUrl}/functions/v1/${fnSlug}?redirect=1`;
 
-  // Track the checkout attempt so webhook can activate the correct plan.
-  const { error: txErr } = await admin.from("paystack_transactions").insert({
+  const { error: txErr } = await restInsert(supabaseUrl, serviceKey, "paystack_transactions", {
     user_id: userRow.id,
     plan_id: planId,
-    amount_kobo: amountKobo,
-    currency: String(plan.currency || "KES").toUpperCase(),
+    amount_kobo: amountMinor,
+    currency,
     email,
     reference,
     status: "pending",
   });
-  if (txErr) return corsJson({ error: "Failed to create payment record", detail: txErr.message }, 500);
+  if (txErr) return corsJson({ error: "Failed to create payment record", detail: txErr }, 500);
 
   const paystackBase = (Deno.env.get("PAYSTACK_BASE_URL")?.trim() || "https://api.paystack.co").replace(/\/$/, "");
   const initUrl = `${paystackBase}/transaction/initialize`;
@@ -69,21 +94,34 @@ export async function handleInitialize(req: Request, parsed: Record<string, unkn
   const channels = resolvePaystackChannels();
   const initBody: Record<string, unknown> = {
     email,
-    amount: amountKobo,
+    amount: amountMinor,
+    currency,
     reference,
     callback_url: redirectCallbackUrl,
-    metadata: JSON.stringify({ plan_id: planId, user_id: userRow.id, plan_name: plan.name ?? null }),
+    metadata: { plan_id: planId, user_id: userRow.id, plan_name: plan.name ?? null },
     channels,
   };
 
-  const initResp = await fetch(initUrl, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${paystackSecretKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(initBody),
-  });
+  let initResp: Response;
+  const paystackAbort = new AbortController();
+  const paystackTimer = setTimeout(() => paystackAbort.abort(), 25_000);
+  try {
+    initResp = await fetch(initUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${paystackSecretKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(initBody),
+      signal: paystackAbort.signal,
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("paystack initialize fetch failed", msg);
+    return corsJson({ error: "Paystack request failed or timed out", detail: msg }, 504);
+  } finally {
+    clearTimeout(paystackTimer);
+  }
 
   const initJson = (await initResp.json().catch(() => ({}))) as any;
   if (!initResp.ok) {
@@ -100,6 +138,13 @@ export async function handleInitialize(req: Request, parsed: Record<string, unkn
     return corsJson({ error: "Paystack did not return access_code", detail: initJson }, 502);
   }
 
+  const paystackMode = paystackSecretKey.startsWith("sk_live")
+    ? "live"
+    : paystackSecretKey.startsWith("sk_test")
+    ? "test"
+    : "unknown";
+  console.log("paystack initialize ok", { paystackMode, reference, accessCodeLength: accessCode.length });
+
   const msg = `Complete your payment at Paystack. Subscription activates automatically after confirmation.`;
   return corsJson(
     {
@@ -112,4 +157,3 @@ export async function handleInitialize(req: Request, parsed: Record<string, unkn
     200,
   );
 }
-

@@ -22,6 +22,49 @@
                 <tr><th>Payment ref</th><td>{{ sub.payment_reference or '—' }}</td></tr>
                 <tr><th>Notes</th><td>{{ sub.notes or '—' }}</td></tr>
             </table>
+            <h6 class="mt-4 mb-2">Connects (subscription quota)</h6>
+            <table class="table table-borderless ch-table">
+                <tr><th width="180">Plan limit</th><td>{% if sub.plan_connects_limit_enabled and sub.plan_connects_per_period is not none %}{{ sub.plan_connects_per_period }} / {{ sub.plan_connects_period_rule|replace('_', ' ') }}{% else %}Unlimited (plan){% endif %}</td></tr>
+                <tr><th>Granted</th><td>{% if sub.connects_granted is none %}<span class="text-muted">— (unlimited)</span>{% else %}{{ sub.connects_granted }}{% endif %}</td></tr>
+                <tr><th>Used</th><td>{{ sub.connects_used }}</td></tr>
+                <tr><th>Remaining</th><td>{% if sub.connects_unlimited %}<span class="text-muted">Unlimited</span>{% else %}{{ sub.connects_remaining }}{% endif %}</td></tr>
+                <tr><th>Period started</th><td>{{ sub.connects_period_started_at[:10] if sub.connects_period_started_at else '—' }}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Adjust connects (support)</h5>
+            <form method="post">
+                <input type="hidden" name="_action" value="update_connects">
+                <div class="form-row">
+                    <div class="form-group col-md-4">
+                        <label>Granted</label>
+                        <input type="number" name="connects_granted" class="form-control" min="0" step="1"
+                            placeholder="Leave empty = no change">
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Used</label>
+                        <input type="number" name="connects_used" class="form-control" min="0" step="1"
+                            placeholder="Leave empty = no change">
+                    </div>
+                    <div class="form-group col-md-4">
+                        <label>Period started</label>
+                        <input type="date" name="connects_period_started_at" class="form-control"
+                            value="{{ sub.connects_period_started_at[:10] if sub.connects_period_started_at else '' }}">
+                    </div>
+                </div>
+                <div class="custom-control custom-checkbox mb-2">
+                    <input type="checkbox" class="custom-control-input" id="clear_connects_granted" name="clear_connects_granted" value="1">
+                    <label class="custom-control-label" for="clear_connects_granted">Clear granted (NULL — unlimited for this row)</label>
+                </div>
+                <div class="form-group">
+                    <label>Note (appended to subscription notes)</label>
+                    <input type="text" name="connect_adjust_note" class="form-control" placeholder="e.g. CS reset after failed booking">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Apply connect changes</button>
+            </form>
         </div>
     </div>
 

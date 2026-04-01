@@ -39,6 +39,31 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <h6 class="mb-2">Seeker connects (paid plan)</h6>
+                    <div class="custom-control custom-checkbox mb-2">
+                        <input type="checkbox" class="custom-control-input" id="connects_limit_enabled" name="connects_limit_enabled" value="1"
+                            {% if plan and plan.connects_limit_enabled %}checked{% endif %}>
+                        <label class="custom-control-label" for="connects_limit_enabled">Limit connects per period for subscribers on this plan</label>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="connects_per_period">Connects per period</label>
+                            <input type="number" id="connects_per_period" name="connects_per_period" class="form-control" min="0" step="1"
+                                value="{{ plan.connects_per_period if plan and plan.connects_per_period is not none else '' }}"
+                                placeholder="e.g. 10">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="connects_period_rule">Reset rule</label>
+                            <select id="connects_period_rule" name="connects_period_rule" class="form-control">
+                                <option value="subscription_term" {% if not plan or plan.connects_period_rule == 'subscription_term' %}selected{% endif %}>Subscription term (start → expiry)</option>
+                                <option value="calendar_month" {% if plan and plan.connects_period_rule == 'calendar_month' %}selected{% endif %}>Calendar month</option>
+                                <option value="calendar_year" {% if plan and plan.connects_period_rule == 'calendar_year' %}selected{% endif %}>Calendar year</option>
+                            </select>
+                        </div>
+                    </div>
+                    <small class="form-text text-muted">If limiting is off or the number is empty, subscribers get unlimited connects for quota purposes (DB: granted NULL).</small>
+                </div>
+                <div class="form-group">
                     <label for="features">Features (one per line)</label>
                     <textarea id="features" name="features" class="form-control" rows="4" placeholder="Unlimited consultations&#10;24/7 support">{% if plan and plan.get('features') %}{{ plan.features | join('\n') }}{% endif %}</textarea>
                     <small class="form-text text-muted">Bullet points shown in the app for this plan.</small>

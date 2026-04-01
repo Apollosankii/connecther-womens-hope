@@ -21,8 +21,77 @@ def _hash_password(password: str) -> str:
         except (ImportError, AttributeError, Exception):
             return hashlib.sha256(password.encode()).hexdigest()
 
-SUPABASE_URL = (os.environ.get('SUPABASE_URL') or '').strip().rstrip('/')
-SUPABASE_ANON_KEY = (os.environ.get('SUPABASE_ANON_KEY') or '').strip()
+def _supabase_url() -> str:
+    """Read on each use so values match after Flask loads .env (and shared woman-global/.env)."""
+    return (os.environ.get('SUPABASE_URL') or '').strip().rstrip('/')
+
+
+def _supabase_anon_key() -> str:
+    return (os.environ.get('SUPABASE_ANON_KEY') or '').strip()
+
+
+def _supabase_service_role_key() -> str:
+    """Used only to sign private Storage URLs for admin document preview (optional)."""
+    return (os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
+
+
+def _parse_bucket_and_path_from_storage_url(raw_url: str):
+    """
+    Extract (bucket_id, object_path) from a Supabase object URL, or (None, None).
+    Handles /object/public/{bucket}/... and /object/{bucket}/... (authenticated).
+    """
+    if not raw_url or not isinstance(raw_url, str):
+        return None, None
+    u = raw_url.strip()
+    for marker in ('/storage/v1/object/public/', '/storage/v1/object/sign/', '/storage/v1/object/'):
+        idx = u.lower().find(marker.lower())
+        if idx < 0:
+            continue
+        rest = u[idx + len(marker):].split('?', 1)[0].split('#', 1)[0]
+        parts = rest.split('/', 1)
+        if len(parts) == 2 and parts[0] and parts[1]:
+            return parts[0], parts[1]
+    return None, None
+
+
+def _sign_storage_download_url(raw_url: str):
+    """
+    Return a time-limited signed URL for a private bucket object, or None.
+    Requires SUPABASE_SERVICE_ROLE_KEY in connecther-admin-portal/.env (never expose in the browser).
+    """
+    base = _supabase_url()
+    sk = _supabase_service_role_key()
+    if not base or not sk or not raw_url.startswith('http'):
+        return None
+    bucket, path = _parse_bucket_and_path_from_storage_url(raw_url)
+    if not bucket or not path:
+        return None
+    try:
+        sign_endpoint = f"{base}/storage/v1/object/sign/{bucket}"
+        headers = {
+            'apikey': sk,
+            'Authorization': f'Bearer {sk}',
+            'Content-Type': 'application/json',
+        }
+        r = requests.post(
+            sign_endpoint,
+            headers=headers,
+            json={'expiresIn': 7200, 'paths': [path]},
+            timeout=20,
+        )
+        if r.status_code not in (200, 201):
+            return None
+        data = r.json()
+        if isinstance(data, list) and data and isinstance(data[0], dict):
+            signed = data[0].get('signedURL') or data[0].get('signedUrl')
+            if signed and isinstance(signed, str):
+                if signed.startswith('http'):
+                    return signed
+                if signed.startswith('/'):
+                    return f"{base.rstrip('/')}{signed}"
+        return None
+    except Exception:
+        return None
 
 
 def _get_bearer(session):
@@ -41,11 +110,12 @@ def _req(session, method, path, params=None, json_data=None, timeout=10):
     RLS policies (is_admin()) control access.
     """
     bearer = _get_bearer(session)
-    if not bearer or not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    base, key = _supabase_url(), _supabase_anon_key()
+    if not bearer or not base or not key:
         return None
-    url = f"{SUPABASE_URL}/rest/v1{path}"
+    url = f"{base}/rest/v1{path}"
     headers = {
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': key,
         'Authorization': f'Bearer {bearer}',
         'Content-Type': 'application/json',
         'Prefer': 'return=representation',
@@ -90,11 +160,12 @@ def _patch_ok(res):
 def _delete_rest_ok(session, path):
     """True if DELETE returned 200/204 (PostgREST often uses 204 with empty body)."""
     bearer = _get_bearer(session)
-    if not bearer or not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    base, key = _supabase_url(), _supabase_anon_key()
+    if not bearer or not base or not key:
         return False
-    url = f"{SUPABASE_URL}/rest/v1{path}"
+    url = f"{base}/rest/v1{path}"
     headers = {
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': key,
         'Authorization': f'Bearer {bearer}',
         'Prefer': 'return=minimal',
     }
@@ -110,7 +181,8 @@ def ensure_clerk_admin_in_table(token, email='', first_name='', last_name=''):
     Ensure the Clerk user (from JWT) has a row in administrators.
     If not, insert one. Uses anon key + token; RLS admin_insert_self allows when clerk_user_id matches JWT sub.
     """
-    if not token or not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    base, key = _supabase_url(), _supabase_anon_key()
+    if not token or not base or not key:
         return
     try:
         import base64
@@ -124,9 +196,9 @@ def ensure_clerk_admin_in_table(token, email='', first_name='', last_name=''):
     sub = (payload.get('sub') or '').strip()
     if not sub:
         return
-    url = f"{SUPABASE_URL}/rest/v1/administrators"
+    url = f"{base}/rest/v1/administrators"
     headers = {
-        'apikey': SUPABASE_ANON_KEY,
+        'apikey': key,
         'Authorization': f'Bearer {token}',
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal',
@@ -325,11 +397,16 @@ def list_user_verification_documents(session, internal_user_id):
             if not isinstance(r, dict):
                 continue
             url = r.get('name') or ''
+            view_url = url
+            if isinstance(url, str) and url.startswith('http'):
+                signed = _sign_storage_download_url(url)
+                if signed:
+                    view_url = signed
             dt = r.get('document_type') or {}
             dt_name = dt.get('name') if isinstance(dt, dict) else None
             out.append({
                 'id': r.get('id'),
-                'name': url,
+                'name': view_url,
                 'doc_type_name': dt_name or '',
                 'doc_type_id': r.get('doc_type_id'),
             })
@@ -749,6 +826,162 @@ def add_provider(session, kyc, documents, location, subs):
 
 
 # =============================================================================
+# Platform settings (free tier default connects)
+# =============================================================================
+
+
+def get_platform_settings(session):
+    """Singleton platform_settings row id=1."""
+    data = _req(session, 'GET', '/platform_settings', params={'id': 'eq.1'})
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return {'id': 1, 'free_tier_connects': 5, 'updated_at': None}
+    r = data[0]
+    return {
+        'id': r.get('id'),
+        'free_tier_connects': int(r.get('free_tier_connects') or 0),
+        'updated_at': r.get('updated_at'),
+    }
+
+
+def update_platform_settings(session, free_tier_connects):
+    """Update default free-tier cap (new users / exploration)."""
+    try:
+        v = int(free_tier_connects)
+    except (TypeError, ValueError):
+        return False
+    if v < 0:
+        return False
+    res = _req_write(session, 'PATCH', '/platform_settings?id=eq.1', json_data={'free_tier_connects': v})
+    return _patch_ok(res)
+
+
+def get_app_user_detail(session, internal_id):
+    """
+    App user row for admin support: identity + free_connects_*.
+    internal_id is public.users.id (integer).
+    """
+    if internal_id is None:
+        return None
+    data = _req(session, 'GET', '/users', params={
+        'id': f'eq.{int(internal_id)}',
+        'select': 'id,first_name,last_name,phone,email,user_id,service_provider,free_connects_granted,free_connects_used',
+    })
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return None
+    r = data[0]
+    g = r.get('free_connects_granted')
+    used = int(r.get('free_connects_used') or 0)
+    remaining = None
+    if g is not None:
+        remaining = max(0, int(g) - used)
+    ps = get_platform_settings(session)
+    default_cap = int(ps.get('free_tier_connects') or 0)
+    return {
+        'id': r.get('id'),
+        'first_name': r.get('first_name') or '',
+        'last_name': r.get('last_name') or '',
+        'phone': r.get('phone') or '',
+        'email': r.get('email'),
+        'user_id': r.get('user_id'),
+        'service_provider': bool(r.get('service_provider')),
+        'free_connects_granted': g,
+        'free_connects_used': used,
+        'free_connects_remaining': remaining,
+        'platform_free_tier_default': default_cap,
+    }
+
+
+def patch_user_free_connects(session, internal_id, patch):
+    """
+    PATCH only keys present in patch: free_connects_granted (int or None), free_connects_used (int).
+    free_connects_granted None clears the cap (platform default on first allocation).
+    """
+    if not patch:
+        return False
+    row = {}
+    if 'free_connects_granted' in patch:
+        v = patch['free_connects_granted']
+        row['free_connects_granted'] = None if v is None else int(v)
+    if 'free_connects_used' in patch:
+        row['free_connects_used'] = max(0, int(patch['free_connects_used']))
+    if not row:
+        return False
+    res = _req_write(session, 'PATCH', f'/users?id=eq.{int(internal_id)}', json_data=row)
+    return _patch_ok(res)
+
+
+def apply_platform_free_tier_to_all_users(session):
+    """
+    Batch: set free_connects_granted = platform_settings.free_tier_connects for ALL users
+    where free_connects_granted IS NOT NULL (i.e. already allocated).
+    """
+    ps = get_platform_settings(session)
+    cap = int(ps.get('free_tier_connects') or 0)
+    res = _req_write(
+        session, 'PATCH', '/users',
+        params={'free_connects_granted': 'not.is.null'},
+        json_data={'free_connects_granted': cap},
+    )
+    return _patch_ok(res)
+
+
+# =============================================================================
+# Booking requests (admin view)
+# =============================================================================
+
+
+def list_booking_requests(session, status_filter=None):
+    """List booking requests for admin with user/service names."""
+    path = '/booking_requests?select=id,client_id,provider_id,service_id,status,proposed_price,location_text,message,connect_consumed,connect_source,created_at,expires_at'
+    params = {'order': 'created_at.desc'}
+    if status_filter:
+        params['status'] = f'eq.{status_filter}'
+    data = _req(session, 'GET', path, params=params)
+    if not data or not isinstance(data, list):
+        return []
+    user_ids = set()
+    service_ids = set()
+    for r in data:
+        if r.get('client_id'):
+            user_ids.add(r['client_id'])
+        if r.get('provider_id'):
+            user_ids.add(r['provider_id'])
+        if r.get('service_id'):
+            service_ids.add(r['service_id'])
+    users_by_id = {}
+    services_by_id = {}
+    if user_ids:
+        ids = ','.join(map(str, user_ids))
+        users = _req(session, 'GET', '/users', params={'id': f'in.({ids})', 'select': 'id,first_name,last_name'})
+        if users:
+            for u in users:
+                users_by_id[u['id']] = f"{u.get('first_name', '')} {u.get('last_name', '')}".strip()
+    if service_ids:
+        ids = ','.join(map(str, service_ids))
+        svcs = _req(session, 'GET', '/services', params={'id': f'in.({ids})', 'select': 'id,name'})
+        if svcs:
+            for s in svcs:
+                services_by_id[s['id']] = s.get('name', '')
+    out = []
+    for r in data:
+        out.append({
+            'id': r.get('id'),
+            'client_name': users_by_id.get(r.get('client_id'), 'Unknown'),
+            'provider_name': users_by_id.get(r.get('provider_id'), 'Unknown'),
+            'service_name': services_by_id.get(r.get('service_id'), 'Unknown'),
+            'status': r.get('status'),
+            'proposed_price': r.get('proposed_price'),
+            'location_text': r.get('location_text') or '—',
+            'message': r.get('message') or '—',
+            'connect_consumed': r.get('connect_consumed'),
+            'connect_source': r.get('connect_source') or '—',
+            'created_at': str(r.get('created_at', ''))[:19].replace('T', ' ') if r.get('created_at') else '—',
+            'expires_at': str(r.get('expires_at', ''))[:19].replace('T', ' ') if r.get('expires_at') else '—',
+        })
+    return out
+
+
+# =============================================================================
 # Subscription plans (SUBSCRIPTION_ADMIN_PLAN)
 # =============================================================================
 
@@ -765,6 +998,11 @@ def _plan_to_dict(row):
             feats = []
     else:
         feats = []
+    per = row.get('connects_per_period')
+    try:
+        per_int = int(per) if per is not None else None
+    except (TypeError, ValueError):
+        per_int = None
     return {
         'id': row.get('id'),
         'name': row.get('name'),
@@ -778,6 +1016,9 @@ def _plan_to_dict(row):
         'is_active': bool(row.get('is_active', True)),
         'is_popular': bool(row.get('is_popular', False)),
         'sort_order': int(row.get('sort_order') or 0),
+        'connects_limit_enabled': bool(row.get('connects_limit_enabled', False)),
+        'connects_per_period': per_int,
+        'connects_period_rule': (row.get('connects_period_rule') or 'subscription_term').strip() or 'subscription_term',
     }
 
 
@@ -801,7 +1042,13 @@ def get_subscription_plan(session, plan_id):
 
 
 def add_subscription_plan(session, payload):
-    """Create subscription plan. payload: name, code, description, price, currency, duration_type, duration_value, features, is_active, is_popular, sort_order."""
+    """Create subscription plan. payload includes connects_limit_enabled, connects_per_period, connects_period_rule."""
+    per_raw = payload.get('connects_per_period')
+    try:
+        per_val = int(per_raw) if per_raw is not None and str(per_raw).strip() != '' else None
+    except (TypeError, ValueError):
+        per_val = None
+    rule = (payload.get('connects_period_rule') or 'subscription_term').strip() or 'subscription_term'
     row = {
         'name': payload.get('name'),
         'code': payload.get('code') or (payload.get('name', '').lower().replace(' ', '_') if payload.get('name') else None),
@@ -814,6 +1061,9 @@ def add_subscription_plan(session, payload):
         'is_active': bool(payload.get('is_active', True)),
         'is_popular': bool(payload.get('is_popular', False)),
         'sort_order': int(payload.get('sort_order', 0)),
+        'connects_limit_enabled': bool(payload.get('connects_limit_enabled', False)),
+        'connects_per_period': per_val,
+        'connects_period_rule': rule,
     }
     res = _req_write(session, 'POST', '/subscription_plans', json_data=row)
     return res is not None and (isinstance(res, list) or isinstance(res, dict))
@@ -821,7 +1071,27 @@ def add_subscription_plan(session, payload):
 
 def update_subscription_plan(session, plan_id, payload):
     """Update subscription plan."""
-    row = {k: v for k, v in payload.items() if k in ('name', 'code', 'description', 'price', 'currency', 'duration_type', 'duration_value', 'features', 'is_active', 'is_popular', 'sort_order') and v is not None}
+    allowed = (
+        'name', 'code', 'description', 'price', 'currency', 'duration_type', 'duration_value',
+        'features', 'is_active', 'is_popular', 'sort_order',
+        'connects_limit_enabled', 'connects_per_period', 'connects_period_rule',
+    )
+    row = {}
+    for k in allowed:
+        if k not in payload:
+            continue
+        v = payload[k]
+        if k == 'connects_per_period':
+            if v is None or (isinstance(v, str) and not str(v).strip()):
+                row[k] = None
+            else:
+                row[k] = int(v)
+        elif k == 'connects_limit_enabled':
+            row[k] = bool(v)
+        elif k == 'connects_period_rule' and v is not None:
+            row[k] = str(v).strip() or 'subscription_term'
+        elif v is not None:
+            row[k] = v
     if not row:
         return False
     res = _req_write(session, 'PATCH', f'/subscription_plans?id=eq.{plan_id}', json_data=row)
@@ -852,7 +1122,10 @@ def list_users_for_plan_grant(session):
 
 def list_user_plan_subscriptions(session, status_filter=None, plan_filter=None):
     """List user plan subscriptions with user and plan names. status_filter, plan_filter optional."""
-    path = '/user_plan_subscriptions?select=id,user_id,plan_id,status,started_at,expires_at,cancelled_at,payment_reference,notes'
+    path = (
+        '/user_plan_subscriptions?select=id,user_id,plan_id,status,started_at,expires_at,cancelled_at,'
+        'payment_reference,notes,connects_granted,connects_used,connects_period_started_at'
+    )
     params = {}
     if status_filter:
         params['status'] = f'eq.{status_filter}'
@@ -874,13 +1147,26 @@ def list_user_plan_subscriptions(session, status_filter=None, plan_filter=None):
                 users_by_id[u['id']] = u
     if plan_ids:
         ids = ','.join(map(str, plan_ids))
-        plans = _req(session, 'GET', '/subscription_plans', params={'id': f'in.({ids})', 'select': 'id,name'})
+        plans = _req(session, 'GET', '/subscription_plans', params={
+            'id': f'in.({ids})',
+            'select': 'id,name,connects_limit_enabled,connects_per_period,connects_period_rule',
+        })
         if plans:
             for p in plans:
                 plans_by_id[p['id']] = p
     for r in data:
         u = users_by_id.get(r.get('user_id')) or {}
         p = plans_by_id.get(r.get('plan_id')) or {}
+        grant = r.get('connects_granted')
+        used = int(r.get('connects_used') or 0)
+        limit_on = bool(p.get('connects_limit_enabled'))
+        if not limit_on or grant is None:
+            connects_label = 'Unlimited'
+            connects_remaining = None
+        else:
+            g = int(grant)
+            connects_remaining = max(0, g - used)
+            connects_label = f'{connects_remaining} / {g}'
         out.append({
             'id': r.get('id'),
             'user_id': r.get('user_id'),
@@ -894,12 +1180,157 @@ def list_user_plan_subscriptions(session, status_filter=None, plan_filter=None):
             'expires_at': str(r.get('expires_at', ''))[:10] if r.get('expires_at') else '—',
             'payment_reference': r.get('payment_reference') or '—',
             'notes': r.get('notes') or '',
+            'connects_granted': grant,
+            'connects_used': used,
+            'connects_period_started_at': str(r.get('connects_period_started_at', ''))[:10] if r.get('connects_period_started_at') else '—',
+            'connects_label': connects_label,
+            'connects_remaining': connects_remaining,
+            'plan_connects_limit_enabled': limit_on,
+            'plan_connects_period_rule': p.get('connects_period_rule') or 'subscription_term',
         })
     return out
 
 
+def list_recent_paystack_transactions(session, limit=40):
+    """Recent Paystack checkout rows for revenue / funnel tracking (admin RLS)."""
+    data = _req(session, 'GET', '/paystack_transactions', params={
+        'select': 'id,user_id,plan_id,reference,status,amount_kobo,currency,email,created_at',
+        'order': 'created_at.desc',
+        'limit': str(limit),
+    })
+    if not data or not isinstance(data, list):
+        return []
+    user_ids = set(r.get('user_id') for r in data if r.get('user_id'))
+    plan_ids = set(r.get('plan_id') for r in data if r.get('plan_id'))
+    users_by_id = {}
+    plans_by_id = {}
+    if user_ids:
+        ids = ','.join(map(str, user_ids))
+        users = _req(session, 'GET', '/users', params={
+            'id': f'in.({ids})',
+            'select': 'id,first_name,last_name,phone,email',
+        })
+        if users:
+            for u in users:
+                users_by_id[u['id']] = u
+    if plan_ids:
+        ids = ','.join(map(str, plan_ids))
+        plans = _req(session, 'GET', '/subscription_plans', params={
+            'id': f'in.({ids})',
+            'select': 'id,name',
+        })
+        if plans:
+            for p in plans:
+                plans_by_id[p['id']] = p
+    out = []
+    for r in data:
+        u = users_by_id.get(r.get('user_id')) or {}
+        p = plans_by_id.get(r.get('plan_id')) or {}
+        out.append({
+            'id': r.get('id'),
+            'reference': r.get('reference'),
+            'status': r.get('status'),
+            'amount_kobo': r.get('amount_kobo'),
+            'currency': r.get('currency') or 'KES',
+            'created_at': r.get('created_at'),
+            'user_label': f"{u.get('first_name', '')} {u.get('last_name', '')}".strip() or 'Unknown',
+            'user_email': u.get('email') or r.get('email'),
+            'user_phone': u.get('phone'),
+            'plan_name': p.get('name') or '—',
+        })
+    return out
+
+
+def subscription_tracking_dashboard(session):
+    """Subscriber KPIs, connects snapshot, and recent payments — all from Supabase REST."""
+    subs = _req(session, 'GET', '/user_plan_subscriptions', params={
+        'select': 'id,status,plan_id,connects_granted,connects_used,user_id',
+    })
+    subs = subs if isinstance(subs, list) else []
+    by_status = {}
+    connects_snapshot = []  # active rows with caps
+    for r in subs:
+        st = r.get('status') or 'unknown'
+        by_status[st] = by_status.get(st, 0) + 1
+        if st == 'active' and r.get('connects_granted') is not None:
+            uid = r.get('user_id')
+            g = int(r.get('connects_granted') or 0)
+            used = int(r.get('connects_used') or 0)
+            connects_snapshot.append({
+                'subscription_id': r.get('id'),
+                'user_id': uid,
+                'plan_id': r.get('plan_id'),
+                'remaining': max(0, g - used),
+                'granted': g,
+                'used': used,
+            })
+    plans = list_subscription_plans(session)
+    plan_names = {p['id']: p.get('name') for p in plans}
+    by_plan = {}
+    for r in subs:
+        pid = r.get('plan_id')
+        if pid is None:
+            continue
+        by_plan[pid] = by_plan.get(pid, 0) + 1
+    by_plan_rows = [
+        {
+            'plan_id': pid,
+            'plan_name': plan_names.get(pid) or f'Plan #{pid}',
+            'count': cnt,
+        }
+        for pid, cnt in sorted(by_plan.items(), key=lambda x: -x[1])
+    ]
+    recent = list_recent_paystack_transactions(session, limit=40)
+    user_ids_snap = list(set(x['user_id'] for x in connects_snapshot if x.get('user_id')))
+    snap_users = {}
+    if user_ids_snap:
+        ids = ','.join(map(str, user_ids_snap))
+        urows = _req(session, 'GET', '/users', params={
+            'id': f'in.({ids})',
+            'select': 'id,first_name,last_name,phone,email',
+        })
+        if urows:
+            for u in urows:
+                snap_users[u['id']] = u
+    for row in connects_snapshot:
+        u = snap_users.get(row.get('user_id')) or {}
+        row['user_label'] = f"{u.get('first_name', '')} {u.get('last_name', '')}".strip() or 'Unknown'
+        row['plan_name'] = plan_names.get(row.get('plan_id')) or '—'
+    connects_snapshot.sort(key=lambda x: -(x.get('remaining') or 0))
+
+    return {
+        'total_sub_rows': len(subs),
+        'by_status': by_status,
+        'by_plan_rows': by_plan_rows,
+        'connects_snapshot': connects_snapshot[:80],
+        'recent_paystack': recent,
+        'plans': plans,
+    }
+
+
+def _connect_fields_for_new_subscription(plan_dict, started_at):
+    """Match paystack finalize: set connects on new subscription when plan caps connects."""
+    if not plan_dict:
+        return {}
+    limit_on = plan_dict.get('connects_limit_enabled') is True
+    per_raw = plan_dict.get('connects_per_period')
+    try:
+        per_num = int(per_raw) if per_raw is not None else None
+    except (TypeError, ValueError):
+        per_num = None
+    if limit_on and per_num is not None and per_num >= 0:
+        started = str(started_at)[:10]
+        return {
+            'connects_granted': per_num,
+            'connects_used': 0,
+            'connects_period_started_at': started,
+        }
+    return {}
+
+
 def grant_user_plan_subscription(session, user_id, plan_id, started_at, expires_at, payment_reference=None, notes=None):
     """Grant a plan to a user. user_id=users.id (integer), plan_id=subscription_plans.id."""
+    plan = get_subscription_plan(session, plan_id)
     row = {
         'user_id': int(user_id),
         'plan_id': int(plan_id),
@@ -909,6 +1340,7 @@ def grant_user_plan_subscription(session, user_id, plan_id, started_at, expires_
         'payment_reference': payment_reference or None,
         'notes': notes or None,
     }
+    row.update(_connect_fields_for_new_subscription(plan, started_at))
     res = _req_write(session, 'POST', '/user_plan_subscriptions', json_data=row)
     return res is not None and (isinstance(res, list) or isinstance(res, dict))
 
@@ -920,11 +1352,22 @@ def get_user_plan_subscription(session, sub_id):
         return None
     r = data[0]
     users = _req(session, 'GET', '/users', params={'id': f'eq.{r.get("user_id")}', 'select': 'id,first_name,last_name,phone,email'})
-    plans = _req(session, 'GET', '/subscription_plans', params={'id': f'eq.{r.get("plan_id")}', 'select': 'id,name,price,currency,duration_type,duration_value'})
+    plans = _req(session, 'GET', '/subscription_plans', params={
+        'id': f'eq.{r.get("plan_id")}',
+        'select': 'id,name,price,currency,duration_type,duration_value,connects_limit_enabled,connects_per_period,connects_period_rule',
+    })
     u = users[0] if users else {}
     p = plans[0] if plans else {}
-    from datetime import date
     cancelled = r.get('cancelled_at')
+    cg = r.get('connects_granted')
+    cu = int(r.get('connects_used') or 0)
+    limit_on = bool(p.get('connects_limit_enabled'))
+    if not limit_on or cg is None:
+        connects_remaining = None
+        connects_unlimited = True
+    else:
+        connects_remaining = max(0, int(cg) - cu)
+        connects_unlimited = False
     return {
         'id': r.get('id'),
         'user_id': r.get('user_id'),
@@ -935,12 +1378,20 @@ def get_user_plan_subscription(session, sub_id):
         'plan_name': p.get('name'),
         'plan_price': p.get('price'),
         'plan_currency': p.get('currency'),
+        'plan_connects_limit_enabled': limit_on,
+        'plan_connects_per_period': p.get('connects_per_period'),
+        'plan_connects_period_rule': (p.get('connects_period_rule') or 'subscription_term'),
         'status': r.get('status'),
         'started_at': r.get('started_at'),
         'expires_at': r.get('expires_at'),
         'cancelled_at': cancelled,
         'payment_reference': r.get('payment_reference'),
         'notes': r.get('notes'),
+        'connects_granted': cg,
+        'connects_used': cu,
+        'connects_period_started_at': r.get('connects_period_started_at'),
+        'connects_remaining': connects_remaining,
+        'connects_unlimited': connects_unlimited,
     }
 
 
@@ -960,9 +1411,30 @@ def extend_user_plan_subscription(session, sub_id, new_expires_at):
 
 
 def update_user_plan_subscription(session, sub_id, payload):
-    """Update subscription (status, expires_at, cancelled_at, payment_reference, notes)."""
-    allowed = ('status', 'expires_at', 'cancelled_at', 'payment_reference', 'notes')
-    row = {k: v for k, v in payload.items() if k in allowed and v is not None}
+    """Update subscription metadata and optional connect balances (admin support)."""
+    allowed = (
+        'status', 'expires_at', 'cancelled_at', 'payment_reference', 'notes',
+        'connects_granted', 'connects_used', 'connects_period_started_at',
+    )
+    row = {}
+    for k in allowed:
+        if k not in payload:
+            continue
+        v = payload[k]
+        if k == 'connects_granted':
+            if v is None or v == '':
+                row[k] = None
+            else:
+                row[k] = int(v)
+        elif k == 'connects_used':
+            if v is None or v == '':
+                continue
+            row[k] = max(0, int(v))
+        elif k == 'connects_period_started_at':
+            if v:
+                row[k] = str(v)[:10]
+        elif v is not None and v != '':
+            row[k] = v
     if not row:
         return False
     res = _req_write(session, 'PATCH', f'/user_plan_subscriptions?id=eq.{sub_id}', json_data=row)

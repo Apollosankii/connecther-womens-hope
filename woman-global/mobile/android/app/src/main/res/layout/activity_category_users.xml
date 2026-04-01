@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
     android:padding="10dp">
 
-    <!-- Title TextView -->
     <TextView
         android:id="@+id/categoryTitle"
         android:layout_width="wrap_content"
@@ -17,12 +17,22 @@
         android:textSize="18sp"
         android:textStyle="bold" />
 
-    <!-- RecyclerView for displaying users in the selected category -->
+    <TextView
+        android:id="@+id/nearbyHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/categoryTitle"
+        android:layout_marginTop="4dp"
+        android:paddingHorizontal="8dp"
+        android:textColor="?android:textColorSecondary"
+        android:textSize="12sp"
+        tools:text="@string/providers_nearby_hint" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/usersRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/categoryTitle"
+        android:layout_below="@id/nearbyHint"
         android:layout_marginTop="8dp"
         android:clipToPadding="false"
         android:scrollbars="vertical" />
@@ -31,10 +41,10 @@
         android:id="@+id/noProvidersLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_below="@id/categoryTitle"
+        android:layout_below="@id/nearbyHint"
         android:gravity="center"
-        android:padding="24dp"
         android:orientation="vertical"
+        android:padding="24dp"
         android:visibility="gone">
 
         <ImageView
@@ -49,12 +59,11 @@
             android:layout_height="150dp"
             android:layout_marginTop="16dp"
             android:text="Service Not in your area. Coming soon"
+            android:textColor="@color/black"
             android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="@color/black" />
+            android:textStyle="bold" />
     </LinearLayout>
 
-    <!-- ProgressBar for loading indicator -->
     <ProgressBar
         android:id="@+id/loadingProgressBar"
         style="?android:attr/progressBarStyleLarge"

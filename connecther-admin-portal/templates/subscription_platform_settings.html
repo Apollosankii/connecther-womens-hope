@@ -1,0 +1,40 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Free tier (exploration)</h2>
+            <p class="ch-page-subtitle">Default number of connects for seekers without a paid subscription—used for testing and exploring the app. Per-user caps live on each user record; this value seeds new users and platform defaults.</p>
+        </div>
+        <a href="{{ url_for('subscription_plans') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">Subscription plans</a>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <form method="post">
+                <div class="form-group">
+                    <label for="free_tier_connects">Default free connects (platform)</label>
+                    <input type="number" id="free_tier_connects" name="free_tier_connects" class="form-control" min="0" step="1"
+                           value="{{ settings.free_tier_connects }}" required>
+                    <small class="form-text text-muted">Stored in <code>platform_settings</code> (singleton id=1). Changing this does NOT reset <code>free_connects_used</code> or update <code>free_connects_granted</code> on existing accounts (see below).</small>
+                </div>
+                {% if settings.updated_at %}
+                <p class="text-muted small mb-3">Last updated: {{ settings.updated_at }}</p>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Save default</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Apply cap to existing users</h5>
+            <p class="text-muted small">This will set <code>free_connects_granted</code> to <strong>{{ settings.free_tier_connects }}</strong> for all users who already have a value (i.e. have been allocated). It does NOT reset their <code>free_connects_used</code>. Users who exceed the new cap will be blocked until they purchase a subscription or an admin adjusts their balance.</p>
+            <form method="post">
+                <input type="hidden" name="_action" value="apply_to_all">
+                <button type="submit" class="btn btn-warning" onclick="return confirm('Apply the platform cap ({{ settings.free_tier_connects }}) to ALL existing users? This may block users who have used more than the new cap.');">Apply to all existing users</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

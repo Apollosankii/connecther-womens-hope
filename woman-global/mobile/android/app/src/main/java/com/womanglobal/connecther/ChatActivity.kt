@@ -2,6 +2,7 @@ package com.womanglobal.connecther
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.os.Handler
 import android.os.Looper
 import android.widget.EditText
@@ -12,10 +13,14 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import com.google.android.material.button.MaterialButton
 import com.womanglobal.connecther.adapters.ChatAdapter
+import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.services.ChatMessage
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.NetworkStatus
 import kotlinx.coroutines.launch
 
 class ChatActivity : AppCompatActivity() {
@@ -25,6 +30,7 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var chatRecyclerView: RecyclerView
     private lateinit var userNameTextView: TextView
     private lateinit var serviceNameTextView: TextView
+    private lateinit var userImage: ImageView
     private lateinit var chatAdapter: ChatAdapter
     private val chatMessages = mutableListOf<ChatMessage>()
     private var currentUserId: String = ""
@@ -43,8 +49,10 @@ class ChatActivity : AppCompatActivity() {
         setContentView(R.layout.activity_chat)
 
         chatCode = intent.getStringExtra("chat_code").orEmpty()
-        val peerName = intent.getStringExtra("providerName").orEmpty().ifBlank { "Conversation" }
+        val intentPeer = intent.getStringExtra("peer_display_name").orEmpty()
+            .ifBlank { intent.getStringExtra("providerName").orEmpty() }
         val serviceName = intent.getStringExtra("serviceName").orEmpty()
+        val intentPic = intent.getStringExtra("peer_pic").orEmpty().takeIf { it.isNotBlank() }
 
         backButton = findViewById(R.id.backButton)
         sendButton = findViewById(R.id.sendButton)
@@ -52,9 +60,9 @@ class ChatActivity : AppCompatActivity() {
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
         userNameTextView = findViewById(R.id.userNameTextView)
         serviceNameTextView = findViewById(R.id.serviceNameTextView)
+        userImage = findViewById(R.id.userImage)
 
-        userNameTextView.text = peerName
-        serviceNameTextView.text = serviceName
+        applyHeader(intentPeer.ifBlank { "Conversation" }, intentPic, serviceName)
 
         val layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         chatRecyclerView.layoutManager = layoutManager
@@ -68,9 +76,32 @@ class ChatActivity : AppCompatActivity() {
             currentUserId = SupabaseData.getMyUserId().orEmpty()
             chatAdapter = ChatAdapter(chatMessages, currentUserId)
             chatRecyclerView.adapter = chatAdapter
+
+            val header = if (chatCode.isNotBlank()) {
+                runCatching { SupabaseData.getChatHeader(chatCode) }.getOrNull()
+            } else {
+                null
+            }
+            val name = header?.peer_name?.trim().orEmpty().ifBlank { intentPeer }.ifBlank { "Conversation" }
+            val pic = header?.peer_pic?.trim()?.takeIf { it.isNotEmpty() } ?: intentPic
+            val svc = header?.service_name?.trim().orEmpty().ifBlank { serviceName }
+            applyHeader(name, pic, svc)
+
             loadChatMessages()
             handler.post(refreshRunnable)
         }
+    }
+
+    private fun applyHeader(peerName: String, peerPic: String?, serviceName: String) {
+        userNameTextView.text = peerName
+        serviceNameTextView.text = serviceName
+        Glide.with(this)
+            .load(peerPic?.takeIf { it.isNotBlank() })
+            .placeholder(R.mipmap.woman_profile)
+            .error(R.mipmap.woman_profile)
+            .signature(ObjectKey(peerPic ?: peerName))
+            .circleCrop()
+            .into(userImage)
     }
 
     private fun loadChatMessages() {
@@ -79,9 +110,31 @@ class ChatActivity : AppCompatActivity() {
             return
         }
         lifecycleScope.launch {
-            val messages = runCatching { SupabaseData.getChatMessages(chatCode) }.getOrElse {
-                Toast.makeText(this@ChatActivity, "Failed to load messages", Toast.LENGTH_SHORT).show()
-                emptyList()
+            val online = NetworkStatus.isOnline(this@ChatActivity)
+            val messages = when {
+                online -> {
+                    val fetched = runCatching { SupabaseData.getChatMessages(chatCode) }.getOrElse { e ->
+                        Log.w("ChatActivity", "getChatMessages failed: ${e.message}")
+                        Toast.makeText(this@ChatActivity, "Failed to load messages", Toast.LENGTH_SHORT).show()
+                        null
+                    }
+                    val list = fetched ?: AppOfflineCache.readChatMessages(this@ChatActivity, chatCode).orEmpty()
+                    if (fetched != null) {
+                        AppOfflineCache.writeChatMessages(this@ChatActivity, chatCode, fetched)
+                    }
+                    list
+                }
+                else -> {
+                    val cached = AppOfflineCache.readChatMessages(this@ChatActivity, chatCode).orEmpty()
+                    if (cached.isEmpty()) {
+                        Toast.makeText(
+                            this@ChatActivity,
+                            getString(R.string.offline_no_cached_messages),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                    cached
+                }
             }
             chatMessages.clear()
             chatMessages.addAll(messages)

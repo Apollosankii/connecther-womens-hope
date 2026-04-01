@@ -33,3 +33,14 @@ debug.log
 
 # Supabase CLI local
 .supabase/
+
+# MCP / deploy temp files
+**/.mcp_*
+**/.paystack_*
+**/_args_line.txt
+
+# IntelliJ / Android Studio module files
+*.iml
+
+# Temporary SQL / query files
+query_raw_for_mcp.sql

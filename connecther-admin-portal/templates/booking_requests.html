@@ -1,0 +1,70 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Booking Requests</h2>
+            <p class="ch-page-subtitle">All booking requests created by seekers (pending, accepted, declined, expired, cancelled).</p>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <form method="get" class="form-inline flex-wrap mb-3" id="filter-form">
+                <label class="mr-2 mb-1">Status:</label>
+                <select name="status" class="form-control form-control-sm mr-3 mb-1" onchange="document.getElementById('filter-form').submit();">
+                    <option value="">All</option>
+                    <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="accepted" {% if status_filter == 'accepted' %}selected{% endif %}>Accepted</option>
+                    <option value="declined" {% if status_filter == 'declined' %}selected{% endif %}>Declined</option>
+                    <option value="expired" {% if status_filter == 'expired' %}selected{% endif %}>Expired</option>
+                    <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline-secondary mb-1">Apply</button>
+            </form>
+            <div class="table-responsive">
+                <table class="ch-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Client (seeker)</th>
+                            <th>Provider</th>
+                            <th>Service</th>
+                            <th>Price</th>
+                            <th>Status</th>
+                            <th>Connect</th>
+                            <th>Created</th>
+                            <th>Expires</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in requests %}
+                        <tr>
+                            <td>{{ r.id }}</td>
+                            <td>{{ r.client_name }}</td>
+                            <td>{{ r.provider_name }}</td>
+                            <td>{{ r.service_name }}</td>
+                            <td>{{ r.proposed_price }}</td>
+                            <td>
+                                {% if r.status == 'pending' %}<span class="badge badge-warning">Pending</span>
+                                {% elif r.status == 'accepted' %}<span class="badge badge-success">Accepted</span>
+                                {% elif r.status == 'declined' %}<span class="badge badge-secondary">Declined</span>
+                                {% elif r.status == 'expired' %}<span class="badge badge-dark">Expired</span>
+                                {% elif r.status == 'cancelled' %}<span class="badge badge-danger">Cancelled</span>
+                                {% else %}<span class="badge badge-light">{{ r.status }}</span>{% endif %}
+                            </td>
+                            <td class="small">{{ r.connect_source }}{% if r.connect_consumed %} (charged){% endif %}</td>
+                            <td class="small">{{ r.created_at }}</td>
+                            <td class="small">{{ r.expires_at }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not requests %}
+                        <tr><td colspan="9" class="ch-empty-state">No booking requests match the filter.</td></tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

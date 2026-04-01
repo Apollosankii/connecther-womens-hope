@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Always white: used only for launch splash (not overridden in night). -->
+    <color name="splash_background">#FFFFFF</color>
+
     <color name="background">#F5EEEC</color>
     <color name="surface">#FFFFFF</color>
     <color name="surface_variant">#F7F3F2</color>
@@ -44,5 +47,12 @@
     <color name="chat_icon_muted">#2A2A2A</color>
     <color name="chat_hire_outline">#3797F0</color>
 
+    <color name="booking_status_pending_text">#E65100</color>
+    <color name="booking_status_accepted_text">#2E7D32</color>
+    <color name="booking_status_declined_text">#C62828</color>
+    <color name="booking_status_cancelled_text">#616161</color>
+
+    <!-- Profile: verification badge (readable on light surfaces) -->
+    <color name="profile_verified">#2E7D32</color>
 
 </resources>

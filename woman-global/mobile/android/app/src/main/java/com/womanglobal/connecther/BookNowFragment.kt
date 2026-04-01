@@ -133,8 +133,7 @@ class BookNowFragment : Fragment() {
     }
 
     private fun bookDate(date: CalendarDay) {
-        Toast.makeText(context, "Booking date: ${date.date}", Toast.LENGTH_SHORT).show()
-        // Add booking logic here
+        showBookingDialog(date.date.time)
     }
 
     private fun parseDate(dateStr: String): Calendar {

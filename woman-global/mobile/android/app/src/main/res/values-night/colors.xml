@@ -49,4 +49,11 @@
     <color name="chat_input_fill">#2C2C2C</color>
     <color name="chat_icon_muted">#F5F5F5</color>
     <color name="chat_hire_outline">#3797F0</color>
+
+    <color name="booking_status_pending_text">#FFCC80</color>
+    <color name="booking_status_accepted_text">#A5D6A7</color>
+    <color name="booking_status_declined_text">#FFAB91</color>
+    <color name="booking_status_cancelled_text">#9E9E9E</color>
+
+    <color name="profile_verified">#81C784</color>
 </resources>

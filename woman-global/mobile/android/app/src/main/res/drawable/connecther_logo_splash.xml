@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Wrap bitmap so SplashScreen renders it reliably across Android versions. -->
-    <item android:gravity="center">
-        <bitmap android:src="@drawable/connecther_logo" />
-    </item>
-</layer-list>
-

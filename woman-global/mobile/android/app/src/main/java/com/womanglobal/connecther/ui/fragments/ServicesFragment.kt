@@ -12,6 +12,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import com.womanglobal.connecther.CategoryUsersActivity
+import com.womanglobal.connecther.R
 import com.womanglobal.connecther.adapters.GenericGridAdapter
 import com.womanglobal.connecther.data.Service
 import com.womanglobal.connecther.databinding.FragmentServicesBinding
@@ -37,7 +38,7 @@ class ServicesFragment : Fragment() {
         val ctx = context
         if (ctx != null) {
             val isDark = ThemeHelper.isDarkMode(ctx)
-            binding.themeToggleButton.setImageResource(if (isDark) com.womanglobal.connecther.R.drawable.ic_sun_24 else com.womanglobal.connecther.R.drawable.ic_moon_24)
+            binding.themeToggleButton.setImageResource(if (isDark) R.drawable.ic_sun_24 else R.drawable.ic_moon_24)
             binding.themeToggleButton.setOnClickListener {
                 val nowDark = !ThemeHelper.isDarkMode(ctx)
                 ThemeHelper.setDarkMode(ctx, nowDark)
@@ -88,8 +89,11 @@ class ServicesFragment : Fragment() {
             }
         }
 
-        val countText = "${filtered.size} service${if (filtered.size != 1) "s" else ""} available"
-        binding.serviceCount.text = countText
+        binding.serviceCount.text = getString(
+            R.string.marketplace_service_count,
+            filtered.size,
+            if (filtered.size == 1) "" else "s"
+        )
         binding.serviceCount.visibility = View.VISIBLE
 
         binding.categoryRecyclerView.layoutManager = GridLayoutManager(ctx, 2)

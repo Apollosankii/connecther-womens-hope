@@ -59,6 +59,22 @@ function splitName(name: string | null): { first: string | null; last: string | 
   return { first: parts[0], last: parts.slice(1).join(" ") };
 }
 
+function normalizeEmail(email: string | null | undefined): string {
+  return (email ?? "").trim().toLowerCase();
+}
+
+/** True if Postgres / PostgREST reports a unique violation (shape varies by client). */
+function isUniqueViolation(err: { code?: string; message?: string; details?: string } | null): boolean {
+  if (!err) return false;
+  const msg = `${err.message ?? ""} ${err.details ?? ""}`.toLowerCase();
+  return (
+    err.code === "23505" ||
+    msg.includes("users_email_lower_unique") ||
+    msg.includes("duplicate key") ||
+    msg.includes("unique constraint")
+  );
+}
+
 function fallbackNames(email: string | null): { first: string; last: string } {
   if (!email) return { first: "ConnectHer", last: "User" };
   const local = email.split("@")[0]?.trim() || "";
@@ -134,7 +150,7 @@ Deno.serve(async (req) => {
 
     const { data: existing, error: existingErr } = await admin
       .from("users")
-      .select("id, user_id")
+      .select("id, user_id, email")
       .eq("clerk_user_id", verified.uid)
       .maybeSingle();
     if (existingErr) {
@@ -144,24 +160,61 @@ Deno.serve(async (req) => {
     const userId = (existing?.user_id as string | null) ??
       `usr_${await sha256Base36(verified.uid, 12)}`;
 
-    // `clerk_user_id` is a legacy column name; value is the Firebase Auth UID (JWT `sub` from auth-bridge).
-    const upsertPayload: Record<string, unknown> = {
-      clerk_user_id: verified.uid,
-      user_id: userId,
-      // public.users has legacy NOT NULL columns; provide safe defaults for first insert.
-      title: "Ms",
-      first_name: first ?? fallback.first,
-      last_name: last ?? fallback.last,
-      phone: "0000000000",
-      password: `firebase:${verified.uid}`,
-    };
-    if (verified.email) upsertPayload.email = verified.email;
+    if (existing?.id != null) {
+      /**
+       * Best-effort: copy Firebase email onto this row. Must never block login.
+       *
+       * Before `users_email_lower_unique`, duplicates were allowed and this always worked. After the
+       * migration, another legacy row may still hold the same normalized email → UPDATE can hit a
+       * unique violation. Supabase may not always surface Postgres code `23505` on the error object,
+       * so we treat email sync as optional: log and continue.
+       *
+       * Also skip UPDATE when the DB already matches Firebase (avoids useless writes).
+       */
+      if (verified.email) {
+        const row = existing as { id: number; user_id?: string | null; email?: string | null };
+        if (normalizeEmail(row.email) !== normalizeEmail(verified.email)) {
+          const { error: emailErr } = await admin
+            .from("users")
+            .update({ email: verified.email })
+            .eq("clerk_user_id", verified.uid);
+          if (emailErr) {
+            console.warn("auth-bridge: email sync failed (login continues)", {
+              uid: verified.uid,
+              email: verified.email,
+              err: emailErr,
+            });
+          }
+        }
+      }
+    } else {
+      // `clerk_user_id` is a legacy column name; value is the Firebase Auth UID (JWT `sub` from auth-bridge).
+      const insertPayload: Record<string, unknown> = {
+        clerk_user_id: verified.uid,
+        user_id: userId,
+        title: "Ms",
+        first_name: first ?? fallback.first,
+        last_name: last ?? fallback.last,
+        phone: "0000000000",
+        password: `firebase:${verified.uid}`,
+      };
+      if (verified.email) insertPayload.email = verified.email;
 
-    const { error: upsertErr } = await admin
-      .from("users")
-      .upsert(upsertPayload, { onConflict: "clerk_user_id" });
-    if (upsertErr) {
-      return corsJson({ error: "Failed to upsert user", detail: upsertErr.message }, 500);
+      const { error: insertErr } = await admin.from("users").insert(insertPayload);
+      if (insertErr) {
+        const dup = isUniqueViolation(insertErr);
+        if (dup) {
+          return corsJson(
+            {
+              code: "EMAIL_TAKEN",
+              error: "This email is already registered. Sign in or use another email.",
+              detail: insertErr.message,
+            },
+            409,
+          );
+        }
+        return corsJson({ error: "Failed to create user", detail: insertErr.message }, 500);
+      }
     }
 
     const supabaseJwt = await mintSupabaseJwt({

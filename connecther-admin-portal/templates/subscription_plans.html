@@ -22,6 +22,13 @@
                 <div class="ch-service-footer">
                     <span class="ch-service-price"><span class="flaticon-money"></span> {{ plan.currency }} {{ plan.price }} / {{ plan.duration_value }} {{ plan.duration_type }}{% if plan.duration_value != 1 %}s{% endif %}</span>
                 </div>
+                <p class="small mb-1 mt-2">
+                    {% if plan.connects_limit_enabled and plan.connects_per_period is not none %}
+                    <span class="badge badge-info">{{ plan.connects_per_period }} connects / {{ plan.connects_period_rule|replace('_', ' ') }}</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Unlimited connects</span>
+                    {% endif %}
+                </p>
                 <div class="d-flex flex-wrap align-items-center mt-2 pt-2 border-top">
                     <span class="mr-2"><strong>Active:</strong> {% if plan.is_active %}<span class="text-success">Yes</span>{% else %}<span class="text-muted">No</span>{% endif %}</span>
                     <span class="mr-2 text-muted">Order: {{ plan.sort_order }}</span>

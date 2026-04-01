@@ -51,7 +51,11 @@ class AllServicesActivity : AppCompatActivity() {
             val q = query.lowercase()
             allServices.filter { it.name.lowercase().contains(q) || (it.description?.lowercase()?.contains(q) == true) }
         }
-        binding.serviceCount.text = "${filtered.size} service${if (filtered.size == 1) "" else "s"}"
+        binding.serviceCount.text = getString(
+            R.string.marketplace_service_count,
+            filtered.size,
+            if (filtered.size == 1) "" else "s"
+        )
         binding.servicesRecyclerView.adapter = GenericGridAdapter(filtered) { service ->
                 val intent = Intent(this@AllServicesActivity, CategoryUsersActivity::class.java).apply {
                     putExtra("categoryName", service.name)

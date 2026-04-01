@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="TextAppearance.ConnectHer.MessagesScreenTitle" parent="TextAppearance.MaterialComponents.Headline5">
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+        <item name="android:letterSpacing">-0.02</item>
+    </style>
+
+    <style name="TextAppearance.ConnectHer.MessagesScreenSubtitle" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/on_surface_variant</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+    </style>
+
+    <style name="TextAppearance.ConnectHer.ConversationName" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ConnectHer.ConversationPreview" parent="TextAppearance.MaterialComponents.Body2">
+        <item name="android:textColor">@color/on_surface_variant</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+    </style>
+
+    <style name="TextAppearance.ConnectHer.ConversationMeta" parent="TextAppearance.MaterialComponents.Caption">
+        <item name="android:textColor">@color/chat_text_subtitle</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+    </style>
+
+    <style name="TextAppearance.ConnectHer.ToolbarTitle" parent="TextAppearance.MaterialComponents.Subtitle1">
+        <item name="android:textColor">@color/on_background</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">@font/poppins</item>
+        <item name="fontFamily">@font/poppins</item>
+    </style>
+</resources>

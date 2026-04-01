@@ -11,7 +11,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.womanglobal.connecther.data.SubscriptionPackage
+import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.NetworkStatus
 import kotlinx.coroutines.launch
 
 class SubscriptionsActivity : AppCompatActivity() {
@@ -22,20 +24,69 @@ class SubscriptionsActivity : AppCompatActivity() {
         val rv = findViewById<RecyclerView>(R.id.recyclerSubscriptions)
         val progress = findViewById<ProgressBar>(R.id.progressBar)
         val empty = findViewById<TextView>(R.id.emptyText)
+        val activeSubCard = findViewById<View>(R.id.activeSubCard)
+        val activeSubPlan = findViewById<TextView>(R.id.activeSubPlan)
+        val activeSubExpires = findViewById<TextView>(R.id.activeSubExpires)
         rv.layoutManager = LinearLayoutManager(this)
 
         lifecycleScope.launch {
-            val plans = runCatching { SupabaseData.getSubscriptionPlans() }.getOrDefault(emptyList())
+            val online = NetworkStatus.isOnline(this@SubscriptionsActivity)
+            val plans = if (online) {
+                val p = runCatching { SupabaseData.getSubscriptionPlans() }.getOrDefault(emptyList())
+                AppOfflineCache.writeSubscriptionPlans(this@SubscriptionsActivity, p)
+                p
+            } else {
+                AppOfflineCache.readSubscriptionPlans(this@SubscriptionsActivity).orEmpty()
+            }
             progress.visibility = View.GONE
             empty.visibility = if (plans.isEmpty()) View.VISIBLE else View.GONE
             rv.adapter = SubscriptionPlanAdapter(plans) { plan ->
                 val amountKobo = plan.price.replace(",", "").toDoubleOrNull()?.times(100)?.toInt() ?: 0
-                startActivity(Intent(this@SubscriptionsActivity, PaymentOptionsActivity::class.java).apply {
+                startActivity(Intent(this@SubscriptionsActivity, PaystackNativePaymentActivity::class.java).apply {
                     putExtra("plan_id", plan.id.toIntOrNull() ?: -1)
                     putExtra("price", plan.price)
                     putExtra("amount_kobo", amountKobo)
                     putExtra("email", getSharedPreferences("user_session", MODE_PRIVATE).getString("user_email", ""))
                 })
+            }
+
+            val activeSub = if (online) {
+                runCatching { SupabaseData.getActiveSubscription() }.getOrNull().also {
+                    AppOfflineCache.writeActiveSubscription(this@SubscriptionsActivity, it)
+                }
+            } else {
+                AppOfflineCache.readActiveSubscription(this@SubscriptionsActivity)
+            }
+            if (activeSub != null) {
+                activeSubCard.visibility = View.VISIBLE
+                activeSubPlan.text = activeSub.planName
+                activeSubExpires.text = if (!activeSub.expiresAt.isNullOrBlank()) "Expires: ${activeSub.expiresAt}" else "Active"
+            } else {
+                activeSubCard.visibility = View.GONE
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            val activeSubCard = findViewById<View>(R.id.activeSubCard)
+            val activeSubPlan = findViewById<TextView>(R.id.activeSubPlan)
+            val activeSubExpires = findViewById<TextView>(R.id.activeSubExpires)
+            val online = NetworkStatus.isOnline(this@SubscriptionsActivity)
+            val activeSub = if (online) {
+                runCatching { SupabaseData.getActiveSubscription() }.getOrNull().also {
+                    AppOfflineCache.writeActiveSubscription(this@SubscriptionsActivity, it)
+                }
+            } else {
+                AppOfflineCache.readActiveSubscription(this@SubscriptionsActivity)
+            }
+            if (activeSub != null) {
+                activeSubCard.visibility = View.VISIBLE
+                activeSubPlan.text = activeSub.planName
+                activeSubExpires.text = if (!activeSub.expiresAt.isNullOrBlank()) "Expires: ${activeSub.expiresAt}" else "Active"
+            } else {
+                activeSubCard.visibility = View.GONE
             }
         }
     }

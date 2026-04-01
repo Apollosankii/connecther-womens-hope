@@ -28,7 +28,7 @@
             android:background="@drawable/circular_notification"
             android:gravity="center"
             android:text="3"
-            android:textColor="@android:color/white"
+            android:textColor="@color/on_primary"
             android:textSize="10sp"
             android:layout_marginStart="15dp"
             android:layout_marginBottom="15dp"
@@ -43,7 +43,7 @@
         android:layout_weight="1"
         android:fontFamily="@font/poppins"
         android:text="Item Label"
-        android:textColor="#333"
+        android:textColor="@color/on_surface"
         android:textSize="22sp" />
 
 </LinearLayout>

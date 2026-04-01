@@ -1,0 +1,4 @@
+node_modules/
+index.standalone.ts
+_bundle_index.mjs
+_mcp_*.json

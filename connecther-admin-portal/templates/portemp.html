@@ -74,6 +74,8 @@
                             <a class="dropdown-item" href="{{url_for('get_approvals')}}"><span class="flaticon-paper-plane mr-2"></span>Approvals</a>
                             <a class="dropdown-item" href="{{url_for('subscription_plans')}}"><span class="flaticon-money mr-2"></span>Subscription Plans</a>
                             <a class="dropdown-item" href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile mr-2"></span>User Subscriptions</a>
+                            <a class="dropdown-item" href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis mr-2"></span>Subscriber tracking</a>
+                            <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money mr-2"></span>Free tier defaults</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{url_for('logout')}}"><span class="flaticon-logout mr-2"></span>Logout</a>
                         </div>
@@ -149,6 +151,8 @@
                                     <a class="dropdown-item" href="{{url_for('get_approvals')}}"><span class="flaticon-paper-plane"></span> Approvals</a>
                                     <a class="dropdown-item" href="{{url_for('subscription_plans')}}"><span class="flaticon-money"></span> Subscription Plans</a>
                                     <a class="dropdown-item" href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile"></span> User Subscriptions</a>
+                                    <a class="dropdown-item" href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis"></span> Subscriber tracking</a>
+                                    <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Free tier defaults</a>
                                     <a class="dropdown-item" href="{{url_for('logout')}}"><span class="flaticon-logout"></span> Logout</a>
 
                                 </div>
@@ -174,6 +178,8 @@
                     <li><span><a href="{{url_for('get_approvals')}}">Approvals</a></span></li>
                     <li><span><a href="{{url_for('subscription_plans')}}">Subscription Plans</a></span></li>
                     <li><span><a href="{{url_for('subscription_user_subscriptions')}}">User Subscriptions</a></span></li>
+                    <li><span><a href="{{url_for('subscription_tracking')}}">Subscriber tracking</a></span></li>
+                    <li><span><a href="{{url_for('subscription_platform_settings')}}">Free tier defaults</a></span></li>
                     <li><span><a href="{{url_for('logout')}}">Logout</a></span></li>
                 </ul>
             </nav>
@@ -224,10 +230,13 @@
                                     <li class="{{ active_hotlines|default('') }}"><a href="{{url_for('emergency_hotlines')}}"><span class="flaticon-chat"></span> Emergency hotlines</a></li>
 
                                     <li class="{{active_ap}}"><a href="{{url_for('get_approvals')}}"><span class="flaticon-paper-plane"></span> Approvals</a></li>
+                                    <li class="{{active_b}}"><a href="{{url_for('booking_requests')}}"><span class="flaticon-paper-plane"></span> Booking Requests</a></li>
                                     <li class="{{active_ap}}"><a href="{{url_for('pending_jobs')}}"><span class="flaticon-paper-plane"></span> Ongoing Jobs</a></li>
                                     <li class="{{active_ap}}"><a href="{{url_for('complete_jobs')}}"><span class="flaticon-paper-plane"></span> Complete Jobs</a></li>
                                     <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_plans')}}"><span class="flaticon-money"></span> Subscription Plans</a></li>
                                     <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile"></span> User Subscriptions</a></li>
+                                    <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis"></span> Subscriber tracking</a></li>
+                                    <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Free tier defaults</a></li>
                                     <li class="{{active_lo}}"><a href="#"><span class="flaticon-rating"></span> Sponsors</a></li>
                                     <li class="{{active_lo}}"><a href="#"><span class="flaticon-chat"></span> Feedback</a></li>
                                     <li class="{{active_cp}}"><a href="#"><span class="flaticon-locked"></span> Change Password</a></li>

@@ -2,6 +2,7 @@ package com.womanglobal.connecther
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +26,7 @@ class ProviderProfileActivity : AppCompatActivity() {
         val available = findViewById<SwitchMaterial>(R.id.switchAvailableForBooking)
         val docsBtn = findViewById<MaterialButton>(R.id.buttonPortfolioDocuments)
         val saveBtn = findViewById<MaterialButton>(R.id.buttonSaveProviderProfile)
+        val activeJobBanner = findViewById<View>(R.id.providerActiveJobBanner)
 
         toolbar.setNavigationOnClickListener { finish() }
         toolbar.setNavigationIcon(R.drawable.arrow_back_24px)
@@ -44,6 +46,8 @@ class ProviderProfileActivity : AppCompatActivity() {
                 hours.setText(it.working_hours.orEmpty())
                 available.isChecked = it.available_for_booking ?: true
             }
+            val busy = SupabaseData.myProviderHasActiveJob()
+            activeJobBanner.visibility = if (busy) View.VISIBLE else View.GONE
         }
 
         docsBtn.setOnClickListener {
@@ -76,6 +80,15 @@ class ProviderProfileActivity : AppCompatActivity() {
                     Toast.makeText(this@ProviderProfileActivity, "Failed to save profile to Supabase (auth/RLS).", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val activeJobBanner = findViewById<View>(R.id.providerActiveJobBanner)
+        lifecycleScope.launch {
+            val busy = SupabaseData.myProviderHasActiveJob()
+            activeJobBanner.visibility = if (busy) View.VISIBLE else View.GONE
         }
     }
 }

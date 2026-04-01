@@ -1,14 +1,19 @@
 package com.womanglobal.connecther.payment
 
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.womanglobal.connecther.R
+import com.womanglobal.connecther.utils.UserFriendlyMessages
 import kotlinx.coroutines.launch
 
 class PaystackPaymentViewModel(
-    private val repo: PaystackPaymentRepository = PaystackPaymentRepository(),
-) : ViewModel() {
+    application: Application,
+) : AndroidViewModel(application) {
+
+    private val repo = PaystackPaymentRepository()
 
     data class UiState(
         val loading: Boolean = false,
@@ -20,6 +25,7 @@ class PaystackPaymentViewModel(
         val accessCode: String,
         val reference: String,
         val planId: Int,
+        val authorizationUrl: String,
     )
 
     private val _state = MutableLiveData(UiState())
@@ -28,37 +34,36 @@ class PaystackPaymentViewModel(
     private val _sheetLaunch = MutableLiveData<SheetLaunch?>(null)
     val sheetLaunch: LiveData<SheetLaunch?> = _sheetLaunch
 
+    private val app get() = getApplication<Application>()
+
     fun clearSheetLaunch() {
         _sheetLaunch.value = null
     }
 
-    /**
-     * Loads `access_code` from `paystack-express` for [planId], then Activity shows [com.paystack.android_sdk.ui.paymentsheet.PaymentSheet].
-     */
     fun preparePaymentSheet(planId: Int, email: String) {
         if (planId < 1) {
-            _state.value = UiState(error = "Missing plan. Open this screen from Subscriptions.")
+            _state.value = UiState(error = app.getString(R.string.paystack_plan_missing))
             return
         }
         if (email.isBlank()) {
-            _state.value = UiState(error = "Email is required.")
+            _state.value = UiState(error = app.getString(R.string.paystack_email_missing))
             return
         }
 
-        _state.value = UiState(loading = true, message = "Preparing payment…")
+        _state.value = UiState(loading = true, message = app.getString(R.string.paystack_preparing))
 
         viewModelScope.launch {
             val init = repo.initializeTransaction(planId, email).getOrElse { e ->
                 _state.postValue(
                     UiState(
                         loading = false,
-                        error = e.message ?: "Failed to initialize payment",
+                        error = UserFriendlyMessages.paystackInit(app, e),
                     ),
                 )
                 return@launch
             }
-            _sheetLaunch.postValue(SheetLaunch(init.accessCode, init.reference, planId))
-            _state.postValue(UiState(loading = false, message = "Choose a payment method…"))
+            _sheetLaunch.postValue(SheetLaunch(init.accessCode, init.reference, planId, init.authorizationUrl))
+            _state.postValue(UiState(loading = false, message = app.getString(R.string.paystack_choose_method)))
         }
     }
 
@@ -68,12 +73,19 @@ class PaystackPaymentViewModel(
 
     fun pollSubscriptionAfterSuccess(planId: Int, paymentReference: String, onDone: (activated: Boolean) -> Unit) {
         viewModelScope.launch {
-            _state.postValue(UiState(loading = true, message = "Activating your subscription…"))
-            val ok = repo.waitForSubscriptionActive(planId, paymentReference)
+            _state.postValue(
+                UiState(loading = true, message = app.getString(R.string.paystack_activation_loading)),
+            )
+            val viaVerify = repo.verifyPaystackTransaction(paymentReference)
+            val ok = viaVerify || repo.waitForSubscriptionActive(planId, paymentReference)
             _state.postValue(
                 UiState(
                     loading = false,
-                    message = if (ok) "Subscription is active." else "Payment received. Your plan may take a moment to activate—pull to refresh in Subscriptions.",
+                    message = if (ok) {
+                        app.getString(R.string.paystack_subscription_activated)
+                    } else {
+                        app.getString(R.string.paystack_activation_pending)
+                    },
                     error = null,
                 ),
             )

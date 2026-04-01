@@ -2,13 +2,13 @@
 <resources>
     <!-- Keep splash always white even in dark mode -->
     <style name="Theme.ConnectHer.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#FFFFFF</item>
-        <item name="windowSplashScreenIconBackgroundColor">#FFFFFF</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/connecther_logo_splash</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_animated_icon</item>
         <item name="windowSplashScreenAnimationDuration">250</item>
-        <item name="android:windowBackground">#FFFFFF</item>
-        <item name="android:statusBarColor">#FFFFFF</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:windowBackground">@drawable/splash_screen_branded</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="postSplashScreenTheme">@style/Theme.ConnectHer</item>
     </style>

@@ -2,13 +2,14 @@
 <resources>
 
     <style name="Theme.ConnectHer.Splash" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">#FFFFFF</item>
-        <item name="windowSplashScreenIconBackgroundColor">#FFFFFF</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/connecther_logo_splash</item>
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_animated_icon</item>
         <item name="windowSplashScreenAnimationDuration">250</item>
-        <item name="android:windowBackground">#FFFFFF</item>
-        <item name="android:statusBarColor">#FFFFFF</item>
-        <item name="android:navigationBarColor">#FFFFFF</item>
+        <!-- Pre-API 31: full white screen + centered logo -->
+        <item name="android:windowBackground">@drawable/splash_screen_branded</item>
+        <item name="android:statusBarColor">@color/splash_background</item>
+        <item name="android:navigationBarColor">@color/splash_background</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="postSplashScreenTheme">@style/Theme.ConnectHer</item>
     </style>
@@ -27,5 +28,12 @@
         <item name="android:textSize">16sp</item>
         <item name="android:editTextColor">@color/on_surface</item>
         <item name="colorControlNormal">@color/on_surface_variant</item>
+    </style>
+
+    <style name="ProfileFieldLabel" parent="TextAppearance.AppCompat.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textColor">@color/on_surface_variant</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.04</item>
     </style>
 </resources>

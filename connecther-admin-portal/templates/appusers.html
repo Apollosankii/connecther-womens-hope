@@ -19,6 +19,7 @@
                         <th>Phone</th>
                         <th>Email</th>
                         <th>Recruited</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,10 +30,11 @@
                         <td>{{app_user.phone}}</td>
                         <td>{{app_user.email or '—'}}</td>
                         <td>{% if app_user.WH_Badge %}<span class="ch-badge ch-badge-success">Yes</span>{% else %}<span class="ch-badge ch-badge-muted">No</span>{% endif %}</td>
+                        <td>{% if app_user.id %}<a href="{{ url_for('app_user_detail', internal_id=app_user.id) }}" class="ch-btn-sm">View · free connects</a>{% else %}—{% endif %}</td>
                     </tr>
                     {%endfor%}
                     {%if not app_users%}
-                    <tr><td colspan="5" class="ch-empty-state">No app users yet</td></tr>
+                    <tr><td colspan="6" class="ch-empty-state">No app users yet</td></tr>
                     {%endif%}
                 </tbody>
             </table>

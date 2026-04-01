@@ -12,9 +12,11 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.womanglobal.connecther.adapters.ConversationAdapter
+import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.databinding.FragmentMessagesBinding
 import com.womanglobal.connecther.services.Conversation
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.NetworkStatus
 import kotlinx.coroutines.launch
 
 class MessagesFragment : Fragment() {
@@ -50,16 +52,27 @@ class MessagesFragment : Fragment() {
         if (_binding == null) return  // Prevent crash
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val rows = runCatching { SupabaseData.getConversations() }.getOrElse {
-                if (!isAdded || _binding == null) return@launch
-                Toast.makeText(requireContext(), "Failed to load conversations", Toast.LENGTH_SHORT).show()
-                emptyList()
+            val online = NetworkStatus.isOnline(requireContext())
+            val rows = when {
+                online -> {
+                    val got = runCatching { SupabaseData.getConversations() }.getOrElse {
+                        if (!isAdded || _binding == null) return@launch
+                        Toast.makeText(requireContext(), "Failed to load conversations", Toast.LENGTH_SHORT).show()
+                        null
+                    }
+                    val list = got ?: AppOfflineCache.readConversations(requireContext()).orEmpty()
+                    if (got != null) {
+                        AppOfflineCache.writeConversations(requireContext(), got)
+                    }
+                    list
+                }
+                else -> AppOfflineCache.readConversations(requireContext()).orEmpty()
             }
             if (_binding == null) return@launch
             conversations.clear()
             conversations.addAll(rows)
+            binding.messagesMainContent.visibility = if (conversations.isEmpty()) View.GONE else View.VISIBLE
             binding.noMessageLayout.visibility = if (conversations.isEmpty()) View.VISIBLE else View.GONE
-            binding.conversationsRecyclerView.visibility = if (conversations.isEmpty()) View.GONE else View.VISIBLE
             conversationAdapter.notifyDataSetChanged()
         }
     }

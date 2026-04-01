@@ -19,6 +19,8 @@ class BookJobActivity : AppCompatActivity() {
 
         if (selectedDate <= 0L) {
             Toast.makeText(this, "Invalid booking date", Toast.LENGTH_SHORT).show()
+            finish()
+            return
         }
 
         // Calendar selection doesn't include a specific provider, so we route into:

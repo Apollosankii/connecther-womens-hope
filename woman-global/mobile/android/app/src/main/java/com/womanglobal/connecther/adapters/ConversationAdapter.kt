@@ -5,8 +5,11 @@ import android.content.Intent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import com.womanglobal.connecther.ChatActivity
 import com.womanglobal.connecther.R
 import com.womanglobal.connecther.services.Conversation
@@ -36,24 +39,39 @@ class ConversationAdapter(
     override fun getItemCount(): Int = conversations.size
 
     inner class ConversationViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val providerImage: ImageView = itemView.findViewById(R.id.providerImage)
         private val providerName: TextView = itemView.findViewById(R.id.providerName)
         private val serviceName: TextView = itemView.findViewById(R.id.serviceName)
         private val timeStamp: TextView = itemView.findViewById(R.id.messageTime)
         private val lastMessage: TextView = itemView.findViewById(R.id.lastMessage)
 
         fun bind(conversation: Conversation) {
-            val peerName = if (isProvider) conversation.client else conversation.provider
+            val peerName = conversation.peerName.ifBlank {
+                if (isProvider) conversation.client else conversation.provider
+            }
             providerName.text = peerName
             serviceName.text = conversation.service
             timeStamp.text = formatConversationTime(conversation.time)
-            lastMessage.text = conversation.text.ifBlank { "Start chatting" }
+            lastMessage.text = conversation.text.ifBlank {
+                context.getString(R.string.messages_preview_placeholder)
+            }
+
+            Glide.with(context)
+                .load(conversation.peerPic?.takeIf { it.isNotBlank() })
+                .placeholder(R.mipmap.woman_profile)
+                .error(R.mipmap.woman_profile)
+                .signature(ObjectKey(conversation.peerPic ?: peerName))
+                .circleCrop()
+                .into(providerImage)
 
             itemView.setOnClickListener {
                 val intent = Intent(context, ChatActivity::class.java).apply {
                     putExtra("chat_code", conversation.chat_id)
                     putExtra("quote_id", conversation.quote_code)
+                    putExtra("peer_display_name", peerName)
                     putExtra("providerName", peerName)
-                    putExtra("serviceName",conversation.service )
+                    putExtra("peer_pic", conversation.peerPic.orEmpty())
+                    putExtra("serviceName", conversation.service)
                     flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
                 }
                 context.startActivity(intent)

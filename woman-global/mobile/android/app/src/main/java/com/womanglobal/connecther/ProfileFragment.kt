@@ -20,17 +20,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import com.womanglobal.connecther.data.User
 import com.womanglobal.connecther.databinding.FragmentProfileBinding
-import com.womanglobal.connecther.services.ApiService
 import com.womanglobal.connecther.utils.CurrentUser
-import com.womanglobal.connecther.utils.ServiceBuilder
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.RequestBody
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import android.widget.Toast
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -38,9 +32,6 @@ import java.io.InputStream
 class ProfileFragment : Fragment() {
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    private val apiService: ApiService by lazy { ServiceBuilder.buildService(ApiService::class.java) }
-
-
     private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             Glide.with(this)
@@ -126,11 +117,19 @@ class ProfileFragment : Fragment() {
             }
         }
 
-        addProfileOption("Provider Profile", R.drawable.ic_profile_nav) {
-            startActivity(Intent(requireContext(), ProviderProfileActivity::class.java))
-        }
-        addProfileOption("Provider Application", R.drawable.baseline_work_outline_24) {
-            startActivity(Intent(requireContext(), ProviderApplicationActivity::class.java))
+        val prefs = requireContext().getSharedPreferences("user_session", android.content.Context.MODE_PRIVATE)
+        val isProvider = prefs.getBoolean("isProvider", false)
+        val isPending = prefs.getBoolean("isProviderPending", false)
+        if (isProvider) {
+            addProfileOption("Provider Profile", R.drawable.ic_profile_nav) {
+                startActivity(Intent(requireContext(), ProviderProfileActivity::class.java))
+            }
+        } else if (isPending) {
+            addProfileOption("Application Pending", R.drawable.baseline_work_outline_24) {}
+        } else {
+            addProfileOption("Become a Provider", R.drawable.baseline_work_outline_24) {
+                startActivity(Intent(requireContext(), ProviderApplicationActivity::class.java))
+            }
         }
 
 
@@ -153,12 +152,16 @@ class ProfileFragment : Fragment() {
     }
 
     private fun resolveDisplayUser(prefs: SharedPreferences): User {
-        return CurrentUser.getUser() ?: User(
+        val prefPic = prefs.getString("user_pic", null)
+        val prefName = prefs.getString("user_full_name", null)?.trim().orEmpty()
+        val prefPhone = prefs.getString("user_phone", null)
+        val prefEmail = prefs.getString("user_email", null)
+        val fromPrefsFallback = User(
             id = prefs.getString("user_id", "") ?: "",
-            first_name = prefs.getString("user_full_name", "User Name") ?: "",
+            first_name = prefName.ifBlank { "User Name" },
             last_name = "",
-            phoneNumber = prefs.getString("user_phone", "No phone number"),
-            pic = prefs.getString("user_pic", null),
+            phoneNumber = prefPhone ?: "No phone number",
+            pic = prefPic,
             isIdVerified = false,
             isMobileVerified = false,
             details = "",
@@ -170,7 +173,20 @@ class ProfileFragment : Fragment() {
             title = null,
             country = null,
             county = null,
-            area_name = null
+            area_name = null,
+            email = prefEmail,
+        )
+        val mem = CurrentUser.getUser() ?: return fromPrefsFallback
+        // Prefs are refreshed from Supabase in onResume; prefer them over stale Gson-cached User.
+        val nameParts = prefName.split(" ", limit = 2)
+        val mergedFirst = if (prefName.isNotBlank()) nameParts[0] else mem.first_name
+        val mergedLast = if (prefName.isNotBlank() && nameParts.size > 1) nameParts[1] else mem.last_name
+        return mem.copy(
+            first_name = mergedFirst,
+            last_name = mergedLast,
+            pic = prefPic ?: mem.pic,
+            phoneNumber = prefPhone ?: mem.phoneNumber,
+            email = prefEmail ?: mem.email,
         )
     }
 
@@ -179,10 +195,13 @@ class ProfileFragment : Fragment() {
             .ifBlank { prefs.getString("user_full_name", "User") ?: "User" }
         binding.nameText.text = displayName
         binding.emailText.text = prefs.getString("user_email", "No email")
-        Log.d("PROFILE", "------------------> phone ${user.phoneNumber}")
+        if (com.womanglobal.connecther.BuildConfig.DEBUG) {
+            Log.d("PROFILE", "phone loaded: ${user.phoneNumber?.take(3)}***")
+        }
 
         Glide.with(this)
             .load(user.pic)
+            .signature(ObjectKey(prefs.getLong("profile_pic_version", 0L)))
             .placeholder(R.drawable.placeholder)
             .error(R.drawable.placeholder)
             .circleCrop()
@@ -204,31 +223,48 @@ class ProfileFragment : Fragment() {
 
 
     private fun uploadImage(file: File) {
-        val requestFile = RequestBody.create("image/*".toMediaTypeOrNull(), file)
-        val body = MultipartBody.Part.createFormData("profileImage", file.name, requestFile)
-
-        apiService.uploadProfilePic(body).enqueue(object : Callback<String> {
-            override fun onResponse(call: Call<String>, response: Response<String>) {
-                if (response.isSuccessful) {
-                    val imageUrl = response.body()
-                    saveProfileImage(imageUrl ?: "")
-                    Log.d("Upload", "Upload Successful: $imageUrl")
-                } else {
-                    Log.e("Upload", "Upload failed: ${response.errorBody()?.string()}")
+        val prefs = requireActivity().getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        val firebaseUid = prefs.getString("firebase_uid", null)
+        if (firebaseUid.isNullOrBlank()) {
+            Toast.makeText(requireContext(), "Not signed in", Toast.LENGTH_SHORT).show()
+            runCatching { file.delete() }
+            return
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            val sessionOk = withContext(Dispatchers.IO) { SupabaseClientProvider.ensureSupabaseSession() }
+            if (!sessionOk) {
+                Toast.makeText(requireContext(), "Session expired. Sign in again.", Toast.LENGTH_LONG).show()
+                runCatching { file.delete() }
+                return@launch
+            }
+            val url = withContext(Dispatchers.IO) {
+                runCatching {
+                    SupabaseData.uploadProfilePic(file.readBytes(), file.name)
+                }.onFailure { e ->
+                    Log.e("ProfileFragment", "uploadProfilePic", e)
+                }.getOrNull()
+            }
+            runCatching { file.delete() }
+            if (url != null) {
+                prefs.edit()
+                    .putString("user_pic", url)
+                    .putLong("profile_pic_version", System.currentTimeMillis())
+                    .apply()
+                CurrentUser.getUser()?.let { u -> CurrentUser.setUser(u.copy(pic = url)) }
+                withContext(Dispatchers.IO) {
+                    SupabaseData.syncLocalProfileFromSupabase(firebaseUid, prefs)
                 }
+                if (_binding != null) {
+                    applyUserToProfileViews(resolveDisplayUser(prefs), prefs)
+                }
+                Toast.makeText(requireContext(), "Profile photo saved", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    "Could not upload photo. Check your connection and that Storage is set up (profpics bucket).",
+                    Toast.LENGTH_LONG,
+                ).show()
             }
-
-            override fun onFailure(call: Call<String>, t: Throwable) {
-                Log.e("Upload", "Error: ${t.message}")
-            }
-        })
-    }
-
-    private fun saveProfileImage(imageUri: String) {
-        val sharedPreferences = requireActivity().getSharedPreferences("user_session", Context.MODE_PRIVATE)
-        with(sharedPreferences.edit()) {
-            putString("user_pic", imageUri)
-            apply()
         }
     }
 
@@ -271,8 +307,7 @@ class ProfileFragment : Fragment() {
 
 
     private fun getNotificationCount(): Int {
-        // Placeholder for actual logic to fetch the notification count
-        return 3
+        return 0
     }
 
     override fun onDestroyView() {

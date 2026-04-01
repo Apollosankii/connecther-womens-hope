@@ -1,7 +1,5 @@
 package com.womanglobal.connecther
 
-import ApiServiceFactory
-import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.speech.RecognizerIntent
@@ -9,33 +7,43 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.womanglobal.connecther.adapters.SearchAdapter
 import com.womanglobal.connecther.data.User
 import com.womanglobal.connecther.databinding.ActivitySearchBinding
-import com.womanglobal.connecther.services.ApiService
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.womanglobal.connecther.supabase.SupabaseData
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 class SearchActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySearchBinding
-    private lateinit var apiService: ApiService
     private lateinit var searchAdapter: SearchAdapter
     private val searchResults = mutableListOf<User>()
+    private var searchJob: Job? = null
 
-    companion object {
-        private const val VOICE_SEARCH_REQUEST_CODE = 100
+    private val voiceSearchLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            val spoken = result.data
+                ?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+                ?.firstOrNull()
+            if (!spoken.isNullOrBlank()) {
+                binding.searchField.setText(spoken)
+                searchUsers(spoken)
+            }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivitySearchBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        apiService = ApiServiceFactory.createApiService()
 
         setupRecyclerView()
         focusSearchField() // Auto-focus and show keyboard
@@ -79,21 +87,18 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun searchUsers(query: String) {
-        apiService.searchUsers(query).enqueue(object : Callback<List<User>> {
-            override fun onResponse(call: Call<List<User>>, response: Response<List<User>>) {
-                if (response.isSuccessful && response.body() != null) {
-                    searchResults.clear()
-                    searchResults.addAll(response.body()!!)
-                    searchAdapter.notifyDataSetChanged()
-                } else {
-                    Toast.makeText(this@SearchActivity, "No results found", Toast.LENGTH_SHORT).show()
-                }
+        searchJob?.cancel()
+        searchJob = lifecycleScope.launch {
+            delay(300)
+            val results = SupabaseData.searchUsers(query)
+            searchResults.clear()
+            searchResults.addAll(results)
+            searchAdapter = SearchAdapter(searchResults, query, "")
+            binding.searchRecyclerView.adapter = searchAdapter
+            if (results.isEmpty()) {
+                Toast.makeText(this@SearchActivity, "No results found", Toast.LENGTH_SHORT).show()
             }
-
-            override fun onFailure(call: Call<List<User>>, t: Throwable) {
-                Toast.makeText(this@SearchActivity, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
-            }
-        })
+        }
     }
 
     /**
@@ -114,21 +119,6 @@ class SearchActivity : AppCompatActivity() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Say something to search")
         }
-        startActivityForResult(intent, VOICE_SEARCH_REQUEST_CODE)
-    }
-
-    /**
-     * Handles the voice search result
-     */
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-
-        if (requestCode == VOICE_SEARCH_REQUEST_CODE && resultCode == Activity.RESULT_OK && data != null) {
-            val result = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-            if (!result.isNullOrEmpty()) {
-                binding.searchField.setText(result[0]) // Set recognized text to search field
-                searchUsers(result[0]) // Perform search
-            }
-        }
+        voiceSearchLauncher.launch(intent)
     }
 }

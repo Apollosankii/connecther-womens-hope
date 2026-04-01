@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.signature.ObjectKey
 import com.womanglobal.connecther.ProfileActivity
 import com.womanglobal.connecther.R
 import com.womanglobal.connecther.data.User
@@ -46,17 +47,18 @@ class SearchAdapter(
             itemView.setOnClickListener {
                 val context = itemView.context
                 val intent = Intent(context, ProfileActivity::class.java).apply {
-                    putExtra("user", user) // Pass the user object
-                    putExtra("service_id", serviceId) // Pass the serviceId
+                    putExtra("user", user)
+                    putExtra("service_id", serviceId)
+                    putExtra("service_name", query)
                 }
                 context.startActivity(intent)
             }
 
-            // Load profile picture using Glide
             Glide.with(itemView.context)
                 .load(user.pic)
-                .placeholder(R.mipmap.woman_profile) // Fallback image
-                .circleCrop() // Make the image circular
+                .placeholder(R.mipmap.woman_profile)
+                .signature(ObjectKey(user.pic ?: user.user_name))
+                .circleCrop()
                 .into(itemView.findViewById(R.id.userProfileImage))
         }
 

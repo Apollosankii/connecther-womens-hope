@@ -1,0 +1,129 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">Subscription tracking</h2>
+            <p class="ch-page-subtitle">Live metrics from Supabase: <code>user_plan_subscriptions</code>, <code>subscription_plans</code>, and <code>paystack_transactions</code>. Use this with <a href="{{ url_for('subscription_user_subscriptions') }}">User Subscriptions</a> for per-row management.</p>
+        </div>
+        <div class="d-flex flex-wrap ch-gap-sm">
+            <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">All subscriptions</a>
+            <a href="{{ url_for('subscription_platform_settings') }}" class="ch-btn-sm btn-outline-secondary">Free tier</a>
+        </div>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body">
+                    <h6 class="text-muted text-uppercase small">Subscription rows</h6>
+                    <p class="display-4 mb-0">{{ dash.total_sub_rows }}</p>
+                    <p class="small text-muted mb-0">Total rows in <code>user_plan_subscriptions</code> (all statuses).</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body">
+                    <h6 class="text-muted text-uppercase small">By status</h6>
+                    <ul class="list-unstyled mb-0">
+                        {% for st, n in (dash.by_status or {})|dictsort %}
+                        <li><span class="badge badge-light">{{ st }}</span> {{ n }}</li>
+                        {% else %}
+                        <li class="text-muted">No data.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body">
+                    <h6 class="text-muted text-uppercase small">By plan</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        {% for row in dash.by_plan_rows %}
+                        <li><strong>{{ row.plan_name }}</strong> — {{ row.count }}</li>
+                        {% else %}
+                        <li class="text-muted">No assignments.</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Active subscribers — connects (capped plans)</h5>
+            <p class="text-muted small">Shows <code>connects_granted</code> / <code>connects_used</code> for active rows with a numeric cap. Unlimited plans are omitted.</p>
+            <div class="table-responsive">
+                <table class="ch-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Plan</th>
+                            <th>Remaining</th>
+                            <th>Granted</th>
+                            <th>Used</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in dash.connects_snapshot %}
+                        <tr>
+                            <td>{{ r.user_label }} <small class="text-muted d-block">user #{{ r.user_id }}</small></td>
+                            <td>{{ r.plan_name }}</td>
+                            <td>{{ r.remaining }}</td>
+                            <td>{{ r.granted }}</td>
+                            <td>{{ r.used }}</td>
+                            <td><a href="{{ url_for('subscription_user_detail', sub_id=r.subscription_id) }}" class="ch-btn-sm">Open</a></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="ch-empty-state">No capped active subscriptions, or none loaded.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Recent Paystack transactions</h5>
+            <p class="text-muted small">Latest attempts (success, pending, failed). Amounts in kobo as stored.</p>
+            <div class="table-responsive">
+                <table class="ch-table">
+                    <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>User</th>
+                            <th>Plan</th>
+                            <th>Reference</th>
+                            <th>Status</th>
+                            <th>Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in dash.recent_paystack %}
+                        <tr>
+                            <td class="small">{{ t.created_at }}</td>
+                            <td>{{ t.user_label }}<br><small class="text-muted">{{ t.user_email or '—' }}</small></td>
+                            <td>{{ t.plan_name }}</td>
+                            <td class="small"><code>{{ t.reference }}</code></td>
+                            <td>
+                                {% if t.status == 'success' %}<span class="badge badge-success">success</span>
+                                {% elif t.status == 'pending' %}<span class="badge badge-warning">pending</span>
+                                {% else %}<span class="badge badge-secondary">{{ t.status }}</span>{% endif %}
+                            </td>
+                            <td>{{ t.amount_kobo }} {{ t.currency }}</td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="6" class="ch-empty-state">No Paystack rows returned.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -26,30 +26,29 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:paddingBottom="12dp" />
+            android:paddingBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textBillingEmail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:textColor="@color/on_surface_variant"
+            android:paddingBottom="12dp"
+            android:visibility="gone" />
 
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="You can pay with card, USSD, bank transfer, mobile money, and other methods Paystack enables for your account."
+            android:text="@string/paystack_opening_checkout"
             android:textSize="13sp"
             android:textColor="@color/grey"
             android:paddingBottom="12dp" />
-
-        <EditText
-            android:id="@+id/inputEmail"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Email"
-            android:inputType="textEmailAddress"
-            android:background="@drawable/rounded_edittext"
-            android:padding="12dp" />
 
         <TextView
             android:id="@+id/textStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
             android:textColor="@android:color/black" />
 
         <ProgressBar
@@ -61,13 +60,14 @@
             android:layout_marginTop="8dp" />
 
         <Button
-            android:id="@+id/buttonPayNow"
+            android:id="@+id/buttonRetry"
             style="@style/main_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Continue to payment"
-            android:textAllCaps="false" />
+            android:text="Try again"
+            android:textAllCaps="false"
+            android:visibility="gone" />
 
         <TextView
             android:layout_width="match_parent"

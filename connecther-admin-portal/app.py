@@ -10,17 +10,24 @@ import base64
 
 logger = logging.getLogger(__name__)
 
-# Load .env before reading config (uses only local .env in this repo)
+# Load .env before reading config (later files override earlier for duplicate keys):
+# 1) woman-global/.env — shared Supabase credentials (same as Android app)
+# 2) connecther-admin-portal/.env — local secrets (FLASK_*, CLERK_*, etc.)
 def _load_env():
     try:
         from dotenv import load_dotenv
     except ImportError:
         return
     _dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(_dir, '.env')
-    if path and os.path.isfile(path):
-        load_dotenv(path, override=True)
-    load_dotenv(override=False)
+    repo_root = os.path.normpath(os.path.join(_dir, '..'))
+    shared_env = os.path.join(repo_root, 'woman-global', '.env')
+    portal_env = os.path.join(_dir, '.env')
+    if os.path.isfile(shared_env):
+        load_dotenv(shared_env, override=False)
+    if os.path.isfile(portal_env):
+        load_dotenv(portal_env, override=True)
+    elif not os.path.isfile(portal_env):
+        load_dotenv(override=False)
 
 _load_env()
 
@@ -43,6 +50,25 @@ app.config['SESSION_COOKIE_HTTPONLY'] = True
 SUPABASE_URL = (os.environ.get('SUPABASE_URL') or '').strip().rstrip('/')
 SUPABASE_ANON_KEY = (os.environ.get('SUPABASE_ANON_KEY') or '').strip()
 CLERK_PUBLISHABLE_KEY = (os.environ.get('CLERK_PUBLISHABLE_KEY') or '').strip()
+
+_supabase_host = (SUPABASE_URL.split('//')[-1].split('/')[0] if SUPABASE_URL else '(missing)')
+if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+    logger.warning(
+        'Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY in '
+        'woman-global/.env and/or connecther-admin-portal/.env'
+    )
+else:
+    logger.info(
+        'Supabase: PostgREST host=%s anon_key_loaded=%s',
+        _supabase_host,
+        bool(SUPABASE_ANON_KEY) and len(SUPABASE_ANON_KEY) > 20,
+    )
+if os.environ.get('FLASK_DEBUG') == '1':
+    logger.info(
+        'Supabase env (debug): configured=%s url_host=%s',
+        bool(SUPABASE_URL and SUPABASE_ANON_KEY),
+        _supabase_host,
+    )
 
 
 def _auth_headers():
@@ -321,6 +347,8 @@ def legacy_redirects():
 @app.route('/preview/subscription/plans/edit/<plan_id>')
 @app.route('/preview/subscription/user-subscriptions')
 @app.route('/preview/subscription/user-subscriptions/grant')
+@app.route('/preview/subscription/platform-settings')
+@app.route('/preview/subscription/tracking')
 def preview_redirects():
     return redirect(url_for('login'))
 
@@ -398,6 +426,59 @@ def app_users():
     except Exception:
         app_users = []
     return render_template('appusers.html', user=user, app_users=app_users)
+
+
+@app.route('/app_users/<int:internal_id>', methods=['GET', 'POST'])
+def app_user_detail(internal_id):
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    admin = _current_admin() or {}
+    try:
+        appu = supabase_data.get_app_user_detail(session, internal_id)
+    except Exception:
+        appu = None
+    if not appu:
+        flash('User not found.')
+        return redirect(url_for('app_users'))
+    if request.method == 'POST' and request.form.get('_action') == 'update_free_connects':
+        patch = {}
+        if request.form.get('clear_free_granted') == '1':
+            patch['free_connects_granted'] = None
+        elif request.form.get('free_connects_granted', '').strip() != '':
+            try:
+                patch['free_connects_granted'] = int(request.form.get('free_connects_granted'))
+            except (ValueError, TypeError):
+                flash('Invalid free connects granted value.')
+                return redirect(url_for('app_user_detail', internal_id=internal_id))
+        if request.form.get('free_connects_used', '').strip() != '':
+            try:
+                patch['free_connects_used'] = int(request.form.get('free_connects_used'))
+            except (ValueError, TypeError):
+                flash('Invalid free connects used value.')
+                return redirect(url_for('app_user_detail', internal_id=internal_id))
+        try:
+            if not patch:
+                flash('No changes selected.')
+            elif supabase_data.patch_user_free_connects(session, internal_id, patch):
+                flash('Free connects updated.')
+            else:
+                flash('Update failed.')
+        except Exception as e:
+            flash(f'Error: {e}')
+        return redirect(url_for('app_user_detail', internal_id=internal_id))
+    return render_template(
+        'app_user_detail.html',
+        user=admin,
+        name=admin.get('name', admin.get('email', 'Admin')),
+        appu=appu,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='active',
+    )
 
 
 @app.route('/update/user-data/<user_id>')
@@ -1063,6 +1144,79 @@ def complete_jobs():
     return render_template('completejobs.html', user=user, jobs=jobs)
 
 
+@app.route('/subscription/platform-settings', methods=['GET', 'POST'])
+def subscription_platform_settings():
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    user = _current_admin() or {}
+    if request.method == 'POST':
+        # Must run before the save branch: this form does not include free_tier_connects;
+        # otherwise get(..., 0) would PATCH platform_settings to 0.
+        if request.form.get('_action') == 'apply_to_all':
+            if supabase_data.apply_platform_free_tier_to_all_users(session):
+                flash('Applied platform free-tier cap to all users with an existing allocation.')
+            else:
+                flash('Failed to apply to all users.')
+            return redirect(url_for('subscription_platform_settings'))
+        raw = request.form.get('free_tier_connects')
+        if raw is None or (isinstance(raw, str) and not raw.strip()):
+            flash('Enter a valid default free connects value.')
+            return redirect(url_for('subscription_platform_settings'))
+        try:
+            v = int(raw)
+        except (ValueError, TypeError):
+            flash('Invalid number.')
+            return redirect(url_for('subscription_platform_settings'))
+        if supabase_data.update_platform_settings(session, v):
+            flash('Free tier default updated. Existing users keep their current cap unless you apply below.')
+        else:
+            flash('Failed to update platform settings.')
+        return redirect(url_for('subscription_platform_settings'))
+    try:
+        settings = supabase_data.get_platform_settings(session)
+    except Exception:
+        settings = {'id': 1, 'free_tier_connects': 5, 'updated_at': None}
+    return render_template(
+        'subscription_platform_settings.html',
+        user=user,
+        name=user.get('name', user.get('email', 'Admin')),
+        settings=settings,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='active',
+    )
+
+
+@app.route('/booking-requests')
+def booking_requests():
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    user = _current_admin() or {}
+    status_filter = request.args.get('status', '')
+    try:
+        requests_list = supabase_data.list_booking_requests(session, status_filter=status_filter or None)
+    except Exception:
+        requests_list = []
+    return render_template(
+        'booking_requests.html',
+        user=user,
+        name=user.get('name', user.get('email', 'Admin')),
+        requests=requests_list,
+        status_filter=status_filter,
+        active_d='',
+        active_p='',
+        active_b='active',
+        active_ap='',
+        active_sub='',
+    )
+
+
 @app.route('/subscription/plans')
 def subscription_plans():
     redir = _require_auth()
@@ -1104,6 +1258,9 @@ def subscription_plan_add():
                     'is_active': request.form.get('is_active') == '1',
                     'is_popular': request.form.get('is_popular') == '1',
                     'sort_order': request.form.get('sort_order', 0),
+                    'connects_limit_enabled': request.form.get('connects_limit_enabled') == '1',
+                    'connects_per_period': request.form.get('connects_per_period'),
+                    'connects_period_rule': request.form.get('connects_period_rule', 'subscription_term'),
                 }
                 if supabase_data.add_subscription_plan(session, payload):
                     flash('Plan created successfully.')
@@ -1167,6 +1324,9 @@ def subscription_plan_edit(plan_id):
             'is_active': request.form.get('is_active') == '1',
             'is_popular': request.form.get('is_popular') == '1',
             'sort_order': sort_val,
+            'connects_limit_enabled': request.form.get('connects_limit_enabled') == '1',
+            'connects_per_period': request.form.get('connects_per_period'),
+            'connects_period_rule': request.form.get('connects_period_rule', 'subscription_term'),
         }
         if supabase_data.update_subscription_plan(session, plan_id, payload):
             flash('Plan updated.')
@@ -1194,6 +1354,37 @@ def subscription_user_subscriptions():
     return render_template('subscription_user_subscriptions.html', user=user, name=user.get('name', user.get('email', 'Admin')),
         subscriptions=subscriptions, status_filter=status_filter, plan_filter=plan_filter,
         plans=plans, active_d='', active_p='', active_b='', active_ap='', active_sub='active')
+
+
+@app.route('/subscription/tracking')
+def subscription_tracking():
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    user = _current_admin() or {}
+    try:
+        dash = supabase_data.subscription_tracking_dashboard(session)
+    except Exception:
+        dash = {
+            'total_sub_rows': 0,
+            'by_status': {},
+            'by_plan_rows': [],
+            'connects_snapshot': [],
+            'recent_paystack': [],
+            'plans': [],
+        }
+    return render_template(
+        'subscription_tracking.html',
+        user=user,
+        name=user.get('name', user.get('email', 'Admin')),
+        dash=dash,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='active',
+    )
 
 
 @app.route('/subscription/user-subscriptions/grant', methods=['GET', 'POST'])
@@ -1287,6 +1478,36 @@ def subscription_user_detail(sub_id):
                 flash('Subscription updated.')
             else:
                 flash('Failed to update.')
+            return redirect(url_for('subscription_user_detail', sub_id=sub_id))
+        if action == 'update_connects':
+            patch = {}
+            if request.form.get('clear_connects_granted') == '1':
+                patch['connects_granted'] = None
+            elif request.form.get('connects_granted', '').strip() != '':
+                try:
+                    patch['connects_granted'] = int(request.form.get('connects_granted'))
+                except (ValueError, TypeError):
+                    flash('Invalid connects granted.')
+                    return redirect(url_for('subscription_user_detail', sub_id=sub_id))
+            if request.form.get('connects_used', '').strip() != '':
+                try:
+                    patch['connects_used'] = int(request.form.get('connects_used'))
+                except (ValueError, TypeError):
+                    flash('Invalid connects used.')
+                    return redirect(url_for('subscription_user_detail', sub_id=sub_id))
+            ps = request.form.get('connects_period_started_at', '').strip()
+            if ps:
+                patch['connects_period_started_at'] = ps
+            note_line = request.form.get('connect_adjust_note', '').strip()
+            if note_line:
+                old_notes = sub.get('notes') or ''
+                patch['notes'] = (old_notes + '\n' if old_notes else '') + '[connect adjust] ' + note_line
+            if not patch:
+                flash('No connect changes selected.')
+            elif supabase_data.update_user_plan_subscription(session, sub_id, patch):
+                flash('Subscription connects updated.')
+            else:
+                flash('Failed to update connects.')
             return redirect(url_for('subscription_user_detail', sub_id=sub_id))
     sub = supabase_data.get_user_plan_subscription(session, sub_id)
     return render_template('subscription_user_detail.html', user=user, name=user.get('name', user.get('email', 'Admin')),

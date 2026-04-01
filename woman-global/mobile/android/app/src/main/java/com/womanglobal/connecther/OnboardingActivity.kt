@@ -51,37 +51,10 @@ class OnboardingActivity : AppCompatActivity() {
             prefs.edit().putBoolean("isFirstLaunch", false).apply()
         }
 
-        fun goLogin() {
+        binding.skipButton.setOnClickListener {
             completeOnboarding()
             startActivity(Intent(this, LoginActivity::class.java))
             finish()
         }
-
-        fun goSignup() {
-            completeOnboarding()
-            startActivity(Intent(this, RegisterActivity::class.java))
-            finish()
-        }
-
-        binding.skipButton.setOnClickListener { goLogin() }
-        binding.loginButton.setOnClickListener { goLogin() }
-        binding.signupButton.setOnClickListener { goSignup() }
-
-        binding.nextButton.setOnClickListener {
-            val next = binding.viewPager.currentItem + 1
-            if (next < pages.size) {
-                binding.viewPager.currentItem = next
-            } else {
-                goLogin()
-            }
-        }
-
-        binding.viewPager.registerOnPageChangeCallback(object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                binding.nextButton.text = if (position == pages.lastIndex) "Continue" else "Next"
-            }
-        })
     }
 }
-

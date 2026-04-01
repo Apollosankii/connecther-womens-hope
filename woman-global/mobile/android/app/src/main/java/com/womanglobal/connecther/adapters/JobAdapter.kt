@@ -1,39 +1,41 @@
 package com.womanglobal.connecther.adapters
 
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
-import com.womanglobal.connecther.PaymentOptionsActivity
+import com.google.android.material.button.MaterialButton
 import com.womanglobal.connecther.R
+import com.womanglobal.connecther.RatingDialogFragment
 import com.womanglobal.connecther.data.Job
-import com.womanglobal.connecther.services.ApiService
-import com.womanglobal.connecther.utils.ServiceBuilder
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.JobDateUtils
+import com.womanglobal.connecther.utils.LocationMapUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class JobAdapter(
+    private val fragment: Fragment,
     private val jobs: List<Job>,
-    private val onJobCompleted: () -> Unit
+    private val onJobCompleted: () -> Unit,
 ) : RecyclerView.Adapter<JobAdapter.JobViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): JobViewHolder {
-
         val view = LayoutInflater.from(parent.context).inflate(R.layout.item_job, parent, false)
         return JobViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: JobViewHolder, position: Int) {
-        val job = jobs[position]
-        holder.bind(job)
+        holder.bind(jobs[position])
     }
 
     override fun getItemCount(): Int = jobs.size
@@ -43,59 +45,93 @@ class JobAdapter(
         private val providerName: TextView = itemView.findViewById(R.id.providerName)
         private val serviceName: TextView = itemView.findViewById(R.id.serviceName)
         private val priceText: TextView = itemView.findViewById(R.id.jobPrice)
-        private val completeJobButton: Button = itemView.findViewById(R.id.completeTaskButton)
+        private val jobTimeline: TextView = itemView.findViewById(R.id.jobTimeline)
+        private val jobCompleteHint: TextView = itemView.findViewById(R.id.jobCompleteHint)
+        private val completeJobButton: MaterialButton = itemView.findViewById(R.id.completeTaskButton)
 
         fun bind(job: Job) {
-            clientName.text = "Client: ${job.client}"
-            providerName.text = "Provider: ${job.provider}"
-            serviceName.text = "Service: ${job.service}"
-            priceText.text = "Price: KES ${job.price}"
+            clientName.text = job.client
+            providerName.text = job.provider
+            serviceName.text = job.service
+            val priceStr = if (job.price % 1.0 == 0.0) {
+                job.price.toLong().toString()
+            } else {
+                job.price.toString()
+            }
+            priceText.text = itemView.context.getString(R.string.booking_detail_price_format, priceStr)
 
-            // Retrieve isProvider from SharedPreferences
+            val startedFmt = JobDateUtils.formatForDisplay(job.started_at)
+            if (startedFmt.isNotEmpty()) {
+                jobTimeline.visibility = View.VISIBLE
+                jobTimeline.text = itemView.context.getString(R.string.job_timeline_started, startedFmt)
+            } else {
+                jobTimeline.visibility = View.GONE
+            }
+
             val sharedPreferences = itemView.context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
-            val isProvider = sharedPreferences.getBoolean("isProvider", false) // Default to false
+            val isProvider = sharedPreferences.getBoolean("isProvider", false)
             val context = itemView.context
 
+            jobCompleteHint.text = if (isProvider) {
+                context.getString(R.string.job_complete_provider_hint)
+            } else {
+                context.getString(R.string.job_complete_seeker_hint)
+            }
 
             if (isProvider) {
-                completeJobButton.text = "View Location"
+                completeJobButton.setText(R.string.job_action_view_location)
                 completeJobButton.setOnClickListener {
-                    val context = itemView.context
-                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(job.location))
-                    context.startActivity(intent)
+                    openJobLocation(context, job.location)
                 }
             } else {
-                completeJobButton.text = "Complete Job"
+                completeJobButton.setText(R.string.job_action_complete)
                 completeJobButton.setOnClickListener {
-                    completeJob(context,job.job_id)
-                    val context = itemView.context
-                    val intent = Intent(context, PaymentOptionsActivity::class.java)
-                    intent.putExtra("price", "${job.price}")
-                    context.startActivity(intent)
+                    fragment.lifecycleScope.launch {
+                        val ok = withContext(Dispatchers.IO) { SupabaseData.completeJob(job.job_id) }
+                        if (ok) {
+                            Toast.makeText(context, R.string.job_complete_success_toast, Toast.LENGTH_SHORT).show()
+                            if (!job.rated && !job.my_review_submitted) {
+                                offerOptionalProviderRating(context, job)
+                            } else {
+                                onJobCompleted()
+                            }
+                        } else {
+                            Toast.makeText(context, R.string.job_complete_failed, Toast.LENGTH_LONG).show()
+                        }
+                    }
                 }
             }
         }
 
-        private fun completeJob(context: Context, jobId: Int) {
-            val apiService = ServiceBuilder.buildService(ApiService::class.java)
-            val call = apiService.completeJob(jobId)
-
-            call.enqueue(object : Callback<Void> {
-                override fun onResponse(call: Call<Void>, response: Response<Void>) {
-                    Log.d("JOB COMPLETE ", "------------------> Job Response:  $response")
-                    if (response.isSuccessful) {
-                        Toast.makeText(context, "Payment Request Made", Toast.LENGTH_SHORT).show()
-                        onJobCompleted() // Notify JobsFragment to refresh the job list
-                    } else {
-                        Toast.makeText(context, "Failed to Complete Job", Toast.LENGTH_SHORT).show()
-                    }
+        private fun offerOptionalProviderRating(context: Context, job: Job) {
+            AlertDialog.Builder(context)
+                .setTitle(context.getString(R.string.jobs_rate_provider_title))
+                .setMessage(context.getString(R.string.jobs_rate_provider_message))
+                .setPositiveButton(R.string.jobs_rate_now) { d, _ ->
+                    d.dismiss()
+                    RatingDialogFragment(job, isProvider = false) {
+                        onJobCompleted()
+                    }.show(fragment.childFragmentManager, "RatingDialog")
                 }
-
-                override fun onFailure(call: Call<Void>, t: Throwable) {
-                    Toast.makeText(context, "Network Error: ${t.message}", Toast.LENGTH_SHORT).show()
+                .setNegativeButton(R.string.jobs_rate_not_now) { _, _ ->
+                    onJobCompleted()
                 }
-            })
+                .setOnCancelListener {
+                    onJobCompleted()
+                }
+                .show()
+        }
+
+        private fun openJobLocation(context: Context, rawLocation: String) {
+            val trimmed = rawLocation.trim()
+            val urlLine = trimmed.lineSequence()
+                .map { it.trim() }
+                .firstOrNull { it.startsWith("http://", true) || it.startsWith("https://", true) }
+            if (urlLine != null) {
+                runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(urlLine))) }
+                return
+            }
+            LocationMapUtils.openInMaps(context, trimmed, null, null)
         }
     }
-
 }

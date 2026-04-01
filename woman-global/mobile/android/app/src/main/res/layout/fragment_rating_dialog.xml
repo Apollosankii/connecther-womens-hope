@@ -31,12 +31,13 @@
         android:id="@+id/reviewText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Write a review..."
+        android:hint="Write a review (optional)…"
         android:minHeight="100dp"
         android:gravity="top"
         android:background="@drawable/rounded_input"
         android:padding="10dp"
         android:layout_marginTop="10dp"
-        android:inputType="textMultiLine"/>
+        android:maxLength="2000"
+        android:inputType="textMultiLine|textCapSentences"/>
 
 </LinearLayout>

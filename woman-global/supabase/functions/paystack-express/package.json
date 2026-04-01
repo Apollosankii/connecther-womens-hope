@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "bundle": "esbuild index.ts --bundle --format=esm --platform=neutral --target=esnext --outfile=index.standalone.ts --log-level=warning"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

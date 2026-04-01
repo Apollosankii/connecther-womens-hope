@@ -1,175 +1,348 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
     android:background="@color/background"
+    android:fillViewport="true"
     tools:context=".ProfileActivity">
 
-    <!-- Back Button -->
-    <ImageView
-        android:id="@+id/backButton"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:padding="8dp"
-        android:src="@drawable/arrow_back_24px"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:tint="@color/accent_color" />
-
-    <!-- User's Name -->
-    <TextView
-        android:id="@+id/userName"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:textColor="@color/black"
-        android:textSize="22sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toEndOf="@id/backButton"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <!-- Profile Picture -->
-    <ImageView
-        android:id="@+id/profileImage"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:scaleType="centerCrop"
-        android:src="@mipmap/woman_profile"
-        android:background="@drawable/circular_background"
-        android:elevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/userName"
-        android:layout_marginTop="16dp"/>
-
-    <!-- Verification Layout -->
     <LinearLayout
-        android:id="@+id/verificationLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:background="@drawable/profile_showcase_layout"
-        android:gravity="center"
-        android:orientation="horizontal"
-        android:padding="12dp"
-        android:layout_marginTop="16dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/profileImage">
-
-        <ImageView
-            android:id="@+id/idVerifiedIcon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:src="@drawable/check_circle_24px"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/idVerifiedText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="6dp"
-            android:text="ID Verified"
-            android:textColor="@color/green"
-            android:visibility="gone" />
-
-        <ImageView
-            android:id="@+id/phoneVerifiedIcon"
-            android:layout_width="20dp"
-            android:layout_height="20dp"
-            android:layout_marginStart="12dp"
-            android:src="@drawable/check_circle_24px"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/phoneVerifiedText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:paddingStart="6dp"
-            android:text="Phone Verified"
-            android:textColor="@color/green"
-            android:visibility="gone" />
-    </LinearLayout>
-
-    <!-- Skills & Experience Section -->
-    <LinearLayout
-        android:id="@+id/skills_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/profile_showcase_layout"
         android:orientation="vertical"
-        android:padding="16dp"
-        app:layout_constraintTop_toBottomOf="@id/verificationLayout">
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="24dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:id="@+id/backButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="@string/back"
+                android:padding="8dp"
+                android:src="@drawable/arrow_back_24px"
+                app:tint="@color/accent_color" />
+
+            <TextView
+                android:id="@+id/userName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textColor="@color/on_background"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                tools:text="Provider name" />
+        </LinearLayout>
 
         <TextView
-            android:id="@+id/skillsTitle"
+            android:id="@+id/profileServiceSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="14sp"
+            tools:text="Service: Mama Fua" />
+
+        <ImageView
+            android:id="@+id/profileImage"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/circular_background"
+            android:contentDescription="@null"
+            android:elevation="4dp"
+            android:scaleType="centerCrop"
+            android:src="@mipmap/woman_profile" />
+
+        <LinearLayout
+            android:id="@+id/verificationLayout"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Skills &amp; Experience"
-            android:textColor="@color/accent_color"
-            android:textSize="20sp"
-            android:textStyle="bold" />
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/profile_showcase_layout"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="12dp">
 
-        <TextView
-            android:id="@+id/skillsText"
+            <ImageView
+                android:id="@+id/idVerifiedIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:contentDescription="@string/profile_id_verified"
+                android:src="@drawable/check_circle_24px"
+                app:tint="@color/profile_verified"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/idVerifiedText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="6dp"
+                android:text="@string/profile_id_verified"
+                android:textColor="@color/profile_verified"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/phoneVerifiedIcon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginStart="12dp"
+                android:contentDescription="@string/profile_phone_verified"
+                android:src="@drawable/check_circle_24px"
+                app:tint="@color/profile_verified"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/phoneVerifiedText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingStart="6dp"
+                android:text="@string/profile_phone_verified"
+                android:textColor="@color/profile_verified"
+                android:textSize="13sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/profileBusyBanner"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Skills go here"
-            android:textSize="16sp"
-            android:textColor="@color/black"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/outline"
+            app:strokeWidth="1dp"
+            tools:visibility="visible">
 
-        <TextView
-            android:id="@+id/experienceText"
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:lineSpacingMultiplier="1.1"
+                android:padding="14dp"
+                android:text="@string/profile_provider_busy_banner"
+                android:textColor="@color/on_background"
+                android:textSize="14sp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/skillsCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Experiences go here"
-            android:textSize="16sp"
-            android:textColor="@color/black"
-            android:layout_marginBottom="12dp" />
-    </LinearLayout>
-    <!-- Buttons Container -->
-    <LinearLayout
-        android:id="@+id/buttonContainer"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center"
-        android:layout_margin="16dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+            android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/outline"
+            app:strokeWidth="1dp">
 
-        <Button
-            android:id="@+id/recommendButton"
-            style="@style/main_button"
-            android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/profile_skills_experience_title"
+                    android:textColor="@color/accent_color"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    style="@style/ProfileFieldLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/profile_label_professional_title" />
+
+                <TextView
+                    android:id="@+id/valueProfessionalTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/on_background"
+                    android:textSize="15sp"
+                    tools:text="Home care professional" />
+
+                <TextView
+                    style="@style/ProfileFieldLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/profile_label_service" />
+
+                <TextView
+                    android:id="@+id/valueServiceCategory"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/on_background"
+                    android:textSize="15sp"
+                    tools:text="Mama Fua" />
+
+                <TextView
+                    style="@style/ProfileFieldLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/profile_label_location" />
+
+                <TextView
+                    android:id="@+id/valueLocation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:textColor="@color/on_background"
+                    android:textSize="15sp"
+                    tools:text="Nairobi" />
+
+                <TextView
+                    style="@style/ProfileFieldLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/profile_label_experience" />
+
+                <TextView
+                    android:id="@+id/valueExperience"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="14sp"
+                    tools:text="5+ years in household services…" />
+
+                <TextView
+                    android:id="@+id/labelWorkingHours"
+                    style="@style/ProfileFieldLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="@string/profile_label_hours"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/valueWorkingHours"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:lineSpacingExtra="3dp"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="14sp"
+                    android:visibility="gone"
+                    tools:text="Weekdays 9–17" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/profileReviewsCard"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:backgroundTint="@color/accent_color"
-            android:text="Recommend"
-            android:textColor="@color/white"
-            android:textSize="14sp"
-            android:textAllCaps="false"
-            android:layout_marginEnd="8dp" />
+            android:layout_marginTop="16dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/surface"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="0dp"
+            app:strokeColor="@color/outline"
+            app:strokeWidth="1dp"
+            tools:visibility="visible">
 
-        <Button
-            android:id="@+id/engageButton"
-            style="@style/main_button"
-            android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/profile_reviews_title"
+                    android:textColor="@color/accent_color"
+                    android:textSize="18sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/profileRatingSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:textColor="@color/on_background"
+                    android:textSize="15sp"
+                    tools:text="4.5 average · 3 public review(s)" />
+
+                <TextView
+                    android:id="@+id/profileReviewsBody"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:lineSpacingExtra="4dp"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="14sp"
+                    tools:text="Sample review text" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonMessageProvider"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:backgroundTint="@color/accent_color"
-            android:text="Engage"
-            android:textColor="@color/white"
-            android:textSize="14sp"
+            android:layout_marginTop="16dp"
+            android:paddingVertical="14dp"
+            android:text="@string/profile_message_provider"
             android:textAllCaps="false"
-            android:layout_marginStart="8dp" />
+            app:cornerRadius="12dp" />
+
+        <LinearLayout
+            android:id="@+id/buttonContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/recommendButton"
+                style="@style/main_button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/accent_color"
+                android:text="@string/profile_action_recommend"
+                android:textAllCaps="false"
+                android:textColor="@color/on_primary"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/engageButton"
+                style="@style/main_button"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/accent_color"
+                android:text="@string/profile_action_engage"
+                android:textAllCaps="false"
+                android:textColor="@color/on_primary"
+                android:textSize="14sp" />
+        </LinearLayout>
     </LinearLayout>
-
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

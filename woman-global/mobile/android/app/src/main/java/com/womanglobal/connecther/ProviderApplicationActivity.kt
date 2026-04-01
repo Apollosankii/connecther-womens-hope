@@ -15,19 +15,24 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.checkbox.MaterialCheckBox
+import com.womanglobal.connecther.supabase.SupabaseClientProvider
 import com.womanglobal.connecther.supabase.SupabaseData
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class ProviderApplicationActivity : AppCompatActivity() {
     private val selectedServices = linkedSetOf<Int>()
     private val idDocs = mutableListOf<Uri>()
     private val certDocs = mutableListOf<Uri>()
 
+    private lateinit var serverDocsContainer: LinearLayout
+
     private val pickIdDocs = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) {
             idDocs.clear()
             idDocs.addAll(uris)
-            findViewById<TextView>(R.id.textIdDocSummary).text = "${idDocs.size} file(s) selected"
+            updateIdDocSummary()
         }
     }
 
@@ -35,13 +40,15 @@ class ProviderApplicationActivity : AppCompatActivity() {
         if (uris.isNotEmpty()) {
             certDocs.clear()
             certDocs.addAll(uris)
-            findViewById<TextView>(R.id.textCertDocSummary).text = "${certDocs.size} file(s) selected"
+            updateCertDocSummary()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_provider_application)
+
+        serverDocsContainer = findViewById(R.id.serverDocsContainer)
 
         findViewById<MaterialButton>(R.id.buttonPickIdDocs).setOnClickListener {
             pickIdDocs.launch(arrayOf("*/*"))
@@ -66,6 +73,104 @@ class ProviderApplicationActivity : AppCompatActivity() {
         }
 
         findViewById<Button>(R.id.buttonSubmit).setOnClickListener { submitApplication() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshUploadedDocumentsSection()
+    }
+
+    private fun updateIdDocSummary() {
+        findViewById<TextView>(R.id.textIdDocSummary).text =
+            formatLocalDocSummary(idDocs, "No ID document selected yet.")
+    }
+
+    private fun updateCertDocSummary() {
+        findViewById<TextView>(R.id.textCertDocSummary).text =
+            formatLocalDocSummary(certDocs, "No certification files selected yet.")
+    }
+
+    private fun formatLocalDocSummary(uris: List<Uri>, emptyMessage: String): String {
+        if (uris.isEmpty()) return emptyMessage
+        val lines = uris.map { uri ->
+            uri.lastPathSegment?.substringAfterLast(':')?.takeIf { it.isNotBlank() }
+                ?: uri.lastPathSegment
+                ?: "file"
+        }
+        return buildString {
+            append("${uris.size} file(s) selected:\n")
+            lines.forEach { append("• ").append(it).append('\n') }
+        }.trimEnd()
+    }
+
+    private fun refreshUploadedDocumentsSection() {
+        serverDocsContainer.removeAllViews()
+        lifecycleScope.launch {
+            val sessionOk = withContext(Dispatchers.IO) { SupabaseClientProvider.ensureSupabaseSession() }
+            if (!sessionOk) {
+                val tv = TextView(this@ProviderApplicationActivity).apply {
+                    text = "Sign in to see documents already stored for your account."
+                    textSize = 13f
+                    setTextColor(getColor(R.color.on_surface_variant))
+                }
+                serverDocsContainer.addView(tv)
+                return@launch
+            }
+            val docs = withContext(Dispatchers.IO) { SupabaseData.listMyVerificationDocuments() }
+            if (docs.isEmpty()) {
+                val tv = TextView(this@ProviderApplicationActivity).apply {
+                    text =
+                        "No verification files on the server yet. They appear here after a successful upload (when you submit this form or if you have submitted before)."
+                    textSize = 13f
+                    setTextColor(getColor(R.color.on_surface_variant))
+                }
+                serverDocsContainer.addView(tv)
+                return@launch
+            }
+            docs.forEach { doc ->
+                val row = LinearLayout(this@ProviderApplicationActivity).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, 8, 0, 8)
+                }
+                val label = TextView(this@ProviderApplicationActivity).apply {
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    text = buildString {
+                        append(doc.docTypeName)
+                        append(": ")
+                        append(doc.fileLabel)
+                        append(if (doc.verified) " (verified)" else " (pending review)")
+                    }
+                    textSize = 13f
+                    setTextColor(getColor(R.color.on_background))
+                }
+                val openBtn = MaterialButton(this@ProviderApplicationActivity, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
+                    text = "Open"
+                    textSize = 12f
+                    isAllCaps = false
+                    minimumWidth = 0
+                    minWidth = 0
+                    setOnClickListener {
+                        val u = doc.signedUrl
+                        if (u.isNullOrBlank()) {
+                            Toast.makeText(
+                                this@ProviderApplicationActivity,
+                                "Could not create a temporary view link. Check Storage policies and try again.",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        } else {
+                            runCatching {
+                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
+                            }.onFailure {
+                                Toast.makeText(this@ProviderApplicationActivity, "No app available to open this file.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                }
+                row.addView(label)
+                row.addView(openBtn)
+                serverDocsContainer.addView(row)
+            }
+        }
     }
 
     private fun submitApplication() {
@@ -130,9 +235,10 @@ class ProviderApplicationActivity : AppCompatActivity() {
 
             progress.visibility = View.GONE
             if (ok) {
-                getSharedPreferences("user_session", MODE_PRIVATE).edit().putBoolean("isProvider", true).apply()
-                Toast.makeText(this@ProviderApplicationActivity, "Application submitted", Toast.LENGTH_LONG).show()
-                startActivity(Intent(this@ProviderApplicationActivity, ProviderProfileActivity::class.java))
+                getSharedPreferences("user_session", MODE_PRIVATE).edit()
+                    .putBoolean("isProviderPending", true)
+                    .apply()
+                Toast.makeText(this@ProviderApplicationActivity, "Application submitted — you'll be notified once approved.", Toast.LENGTH_LONG).show()
                 finish()
             } else {
                 Toast.makeText(this@ProviderApplicationActivity, "Submission failed. Check Supabase auth/RLS.", Toast.LENGTH_LONG).show()

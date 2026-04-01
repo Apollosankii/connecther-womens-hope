@@ -17,10 +17,12 @@ import com.womanglobal.connecther.ChatActivity
 import com.womanglobal.connecther.adapters.JobAdapter
 import com.womanglobal.connecther.adapters.BookingRequestAdapter
 import com.womanglobal.connecther.data.Job
+import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.databinding.FragmentJobsBinding
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.utils.JobDiffCallback
 import com.womanglobal.connecther.utils.LocationMapUtils
+import com.womanglobal.connecther.utils.NetworkStatus
 import kotlinx.coroutines.launch
 
 class JobsFragment : Fragment() {
@@ -41,7 +43,7 @@ class JobsFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentJobsBinding.inflate(inflater, container, false)
 
-        jobAdapter = JobAdapter(jobList) {
+        jobAdapter = JobAdapter(this, jobList) {
             loadJobs()
         }
         binding.jobsRecyclerView.layoutManager = LinearLayoutManager(requireContext())
@@ -65,115 +67,117 @@ class JobsFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             if (_binding == null) return@launch
 
-            val allRequests = SupabaseData.getMyBookingRequests()
-
-            if (isProvider) {
-                val pendingRequests = allRequests
-                    .filter { it.role.equals("provider", ignoreCase = true) && it.status.equals("pending", ignoreCase = true) }
-                    .sortedByDescending { it.id }
-
-                if (pendingRequests.isNotEmpty()) {
-                    binding.noJobsLayout.visibility = View.GONE
-                    binding.jobsRecyclerView.visibility = View.VISIBLE
-                    binding.jobsRecyclerView.adapter = BookingRequestAdapter(
-                        pendingRequests,
-                        onAccept = { req ->
-                            viewLifecycleOwner.lifecycleScope.launch {
-                                val outcome = SupabaseData.acceptBookingRequest(req.id)
-                                if (outcome.isSuccess) {
-                                    Toast.makeText(requireContext(), "Booking accepted", Toast.LENGTH_SHORT).show()
-                                    if (!outcome.chatCode.isNullOrBlank()) {
-                                        startActivity(Intent(requireContext(), ChatActivity::class.java).apply {
-                                            putExtra("chat_code", outcome.chatCode)
-                                            putExtra("quote_id", outcome.quoteId ?: "")
-                                            putExtra("providerName", req.client_display ?: "Client")
-                                            putExtra("serviceName", "Service #${req.service_id ?: ""}")
-                                        })
-                                    }
-                                } else {
-                                    Toast.makeText(
-                                        requireContext(),
-                                        outcome.errorCode ?: "Failed to accept request",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                loadJobs()
-                            }
-                        },
-                        onDecline = { req ->
-                            viewLifecycleOwner.lifecycleScope.launch {
-                                val outcome = SupabaseData.declineBookingRequest(req.id)
-                                if (outcome.isSuccess) {
-                                    Toast.makeText(requireContext(), "Booking declined", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(requireContext(), outcome.errorCode ?: "Failed to decline", Toast.LENGTH_SHORT).show()
-                                }
-                                loadJobs()
-                            }
-                        },
-                        onCancel = { req ->
-                            viewLifecycleOwner.lifecycleScope.launch {
-                                val outcome = SupabaseData.cancelBookingRequest(req.id)
-                                if (outcome.isSuccess) {
-                                    Toast.makeText(requireContext(), "Booking canceled", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(requireContext(), outcome.errorCode ?: "Failed to cancel", Toast.LENGTH_SHORT).show()
-                                }
-                                loadJobs()
-                            }
-                        },
-                        onOpenMaps = { req ->
-                            LocationMapUtils.openInMaps(
-                                requireContext(),
-                                req.location_text.orEmpty(),
-                                req.latitude,
-                                req.longitude,
-                            )
-                        },
-                    )
-                    return@launch
-                }
+            val online = NetworkStatus.isOnline(requireContext())
+            val allRequests = if (online) {
+                val fetched = SupabaseData.getMyBookingRequests()
+                AppOfflineCache.writeBookingRequests(requireContext(), fetched)
+                fetched
             } else {
-                val seekerRequests = allRequests
-                    .filter { it.role.equals("client", ignoreCase = true) || it.role.equals("seeker", ignoreCase = true) }
-                    .sortedWith(
-                        compareBy<SupabaseData.MyBookingRequest> {
-                            when (it.status.lowercase()) {
-                                "pending" -> 0
-                                "accepted" -> 1
-                                "declined" -> 2
-                                "cancelled" -> 3
-                                else -> 4
-                            }
-                        }.thenByDescending { it.id }
-                    )
-                if (seekerRequests.isNotEmpty()) {
-                    binding.noJobsLayout.visibility = View.GONE
-                    binding.jobsRecyclerView.visibility = View.VISIBLE
-                    binding.jobsRecyclerView.adapter = BookingRequestAdapter(
-                        seekerRequests,
-                        onCancel = { req ->
-                            viewLifecycleOwner.lifecycleScope.launch {
-                                val outcome = SupabaseData.cancelBookingRequest(req.id)
-                                if (outcome.isSuccess) {
-                                    Toast.makeText(requireContext(), "Pending request cancelled", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(requireContext(), outcome.errorCode ?: "Failed to cancel", Toast.LENGTH_SHORT).show()
+                AppOfflineCache.readBookingRequests(requireContext()).orEmpty()
+            }
+
+            // Outgoing requests (seeker role) and incoming pending (provider role).
+            // Users marked as providers must still see their own booking requests as clients.
+            val clientRoleRequests = allRequests.filter {
+                it.role.equals("client", ignoreCase = true) || it.role.equals("seeker", ignoreCase = true)
+            }
+            val providerPendingIncoming = allRequests.filter {
+                it.role.equals("provider", ignoreCase = true) && it.status.equals("pending", ignoreCase = true)
+            }
+            val displayRequests = (
+                if (isProvider) providerPendingIncoming + clientRoleRequests
+                else clientRoleRequests
+                )
+                .distinctBy { it.id }
+                .sortedWith(
+                    compareBy<SupabaseData.MyBookingRequest> {
+                        when (it.status.lowercase()) {
+                            "pending" -> 0
+                            "accepted" -> 1
+                            "declined" -> 2
+                            "cancelled" -> 3
+                            else -> 4
+                        }
+                    }.thenByDescending { it.id },
+                )
+
+            if (displayRequests.isNotEmpty()) {
+                binding.noJobsLayout.visibility = View.GONE
+                binding.jobsRecyclerView.visibility = View.VISIBLE
+                binding.jobsRecyclerView.adapter = BookingRequestAdapter(
+                    displayRequests,
+                    onAccept = if (isProvider) { req ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val outcome = SupabaseData.acceptBookingRequest(req.id)
+                            if (outcome.isSuccess) {
+                                Toast.makeText(requireContext(), "Booking accepted", Toast.LENGTH_SHORT).show()
+                                if (!outcome.chatCode.isNullOrBlank()) {
+                                    startActivity(Intent(requireContext(), ChatActivity::class.java).apply {
+                                        putExtra("chat_code", outcome.chatCode)
+                                        putExtra("quote_id", outcome.quoteId ?: "")
+                                        val clientLabel = req.client_display ?: "Client"
+                                        putExtra("peer_display_name", clientLabel)
+                                        putExtra("providerName", clientLabel)
+                                        putExtra("serviceName", "Service #${req.service_id ?: ""}")
+                                    })
                                 }
-                                loadJobs()
+                            } else {
+                                Toast.makeText(
+                                    requireContext(),
+                                    outcome.errorCode ?: "Failed to accept request",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
                             }
-                        },
-                    )
-                    return@launch
-                }
+                            loadJobs()
+                        }
+                    } else null,
+                    onDecline = if (isProvider) { req ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val outcome = SupabaseData.declineBookingRequest(req.id)
+                            if (outcome.isSuccess) {
+                                Toast.makeText(requireContext(), "Booking declined", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(requireContext(), outcome.errorCode ?: "Failed to decline", Toast.LENGTH_SHORT).show()
+                            }
+                            loadJobs()
+                        }
+                    } else null,
+                    onCancel = { req ->
+                        viewLifecycleOwner.lifecycleScope.launch {
+                            val outcome = SupabaseData.cancelBookingRequest(req.id)
+                            if (outcome.isSuccess) {
+                                Toast.makeText(requireContext(), "Request cancelled", Toast.LENGTH_SHORT).show()
+                            } else {
+                                Toast.makeText(requireContext(), outcome.errorCode ?: "Failed to cancel", Toast.LENGTH_SHORT).show()
+                            }
+                            loadJobs()
+                        }
+                    },
+                    onOpenMaps = { req ->
+                        LocationMapUtils.openInMaps(
+                            requireContext(),
+                            req.location_text.orEmpty(),
+                            req.latitude,
+                            req.longitude,
+                        )
+                    },
+                )
+                return@launch
             }
 
             // Default: pending jobs list.
-            val newJobs = SupabaseData.getPendingJobs()
+            val newJobs = if (NetworkStatus.isOnline(requireContext())) {
+                val j = SupabaseData.getPendingJobs()
+                AppOfflineCache.writePendingJobs(requireContext(), j)
+                j
+            } else {
+                AppOfflineCache.readPendingJobs(requireContext()).orEmpty()
+            }
             val diffCallback = JobDiffCallback(jobList, newJobs)
             val diffResult = DiffUtil.calculateDiff(diffCallback)
             jobList.clear()
             jobList.addAll(newJobs)
+            binding.jobsRecyclerView.adapter = jobAdapter
             diffResult.dispatchUpdatesTo(jobAdapter)
             updateVisibility(newJobs)
         }

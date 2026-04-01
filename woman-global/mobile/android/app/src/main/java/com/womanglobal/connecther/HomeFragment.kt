@@ -1,10 +1,13 @@
 package com.womanglobal.connecther
 
+import android.animation.ObjectAnimator
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -15,6 +18,8 @@ import com.womanglobal.connecther.data.Category
 import com.womanglobal.connecther.data.Service
 import com.womanglobal.connecther.databinding.FragmentHomeBinding
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.SosShockwaveAnimator
+import com.womanglobal.connecther.utils.ThemeHelper
 import com.womanglobal.connecther.utils.UIHelper
 import kotlinx.coroutines.launch
 
@@ -23,6 +28,8 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private val gson = Gson()
     private val sharedPrefKey = "cached_services"
+    private var homeOuterPulse: ObjectAnimator? = null
+    private var homeMiddlePulse: ObjectAnimator? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -30,78 +37,119 @@ class HomeFragment : Fragment() {
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
-        // Retrieve the value of isProvider from SharedPreferences
-        val sharedPreferences = requireContext().getSharedPreferences("user_session", Context.MODE_PRIVATE)
-        val isProvider = sharedPreferences.getBoolean("isProvider", false) // Default is false
+        // Show up to 3 services immediately (cache or built-in catalog); providers see the same showcase row.
+        val initialPool = getCachedServices().ifEmpty { SupabaseData.localFallbackServices() }
+        setupRecyclerView(buildCategories(showcaseFromPool(initialPool)))
 
-
-        // Load cached services before making an API call
-        val cachedServices = getCachedServices()
-        if (cachedServices.isNotEmpty()) {
-            setupRecyclerView(
-                buildCategories(cachedServices),
-                isProvider = isProvider
-            )
-        }
-
-        // Fetch fresh data
-        loadServicesData(isProvider)
+        loadServicesData()
 
         return binding.root
     }
 
-    private fun loadServicesData(
-        isProvider: Boolean
-    ) {
-        viewLifecycleOwner.lifecycleScope.launch {
-            val services = runCatching { SupabaseData.getServices() }.getOrElse {
-                UIHelper.showToastShort(requireContext(), "Failed to load services")
-                return@launch
-            }
-
-            saveServicesToCache(services)
-            setupRecyclerView(
-                buildCategories(services),
-                isProvider = isProvider
-            )
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        setupHomeHeaderActions()
+        binding.homeSosButton.setOnClickListener {
+            startActivity(Intent(requireContext(), PanicActivity::class.java))
+        }
+        binding.homeEmergencyRow.setOnClickListener {
+            startActivity(Intent(requireContext(), EmergencyContactsActivity::class.java))
+        }
+        binding.homeSeeAllServices.setOnClickListener {
+            startActivity(Intent(requireContext(), AllServicesActivity::class.java))
         }
     }
 
-    private fun buildCategories(services: List<Service>): List<Category> {
-        val serviceCategory = Category("Services", services.take(4)) // Show only first 4 services
-        val organizationItems = listOf(
-            Service("0", "About Us", "about_us_image.png", fallbackImageResId = R.mipmap.about_us),
-            Service("0", "Donate to Us", "donate_image.png", fallbackImageResId = R.mipmap.donate)
-        )
-        val organizationCategory = Category("Our Organization", organizationItems)
-        val gbvHotlineCategory = Category(
-            "GBV Hotline", listOf(
-                Service("0", "Panic Button", "gbv_hotline_image.png", fallbackImageResId = R.mipmap.gbv_hotline)
+    private fun setupHomeHeaderActions() {
+        fun updateThemeIcon() {
+            val dark = ThemeHelper.isDarkMode(requireContext())
+            binding.homeThemeToggle.setImageResource(
+                if (dark) R.drawable.ic_sun_24 else R.drawable.ic_moon_24
             )
-        )
-
-        return listOf(serviceCategory, organizationCategory, gbvHotlineCategory)
+        }
+        updateThemeIcon()
+        binding.homeThemeToggle.setOnClickListener {
+            ThemeHelper.setDarkMode(requireContext(), !ThemeHelper.isDarkMode(requireContext()))
+            updateThemeIcon()
+            (activity as? AppCompatActivity)?.recreate()
+        }
     }
 
-    private fun setupRecyclerView(categories: List<Category>, isProvider : Boolean) {
+    override fun onStart() {
+        super.onStart()
+        startHomeSosPulse()
+    }
+
+    override fun onStop() {
+        homeOuterPulse?.cancel()
+        homeMiddlePulse?.cancel()
+        homeOuterPulse = null
+        homeMiddlePulse = null
+        if (_binding != null) {
+            SosShockwaveAnimator.resetRings(binding.homeSosRingOuter, binding.homeSosRingMiddle)
+        }
+        super.onStop()
+    }
+
+    private fun startHomeSosPulse() {
+        val outer = binding.homeSosRingOuter
+        val middle = binding.homeSosRingMiddle
+        homeOuterPulse?.cancel()
+        homeMiddlePulse?.cancel()
+        val pair = SosShockwaveAnimator.start(outer, middle, binding.homeSosButton)
+        homeOuterPulse = pair.first
+        homeMiddlePulse = pair.second
+    }
+
+    private fun loadServicesData() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val fromNetwork = runCatching { SupabaseData.getServices() }.getOrElse { emptyList() }
+            if (fromNetwork.isNotEmpty()) {
+                saveServicesToCache(fromNetwork)
+            } else if (getCachedServices().isEmpty()) {
+                UIHelper.showToastShort(requireContext(), "Failed to load services")
+            }
+            val pool = fromNetwork.ifEmpty { getCachedServices() }.ifEmpty { SupabaseData.localFallbackServices() }
+            setupRecyclerView(buildCategories(showcaseFromPool(pool)))
+        }
+    }
+
+    /** Home hero grid: showcase only (full catalog via "See all" / AllServicesActivity). */
+    private fun showcaseFromPool(services: List<Service>): List<Service> = services.take(HOME_SHOWCASE_SERVICE_CAP)
+
+    private fun buildCategories(showcaseServices: List<Service>): List<Category> {
+        val serviceCategory = Category("", showcaseServices)
+        val organizationItems = listOf(
+            Service("0", "About Us", "about_us_image.png", fallbackImageResId = R.mipmap.about_us),
+        )
+        val organizationCategory = Category("Our Organization", organizationItems)
+        return listOf(serviceCategory, organizationCategory)
+    }
+
+    private fun setupRecyclerView(categories: List<Category>) {
         binding.categoryRecyclerView.layoutManager = LinearLayoutManager(context)
-        binding.categoryRecyclerView.adapter = MultiTypeAdapter(categories, requireContext(), isProvider)
+        binding.categoryRecyclerView.adapter = MultiTypeAdapter(categories, requireContext())
+    }
+
+    companion object {
+        private const val HOME_SHOWCASE_SERVICE_CAP = 3
     }
 
     override fun onDestroyView() {
+        homeOuterPulse?.cancel()
+        homeMiddlePulse?.cancel()
+        if (_binding != null) {
+            SosShockwaveAnimator.resetRings(binding.homeSosRingOuter, binding.homeSosRingMiddle)
+        }
         super.onDestroyView()
         _binding = null
     }
 
-    // Save services list to SharedPreferences (cache)
     private fun saveServicesToCache(services: List<Service>) {
         val sharedPreferences = requireContext().getSharedPreferences("app_cache", Context.MODE_PRIVATE)
-        val editor = sharedPreferences.edit()
-        editor.putString(sharedPrefKey, gson.toJson(services))
-        editor.apply()
+        sharedPreferences.edit().putString(sharedPrefKey, gson.toJson(services)).apply()
     }
 
-    // Retrieve cached services from SharedPreferences
     private fun getCachedServices(): List<Service> {
         val sharedPreferences = requireContext().getSharedPreferences("app_cache", Context.MODE_PRIVATE)
         val json = sharedPreferences.getString(sharedPrefKey, null)

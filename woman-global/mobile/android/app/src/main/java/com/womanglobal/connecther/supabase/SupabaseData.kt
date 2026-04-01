@@ -1,8 +1,10 @@
 package com.womanglobal.connecther.supabase
 
+import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.womanglobal.connecther.BuildConfig
+import com.womanglobal.connecther.R
 import com.womanglobal.connecther.data.Job
 import com.womanglobal.connecther.data.Service
 import com.womanglobal.connecther.data.SubscriptionPackage
@@ -14,12 +16,17 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlin.time.Duration.Companion.seconds
 
 object SupabaseData {
+
+    /** Must match `supabase_storage_profpics_and_upload_fix.sql` bucket id and public URL path. */
+    private const val PROFILE_PHOTOS_BUCKET = "profpics"
 
     fun isConfigured(): Boolean =
         BuildConfig.SUPABASE_URL.isNotBlank() &&
@@ -27,9 +34,37 @@ object SupabaseData {
             BuildConfig.SUPABASE_ANON_KEY.isNotBlank() &&
             !BuildConfig.SUPABASE_ANON_KEY.contains("replace")
 
+    /** Notes + Google Maps search line when GPS is present (stored on booking_requests.location_text). */
+    private fun buildBookingLocationNotes(
+        locationText: String?,
+        latitude: Double?,
+        longitude: Double?,
+    ): String {
+        val base = locationText?.trim()?.takeIf { it.isNotEmpty() }
+        val link = if (latitude != null && longitude != null) {
+            "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude"
+        } else {
+            null
+        }
+        return when {
+            base != null && link != null -> "$base\n$link"
+            base != null -> base
+            link != null -> link
+            else -> ""
+        }
+    }
+
     data class BookingOutcome(
         val isSuccess: Boolean,
         val errorCode: String? = null,
+    )
+
+    /**
+     * PostgREST wraps each row as `{ "get_my_booking_requests": { ... } }` for `RETURNS SETOF jsonb`.
+     */
+    @Serializable
+    private data class MyBookingRequestRpcEnvelope(
+        @SerialName("get_my_booking_requests") val get_my_booking_requests: MyBookingRequest? = null,
     )
 
     @Serializable
@@ -42,6 +77,7 @@ object SupabaseData {
         val location_text: String? = null,
         val latitude: Double? = null,
         val longitude: Double? = null,
+        @SerialName("maps_url") val maps_url: String? = null,
         val message: String? = null,
         val service_id: Int? = null,
         val client_display: String? = null,
@@ -80,11 +116,12 @@ object SupabaseData {
         val client = SupabaseClientProvider.client
 
         suspend fun invokeRpc(): BookingOutcome {
+            val locationForRpc = buildBookingLocationNotes(locationText, latitude, longitude)
             val params = buildJsonObject {
                 put("p_provider_ref", providerRef)
                 put("p_service_id", serviceId)
                 put("p_proposed_price", proposedPrice)
-                put("p_location_text", locationText ?: "")
+                put("p_location_text", locationForRpc)
                 latitude?.let { put("p_lat", it) }
                 longitude?.let { put("p_lng", it) }
                 put("p_message", message ?: "")
@@ -118,7 +155,8 @@ object SupabaseData {
         }
     }
 
-    fun bookingRequestErrorMessage(code: String?): String {
+    /** User-facing message when a booking fails (uses string resources for connect-limit cases). */
+    fun bookingRequestErrorMessage(context: Context, code: String?): String {
         return when (code) {
             "supabase_not_configured" -> "Supabase is not configured on this build."
             "not_authenticated" -> "Please sign in again to continue."
@@ -127,11 +165,19 @@ object SupabaseData {
             "provider_not_found" -> "Provider is unavailable. Please choose another provider."
             "provider_not_subscribed_to_service" -> "This provider is not subscribed to this service."
             "provider_busy" -> "Provider is currently unavailable for booking."
-            "free_tier_exhausted", "insufficient_connects", "subscription_required" ->
-                "You need an active subscription/connect balance to request this booking."
+            "free_tier_exhausted" -> context.getString(R.string.booking_error_free_tier_exhausted)
+            "connects_exhausted" -> context.getString(R.string.booking_error_connects_exhausted)
+            "insufficient_connects", "subscription_required" ->
+                context.getString(R.string.booking_error_subscribe_for_connects)
             "not_implemented" -> "Booking is temporarily unavailable. Please try again later."
             else -> "Booking request failed. Please try again."
         }
+    }
+
+    /** True when the user should be nudged to open Subscriptions for more connects. */
+    fun isBookingConnectLimitError(code: String?): Boolean = when (code) {
+        "free_tier_exhausted", "connects_exhausted", "insufficient_connects", "subscription_required" -> true
+        else -> false
     }
 
     private fun mapBookingErrorCode(e: Throwable): String {
@@ -144,6 +190,7 @@ object SupabaseData {
                 msg.contains("provider_not_found") -> return "provider_not_found"
                 msg.contains("provider_busy") || msg.contains("available_for_booking") -> return "provider_busy"
                 msg.contains("free_tier_exhausted") -> return "free_tier_exhausted"
+                msg.contains("connects_exhausted") -> return "connects_exhausted"
                 msg.contains("insufficient_connects") -> return "insufficient_connects"
                 msg.contains("subscription") -> return "subscription_required"
                 msg.contains("permission denied") || msg.contains("rls") -> return "auth_required"
@@ -241,7 +288,10 @@ object SupabaseData {
         @SerialName("occupation") val occupation: String? = null,
         @SerialName("nat_id") val nat_id: String? = null,
         @SerialName("birth_date") val birth_date: String? = null,
-        @SerialName("gender") val gender: String? = null
+        @SerialName("gender") val gender: String? = null,
+        /** DB may return null for legacy or unset rows; treat as false in app logic. */
+        @SerialName("service_provider") val service_provider: Boolean? = null,
+        @SerialName("provider_application_pending") val provider_application_pending: Boolean? = null,
     )
 
     @Serializable
@@ -329,6 +379,12 @@ object SupabaseData {
         return getDefaultServices()
     }
 
+    /**
+     * Local catalog when the network fails and app cache is empty — same rows as an empty `services` table.
+     * Home screen uses at most 3 of these for showcase; full list remains in [getServices].
+     */
+    fun localFallbackServices(): List<Service> = getDefaultServices()
+
     /** Default services when table is empty. Align with Admin Portal / SUBSCRIPTION_ADMIN_PLAN. */
     private fun getDefaultServices(): List<Service> = listOf(
         Service(service_id = "1", name = "Mama Fua", pic = ""),
@@ -347,12 +403,18 @@ object SupabaseData {
         val profile = getUserProfile(firebaseUid) ?: return
         val fullName = "${profile.first_name} ${profile.last_name}".trim()
         val nameForPrefs = fullName.takeIf { it.isNotBlank() } ?: prefs.getString("user_full_name", null)
-        prefs.edit()
+        val prevPic = prefs.getString("user_pic", null)
+        val editor = prefs.edit()
             .putString("user_full_name", nameForPrefs)
             .putString("user_phone", profile.phoneNumber)
             .putString("user_pic", profile.pic)
             .putString("user_email", profile.email ?: prefs.getString("user_email", null))
-            .apply()
+            .putBoolean("isProvider", profile.isServiceProvider == true)
+            .putBoolean("isProviderPending", profile.isProviderApplicationPending == true)
+        if (profile.pic != null && profile.pic != prevPic) {
+            editor.putLong("profile_pic_version", System.currentTimeMillis())
+        }
+        editor.apply()
         CurrentUser.setUser(profile)
     }
 
@@ -369,6 +431,8 @@ object SupabaseData {
                 }
             }.decodeList<DbUser>()
             rows.firstOrNull()?.let { mapDbUserToUser(it) }
+        }.onFailure { e ->
+            Log.e("SupabaseData", "getUserProfile failed for clerk_user_id=$firebaseUid", e)
         }.getOrNull()
     }
 
@@ -378,6 +442,14 @@ object SupabaseData {
         @SerialName("plan_id") val plan_id: Int = 0,
         val status: String = "",
         @SerialName("payment_reference") val payment_reference: String? = null,
+        @SerialName("started_at") val started_at: String? = null,
+        @SerialName("expires_at") val expires_at: String? = null,
+    )
+
+    data class ActiveSubscription(
+        val planId: Int,
+        val planName: String,
+        val expiresAt: String?,
     )
 
     /**
@@ -397,6 +469,23 @@ object SupabaseData {
             }.decodeList<DbPlanSubRow>()
             rows.isNotEmpty()
         }.getOrDefault(false)
+    }
+
+    /**
+     * Returns the user's active subscription (if any) with the plan name resolved from [subscription_plans].
+     */
+    suspend fun getActiveSubscription(): ActiveSubscription? {
+        if (!isConfigured()) return null
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return null
+        return runCatching {
+            val rows = SupabaseClientProvider.client.from("user_plan_subscriptions").select {
+                filter { eq("status", "active") }
+            }.decodeList<DbPlanSubRow>()
+            val active = rows.firstOrNull() ?: return@runCatching null
+            val plans = getSubscriptionPlans()
+            val planName = plans.firstOrNull { it.id == active.plan_id.toString() }?.name ?: "Plan #${active.plan_id}"
+            ActiveSubscription(planId = active.plan_id, planName = planName, expiresAt = active.expires_at)
+        }.getOrNull()
     }
 
     @Serializable
@@ -420,11 +509,11 @@ object SupabaseData {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return null
         val client = SupabaseClientProvider.client
 
-        val jwtSub = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return null
+        val uidRef = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return null
 
         return runCatching {
             client.from("users").select {
-                filter { eq("clerk_user_id", jwtSub) }
+                filter { eq("user_id", uidRef) }
             }.decodeList<MyProviderProfileRow>().firstOrNull()
         }.getOrNull()
     }
@@ -573,12 +662,57 @@ object SupabaseData {
     }
 
     /**
-     * Updates current user's profile (first_name, last_name, phone, email, occupation).
-     * Requires supabase_profile_and_reports.sql (update_my_profile RPC) to be run in Supabase.
+     * Updates current user's profile (first_name, last_name, phone, email, occupation, optional title).
+     * Hosted DB may use the 8-arg `update_my_profile` (title, working_hours, available_for_booking); only
+     * send keys that should change — omitting `p_working_hours` / `p_available_for_booking` leaves them unchanged.
      */
-    suspend fun updateUserProfile(firstName: String, lastName: String, phone: String, email: String, occupation: String): Boolean {
-        if (!isConfigured()) return false
-        if (!SupabaseClientProvider.ensureSupabaseSession()) return false
+    suspend fun updateUserProfile(
+        firstName: String,
+        lastName: String,
+        phone: String,
+        email: String,
+        occupation: String,
+        title: String? = null,
+    ): Boolean = updateUserProfileResult(firstName, lastName, phone, email, occupation, title) == null
+
+    private fun normalizeProfileEmail(value: String?): String {
+        val s = value?.trim()?.lowercase().orEmpty()
+        if (s.isEmpty() || s == "no email") return ""
+        return s
+    }
+
+    /**
+     * @param accountEmailHint Firebase / prefs email for this account. When the DB row has no email (or the
+     * select fails) but the form still shows the same address, we omit [p_email] so Postgres does not run a
+     * no-op email write that can hit [users_email_lower_unique] against a duplicate legacy row.
+     *
+     * @return null on success, or a short technical/detail string for logging; use [profileUpdateUserMessage] for UI.
+     */
+    suspend fun updateUserProfileResult(
+        firstName: String,
+        lastName: String,
+        phone: String,
+        email: String,
+        occupation: String,
+        title: String? = null,
+        accountEmailHint: String? = null,
+    ): String? {
+        if (!isConfigured()) return "supabase_not_configured"
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return "no_session"
+        val titleTrimmed = title?.trim()?.takeIf { it.isNotEmpty() }
+        val profile = runCatching { getMyProviderProfile() }.getOrNull()
+        val emailNorm = normalizeProfileEmail(email)
+        val dbNorm = normalizeProfileEmail(profile?.email)
+        val hintNorm = normalizeProfileEmail(accountEmailHint)
+        val emailUnchanged = when {
+            dbNorm.isNotEmpty() && emailNorm == dbNorm -> true
+            dbNorm.isEmpty() && hintNorm.isNotEmpty() && emailNorm == hintNorm -> true
+            else -> false
+        }
+        val shouldSendEmailUpdate = emailNorm.isNotEmpty() && !emailUnchanged
+        if (BuildConfig.DEBUG && !shouldSendEmailUpdate && emailNorm.isNotEmpty()) {
+            Log.d("SupabaseData", "updateUserProfile: omitting p_email (unchanged vs db or account hint)")
+        }
         return runCatching {
             val client = SupabaseClientProvider.client
             client.postgrest.rpc(
@@ -587,13 +721,58 @@ object SupabaseData {
                     put("p_first_name", firstName)
                     put("p_last_name", lastName)
                     put("p_phone", phone)
-                    put("p_email", email)
+                    if (shouldSendEmailUpdate) put("p_email", email.trim())
                     put("p_occupation", occupation)
-                }
+                    titleTrimmed?.let { put("p_title", it) }
+                },
+            )
+            null
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "updateUserProfile failed", e)
+            e.message ?: e::class.simpleName ?: "error"
+        }
+    }
+
+    fun profileUpdateUserMessage(context: Context, detail: String?): String {
+        val m = (detail ?: "").lowercase()
+        val emailTaken = m.contains("users_email_lower_unique") ||
+            m.contains("email_lower_unique") ||
+            (m.contains("duplicate key") && (m.contains("users") && m.contains("email")))
+        return when {
+            emailTaken -> context.getString(R.string.settings_update_email_taken)
+            m.contains("jwt") || m.contains("401") || m == "no_session" ->
+                context.getString(R.string.settings_update_session)
+            else -> context.getString(R.string.settings_update_failed)
+        }
+    }
+
+    /**
+     * Pushes registration form fields to `users` after auth-bridge creates the row (bridge only sets placeholders).
+     */
+    suspend fun applyRegistrationProfile(
+        firstName: String,
+        lastName: String,
+        phone: String,
+        title: String,
+        email: String,
+    ): Boolean {
+        if (!isConfigured()) return false
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return false
+        return runCatching {
+            SupabaseClientProvider.client.postgrest.rpc(
+                "update_my_profile",
+                buildJsonObject {
+                    put("p_first_name", firstName)
+                    put("p_last_name", lastName)
+                    put("p_phone", phone)
+                    put("p_email", email)
+                    put("p_occupation", "")
+                    put("p_title", title)
+                },
             )
             true
         }.getOrElse { e ->
-            Log.e("SupabaseData", "updateUserProfile failed", e)
+            Log.e("SupabaseData", "applyRegistrationProfile failed", e)
             false
         }
     }
@@ -613,6 +792,118 @@ object SupabaseData {
             Log.e("SupabaseData", "reportProblem failed", e)
             false
         }
+    }
+
+    suspend fun reportGbvEmergency(latitude: Double?, longitude: Double?, locationText: String?): Boolean {
+        if (!isConfigured()) return false
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return false
+        return runCatching {
+            SupabaseClientProvider.client.postgrest.rpc(
+                "insert_my_help_request",
+                buildJsonObject {
+                    latitude?.let { put("p_latitude", it) }
+                    longitude?.let { put("p_longitude", it) }
+                    locationText?.let { put("p_location_text", it) }
+                },
+            )
+            true
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "reportGbvEmergency failed", e)
+            false
+        }
+    }
+
+    data class SubmitJobReviewResult(val ok: Boolean, val err: String? = null)
+
+    /**
+     * Submits stars + optional text for a completed job (RPC `submit_job_review`).
+     * Seeker → provider review is public; provider → seeker review is private to the seeker.
+     */
+    suspend fun submitJobReview(jobId: Int, stars: Int, reviewText: String?): SubmitJobReviewResult {
+        if (!isConfigured()) return SubmitJobReviewResult(false, "supabase_not_configured")
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return SubmitJobReviewResult(false, "auth_required")
+        @Serializable
+        data class RpcRow(val ok: Boolean = false, val err: String? = null)
+        return runCatching {
+            val params = buildJsonObject {
+                put("p_job_id", jobId)
+                put("p_stars", stars)
+                if (!reviewText.isNullOrBlank()) put("p_review_text", reviewText.trim())
+            }
+            val rows = SupabaseClientProvider.client.postgrest.rpc("submit_job_review", params).decodeList<RpcRow>()
+            val row = rows.firstOrNull()
+            when {
+                row?.ok == true -> SubmitJobReviewResult(true, null)
+                !row?.err.isNullOrBlank() -> SubmitJobReviewResult(false, row.err)
+                else -> SubmitJobReviewResult(false, "unknown")
+            }
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "submitJobReview failed", e)
+            SubmitJobReviewResult(false, "request_failed")
+        }
+    }
+
+    data class PublicReviewItem(
+        val stars: Int,
+        val reviewText: String,
+        val serviceName: String,
+        val createdAt: String,
+        val reviewerFirstName: String,
+    )
+
+    @Serializable
+    private data class PublicRatingStatsRpcRow(
+        @SerialName("avg_stars") val avg_stars: Double = 0.0,
+        @SerialName("review_count") val review_count: Int = 0,
+    )
+
+    @Serializable
+    private data class PublicReviewRpcRow(
+        val stars: Int = 0,
+        val review_text: String? = null,
+        val service_name: String? = null,
+        val created_at: String? = null,
+        val reviewer_first_name: String? = null,
+    )
+
+    suspend fun getPublicRatingStatsForUser(userDbId: Int): Pair<Double, Int>? {
+        if (!isConfigured() || userDbId < 1) return null
+        return runCatching {
+            val client = SupabaseClientProvider.publicClient
+            val rows = client.postgrest.rpc(
+                "get_public_rating_stats_for_user",
+                buildJsonObject { put("p_user_id", userDbId) },
+            ).decodeList<PublicRatingStatsRpcRow>()
+            val r = rows.firstOrNull() ?: return@runCatching null
+            r.avg_stars to r.review_count
+        }.onFailure { e ->
+            Log.w("SupabaseData", "getPublicRatingStatsForUser failed", e)
+        }.getOrNull()
+    }
+
+    suspend fun listPublicReviewsForUser(userDbId: Int, limit: Int = 25): List<PublicReviewItem> {
+        if (!isConfigured() || userDbId < 1) return emptyList()
+        return runCatching {
+            val client = SupabaseClientProvider.publicClient
+            val rows = client.postgrest.rpc(
+                "list_public_reviews_for_user",
+                buildJsonObject {
+                    put("p_user_id", userDbId)
+                    put("p_limit", limit)
+                },
+            ).decodeList<PublicReviewRpcRow>()
+            rows.map {
+                PublicReviewItem(
+                    stars = it.stars,
+                    reviewText = it.review_text?.trim().orEmpty(),
+                    serviceName = it.service_name?.trim().orEmpty(),
+                    createdAt = it.created_at?.trim().orEmpty(),
+                    reviewerFirstName = it.reviewer_first_name?.trim().orEmpty(),
+                )
+            }
+        }.onFailure { e ->
+            Log.w("SupabaseData", "listPublicReviewsForUser failed", e)
+        }.getOrElse { emptyList() }
     }
 
     /**
@@ -641,9 +932,15 @@ object SupabaseData {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return emptyList()
 
         return runCatching {
-            SupabaseClientProvider.client.postgrest
-                .rpc("get_my_booking_requests")
-                .decodeList<MyBookingRequest>()
+            val client = SupabaseClientProvider.client
+            runCatching {
+                client.postgrest.rpc("get_my_booking_requests").decodeList<MyBookingRequest>()
+            }.recoverCatching { e ->
+                Log.w("SupabaseData", "get_my_booking_requests flat decode failed, trying envelope: ${e.message}")
+                client.postgrest.rpc("get_my_booking_requests")
+                    .decodeList<MyBookingRequestRpcEnvelope>()
+                    .mapNotNull { it.get_my_booking_requests }
+            }.getOrThrow()
         }.getOrElse { e ->
             Log.e("SupabaseData", "getMyBookingRequests failed", e)
             emptyList()
@@ -740,8 +1037,35 @@ object SupabaseData {
         val location: String? = null,
         @SerialName("job_id") val job_id: Int = 0,
         val rated: Boolean = false,
-        val score: Float = 0f
+        val score: Float = 0f,
+        @SerialName("my_review_submitted") val my_review_submitted: Boolean? = null,
+        @SerialName("my_stars") val my_stars: Float? = null,
+        @SerialName("their_review_submitted") val their_review_submitted: Boolean? = null,
+        @SerialName("their_stars") val their_stars: Float? = null,
+        @SerialName("started_at") val started_at: String? = null,
+        @SerialName("completed_at") val completed_at: String? = null,
     )
+
+    private fun JobRpcRow.toJob(): Job {
+        val mySubmitted = my_review_submitted ?: rated
+        val myStarVal = my_stars ?: score
+        return Job(
+            client = client,
+            provider = provider,
+            service = service,
+            price = price,
+            location = location ?: "",
+            job_id = job_id,
+            rated = mySubmitted,
+            score = myStarVal,
+            my_review_submitted = mySubmitted,
+            my_stars = myStarVal,
+            their_review_submitted = their_review_submitted ?: false,
+            their_stars = their_stars ?: 0f,
+            started_at = started_at,
+            completed_at = completed_at,
+        )
+    }
 
     /**
      * Fetches pending jobs for the current user (client or provider).
@@ -752,7 +1076,7 @@ object SupabaseData {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return emptyList()
         return runCatching {
             val rows = SupabaseClientProvider.client.postgrest.rpc("get_pending_jobs").decodeList<JobRpcRow>()
-            rows.map { Job(it.client, it.provider, it.service, it.price, it.location ?: "", it.job_id, it.rated, it.score) }
+            rows.map { it.toJob() }
         }.getOrElse { e ->
             Log.e("SupabaseData", "getPendingJobs failed", e)
             emptyList()
@@ -768,7 +1092,7 @@ object SupabaseData {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return emptyList()
         return runCatching {
             val rows = SupabaseClientProvider.client.postgrest.rpc("get_completed_jobs").decodeList<JobRpcRow>()
-            rows.map { Job(it.client, it.provider, it.service, it.price, it.location ?: "", it.job_id, it.rated, it.score) }
+            rows.map { it.toJob() }
         }.getOrElse { e ->
             Log.e("SupabaseData", "getCompletedJobs failed", e)
             emptyList()
@@ -790,20 +1114,105 @@ object SupabaseData {
         }
     }
 
+    @Serializable
+    private data class ProviderBookableRpcRow(val bookable: Boolean = false)
+
+    /** Matches marketplace: service provider, available_for_booking, and no incomplete job. */
+    suspend fun providerIsBookable(userDbId: Int): Boolean {
+        if (!isConfigured() || userDbId < 1) return false
+        return runCatching {
+            val rows = SupabaseClientProvider.publicClient.postgrest.rpc(
+                "provider_is_bookable",
+                buildJsonObject { put("p_user_id", userDbId) },
+            ).decodeList<ProviderBookableRpcRow>()
+            rows.firstOrNull()?.bookable == true
+        }.onFailure { e ->
+            Log.w("SupabaseData", "providerIsBookable failed", e)
+        }.getOrDefault(false)
+    }
+
+    @Serializable
+    private data class ProviderBusyRpcRow(val busy: Boolean = false)
+
+    /** True when the signed-in user is a provider with at least one incomplete job. */
+    suspend fun myProviderHasActiveJob(): Boolean {
+        if (!isConfigured() || !SupabaseClientProvider.ensureSupabaseSession()) return false
+        return runCatching {
+            SupabaseClientProvider.client.postgrest.rpc("my_provider_has_active_job")
+                .decodeList<ProviderBusyRpcRow>()
+                .firstOrNull()?.busy == true
+        }.onFailure { e ->
+            Log.w("SupabaseData", "myProviderHasActiveJob failed", e)
+        }.getOrDefault(false)
+    }
+
     /**
      * Fetches providers for a service (subscribed + service_provider). Uses RPC.
      */
-    suspend fun getProvidersForService(serviceId: String): List<User> {
+    /**
+     * Providers for a service. When [seekerLat] and [seekerLng] are non-null, uses PostGIS RPC
+     * [get_providers_for_service_near] (default 10 km). Otherwise lists all providers for the service.
+     */
+    /**
+     * Marketplace provider lists: hide the signed-in user so providers never see themselves.
+     */
+    private suspend fun excludeCurrentUserFromProviderList(users: List<User>): List<User> {
+        if (users.isEmpty()) return users
+        val me = CurrentUser.getUser()
+        val meDb = me?.userDbId
+        val idCandidates = buildSet {
+            me?.id?.takeIf { it.isNotBlank() }?.let(::add)
+            me?.user_name?.takeIf { it.isNotBlank() }?.let(::add)
+        }
+        val extras = if (meDb == null && idCandidates.isEmpty()) {
+            if (SupabaseClientProvider.ensureSupabaseSession()) {
+                getMyUserId()?.takeIf { it.isNotBlank() }?.let { setOf(it) } ?: emptySet()
+            } else {
+                emptySet()
+            }
+        } else {
+            emptySet()
+        }
+        val allIds = idCandidates + extras
+        if (meDb == null && allIds.isEmpty()) return users
+        return users.filter { u ->
+            val sameDb = meDb != null && u.userDbId != null && u.userDbId == meDb
+            val sameId = allIds.any { id -> u.id == id || u.user_name == id }
+            !sameDb && !sameId
+        }
+    }
+
+    suspend fun getProvidersForService(
+        serviceId: String,
+        seekerLat: Double? = null,
+        seekerLng: Double? = null,
+        radiusMeters: Double = 10_000.0,
+        excludeCurrentUser: Boolean = true,
+    ): List<User> {
         if (!isConfigured()) return emptyList()
         val client = SupabaseClientProvider.publicClient
         val sid = serviceId.toIntOrNull() ?: return emptyList()
-        return runCatching {
-            val rows = client.postgrest.rpc("get_providers_for_service", buildJsonObject { put("p_service_id", sid) })
-                .decodeList<ProviderRpcRow>()
+        val useNear = seekerLat != null && seekerLng != null
+        val mapped = runCatching {
+            val rows = if (useNear) {
+                client.postgrest.rpc(
+                    "get_providers_for_service_near",
+                    buildJsonObject {
+                        put("p_service_id", sid)
+                        put("p_lat", seekerLat!!)
+                        put("p_lng", seekerLng!!)
+                        put("p_radius_meters", radiusMeters)
+                    },
+                ).decodeList<ProviderRpcRow>()
+            } else {
+                client.postgrest.rpc("get_providers_for_service", buildJsonObject { put("p_service_id", sid) })
+                    .decodeList<ProviderRpcRow>()
+            }
             rows.map { mapProviderToUser(it) }
         }.onFailure { e ->
             Log.e("SupabaseData", "getProvidersForService failed", e)
         }.getOrElse { emptyList() }
+        return if (excludeCurrentUser) excludeCurrentUserFromProviderList(mapped) else mapped
     }
 
     @Serializable
@@ -820,8 +1229,54 @@ object SupabaseData {
         @SerialName("county") val county: String? = null,
         val nat_id: String? = null,
         val dob: String? = null,
-        val gender: String? = null
+        val gender: String? = null,
+        /** Experience / bio text from provider profile (see `get_providers_for_service`). */
+        val occupation: String? = null,
+        @SerialName("working_hours") val working_hours: String? = null,
+        val latitude: Double? = null,
+        val longitude: Double? = null,
+        @SerialName("WH Badge") val wh_badge: String? = null,
     )
+
+    data class StartConversationOutcome(
+        val chatCode: String? = null,
+        val quoteId: String? = null,
+        val errorCode: String? = null,
+    )
+
+    @Serializable
+    private data class StartConversationRpcRow(
+        @SerialName("quote_id") val quote_id: String? = null,
+        @SerialName("chat_code") val chat_code: String? = null,
+        val err: String? = null,
+    )
+
+    /**
+     * Opens or resumes a chat with a provider for the given service (RPC `start_conversation_with_provider`).
+     */
+    suspend fun startConversationWithProvider(providerRef: String, serviceId: Int): StartConversationOutcome {
+        if (!isConfigured()) return StartConversationOutcome(errorCode = "supabase_not_configured")
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return StartConversationOutcome(errorCode = "auth_required")
+        return runCatching {
+            val rows = SupabaseClientProvider.client.postgrest.rpc(
+                "start_conversation_with_provider",
+                buildJsonObject {
+                    put("p_provider_ref", providerRef)
+                    put("p_service_id", serviceId)
+                },
+            ).decodeList<StartConversationRpcRow>()
+            val r = rows.firstOrNull()
+            StartConversationOutcome(
+                chatCode = r?.chat_code,
+                quoteId = r?.quote_id,
+                errorCode = r?.err,
+            )
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "startConversationWithProvider failed", e)
+            val code = if (e is HttpRequestTimeoutException) "network_timeout" else "request_failed"
+            StartConversationOutcome(errorCode = code)
+        }
+    }
 
     /**
      * Fetches conversations (quotes with last message preview).
@@ -831,7 +1286,19 @@ object SupabaseData {
         val client = SupabaseClientProvider.client
         return runCatching {
             client.postgrest.rpc("get_conversations").decodeList<ConversationRow>()
-                .map { Conversation(it.quote_code, it.chat_id, it.provider, it.client, it.service, it.msg_text, it.msg_time) }
+                .map {
+                    Conversation(
+                        it.quote_code,
+                        it.chat_id,
+                        it.provider,
+                        it.client,
+                        it.service,
+                        it.msg_text,
+                        it.msg_time,
+                        peerName = it.peer_name?.trim().orEmpty(),
+                        peerPic = it.peer_pic?.trim()?.takeIf { u -> u.isNotEmpty() },
+                    )
+                }
         }.getOrElse { emptyList() }
     }
 
@@ -843,8 +1310,30 @@ object SupabaseData {
         val client: String,
         val service: String,
         @SerialName("msg_text") val msg_text: String,
-        @SerialName("msg_time") val msg_time: String
+        @SerialName("msg_time") val msg_time: String,
+        @SerialName("peer_name") val peer_name: String? = null,
+        @SerialName("peer_pic") val peer_pic: String? = null,
     )
+
+    @Serializable
+    data class ChatHeaderRow(
+        @SerialName("peer_name") val peer_name: String? = null,
+        @SerialName("peer_pic") val peer_pic: String? = null,
+        @SerialName("service_name") val service_name: String? = null,
+    )
+
+    suspend fun getChatHeader(chatCode: String): ChatHeaderRow? {
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return null
+        if (chatCode.isBlank()) return null
+        return runCatching {
+            SupabaseClientProvider.client.postgrest.rpc(
+                "get_chat_header",
+                buildJsonObject { put("p_chat_code", chatCode) },
+            ).decodeList<ChatHeaderRow>().firstOrNull()
+        }.onFailure { e ->
+            Log.e("SupabaseData", "getChatHeader failed", e)
+        }.getOrNull()
+    }
 
     /**
      * Fetches messages for a chat by chat_code.
@@ -883,22 +1372,119 @@ object SupabaseData {
     data class DbMessage(val id: Int, @SerialName("sender_id") val sender_id: String? = null, val content: String? = null, val time: String? = null, @SerialName("chat_id") val chat_id: Int? = null)
 
     @Serializable
+    private data class MessageInsertPayload(
+        @SerialName("chat_id") val chat_id: Int,
+        @SerialName("sender_id") val sender_id: String,
+        val content: String,
+    )
+
+    @Serializable
     data class DbUserIdRow(val id: Int)
 
     @Serializable
     data class DbDocumentTypeRow(val id: Int, val name: String? = null)
+
+    @Serializable
+    private data class ProviderDocumentInsertPayload(
+        @SerialName("user_id") val user_id: Int,
+        @SerialName("doc_type_id") val doc_type_id: Int,
+        val name: String,
+        val verified: Boolean,
+    )
+
+    @Serializable
+    private data class DbDocumentRow(
+        val id: Int,
+        val name: String? = null,
+        @SerialName("doc_type_id") val doc_type_id: Int? = null,
+        @SerialName("verified") val verified: Boolean? = false,
+    )
+
+    data class VerificationDocumentItem(
+        val id: Int,
+        val docTypeName: String,
+        val verified: Boolean,
+        val fileLabel: String,
+        /** Signed download URL; private bucket objects are not viewable without this. */
+        val signedUrl: String?,
+    )
+
+    /**
+     * Lists verification documents for the current user (RLS). [signedUrl] is valid for a limited time.
+     */
+    suspend fun listMyVerificationDocuments(): List<VerificationDocumentItem> {
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return emptyList()
+        val client = SupabaseClientProvider.client
+        val typeNames: Map<Int, String?> = runCatching {
+            client.from("document_type").select().decodeList<DbDocumentTypeRow>().associate { it.id to it.name }
+        }.getOrElse { emptyMap() }
+        val rows = runCatching {
+            client.from("documents").select {
+                order(column = "id", order = Order.DESCENDING)
+            }.decodeList<DbDocumentRow>()
+        }.onFailure { e ->
+            Log.e("SupabaseData", "listMyVerificationDocuments select failed", e)
+        }.getOrElse { emptyList() }
+        val bucket = client.storage.from(PROVIDER_DOCS_BUCKET)
+        return rows.mapNotNull { row ->
+            val path = storagePathFromStoredDocName(row.name, PROVIDER_DOCS_BUCKET) ?: run {
+                Log.w("SupabaseData", "listMyVerificationDocuments: could not parse storage path for doc id=${row.id}")
+                return@mapNotNull null
+            }
+            val label = path.substringAfterLast('/').ifBlank { "document-${row.id}" }
+            val rawLabel = row.doc_type_id?.let { typeNames[it] }
+            val typeName = rawLabel?.takeIf { !it.isNullOrBlank() } ?: "Document #${row.doc_type_id ?: "?"}"
+            val signed = runCatching {
+                bucket.createSignedUrl(path, 3600.seconds)
+            }.onFailure { e ->
+                Log.w("SupabaseData", "createSignedUrl failed id=${row.id} path=$path", e)
+            }.getOrNull()
+            VerificationDocumentItem(
+                id = row.id,
+                docTypeName = typeName,
+                verified = row.verified == true,
+                fileLabel = label,
+                signedUrl = signed,
+            )
+        }
+    }
+
+    private fun storagePathFromStoredDocName(name: String?, bucketId: String): String? {
+        if (name.isNullOrBlank()) return null
+        val n = name.trim()
+        if (!n.contains("://")) return n.trimStart('/')
+        val markers = listOf(
+            "/storage/v1/object/$bucketId/",
+            "/storage/v1/object/public/$bucketId/",
+        )
+        for (m in markers) {
+            val idx = n.indexOf(m, ignoreCase = true)
+            if (idx >= 0) {
+                return n.substring(idx + m.length).substringBefore('?').substringBefore('#')
+            }
+        }
+        return null
+    }
 
     /**
      * Sends a message to a chat. Requires chat_code.
      */
     suspend fun sendChatMessage(chatCode: String, content: String): Boolean {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return false
-        val client = SupabaseClientProvider.client
-        val chatRows = client.from("chats").select() { filter { eq("chat_code", chatCode) } }.decodeList<DbChat>()
-        val chatId = chatRows.firstOrNull()?.id ?: return false
-        val senderId = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return false
-        client.from("messages").insert(mapOf("chat_id" to chatId, "sender_id" to senderId, "content" to content))
-        return true
+        return runCatching {
+            val client = SupabaseClientProvider.client
+            val chatRows = client.from("chats").select() { filter { eq("chat_code", chatCode) } }.decodeList<DbChat>()
+            val chatId = chatRows.firstOrNull()?.id ?: return@runCatching false
+            val senderId =
+                client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return@runCatching false
+            client.from("messages").insert(
+                MessageInsertPayload(chat_id = chatId, sender_id = senderId, content = content),
+            )
+            true
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "sendChatMessage failed", e)
+            false
+        }
     }
 
     suspend fun getMyUserId(): String? {
@@ -914,18 +1500,58 @@ object SupabaseData {
     suspend fun uploadProfilePic(fileBytes: ByteArray, fileName: String): String? {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return null
         val client = SupabaseClientProvider.client
-        val userId = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return null
-        val path = "profiles/$userId/$fileName"
-        val bucket = client.storage.from("avatars")
+        val userId = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid
+        if (userId.isNullOrBlank()) {
+            Log.e("SupabaseData", "uploadProfilePic: get_my_user_id returned empty")
+            return null
+        }
+        val safeName = fileName.trim().ifBlank { "profile.jpg" }.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val path = "profiles/$userId/$safeName"
+        val bucket = client.storage.from(PROFILE_PHOTOS_BUCKET)
         runCatching {
             bucket.upload(path, fileBytes) {
                 upsert = true
             }
-        }.getOrElse { return null }
-        val publicUrl = "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/avatars/$path"
-        client.postgrest.rpc("update_my_prof_pic", buildJsonObject { put("p_url", publicUrl) })
+        }.onFailure { e ->
+            Log.e("SupabaseData", "uploadProfilePic storage upload failed", e)
+            return null
+        }
+        val base = BuildConfig.SUPABASE_URL.trimEnd('/')
+        val publicUrl = "$base/storage/v1/object/public/$PROFILE_PHOTOS_BUCKET/$path"
+        runCatching {
+            client.postgrest.rpc("update_my_prof_pic", buildJsonObject { put("p_url", publicUrl) })
+                .decodeAs<Boolean>()
+        }.onSuccess { rpcOk ->
+            if (!rpcOk) {
+                Log.w("SupabaseData", "uploadProfilePic: update_my_prof_pic reported false")
+            }
+        }.onFailure { e ->
+            Log.w("SupabaseData", "uploadProfilePic update_my_prof_pic decode/call: ${e.message}")
+        }
+        val jwtSub = SupabaseTokenStore.getJwtOrNull()?.let { SupabaseJwtUtils.decodeJwtSub(it) }
+        if (jwtSub.isNullOrBlank()) {
+            Log.e("SupabaseData", "uploadProfilePic: no JWT sub; cannot verify prof_pic row")
+            return null
+        }
+        val profileAfter = runCatching {
+            client.from("users").select {
+                filter { eq("clerk_user_id", jwtSub) }
+            }.decodeList<DbUser>().firstOrNull()
+        }.onFailure { e ->
+            Log.e("SupabaseData", "uploadProfilePic: could not re-read users row", e)
+        }.getOrNull()
+        val savedUrl = profileAfter?.prof_pic?.trim()
+        if (savedUrl.isNullOrBlank() || savedUrl != publicUrl.trim()) {
+            Log.e(
+                "SupabaseData",
+                "uploadProfilePic: DB prof_pic mismatch after RPC (expected public URL prefix; got ${savedUrl?.take(96)})",
+            )
+            return null
+        }
         return publicUrl
     }
+
+    private const val PROVIDER_DOCS_BUCKET = "provider-docs"
 
     /**
      * Upload provider verification document and insert a documents row for admin review.
@@ -937,10 +1563,18 @@ object SupabaseData {
     ): Boolean {
         if (!SupabaseClientProvider.ensureSupabaseSession()) return false
         val client = SupabaseClientProvider.client
-        val userRef = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid ?: return false
+        val userRef = client.postgrest.rpc("get_my_user_id").decodeList<UidRow>().firstOrNull()?.uid
+        if (userRef.isNullOrBlank()) {
+            Log.e("SupabaseData", "uploadProviderVerificationDocument: get_my_user_id returned empty")
+            return false
+        }
         val internalUserId = client.from("users").select {
             filter { eq("user_id", userRef) }
-        }.decodeList<DbUserIdRow>().firstOrNull()?.id ?: return false
+        }.decodeList<DbUserIdRow>().firstOrNull()?.id
+        if (internalUserId == null) {
+            Log.e("SupabaseData", "uploadProviderVerificationDocument: could not resolve internal user id")
+            return false
+        }
 
         val normalized = docTypeLabel.trim().lowercase()
         val docTypes = client.from("document_type").select().decodeList<DbDocumentTypeRow>()
@@ -948,49 +1582,93 @@ object SupabaseData {
             val n = row.name.orEmpty().lowercase()
             n.contains(normalized) || normalized.contains(n)
         } ?: docTypes.firstOrNull()
-        val docTypeId = chosenType?.id ?: return false
+        val docTypeId = chosenType?.id
+        if (docTypeId == null) {
+            Log.e("SupabaseData", "uploadProviderVerificationDocument: no matching document_type for '$docTypeLabel'")
+            return false
+        }
 
         val path = "provider_docs/$userRef/${System.currentTimeMillis()}_$fileName"
-        val bucket = client.storage.from("avatars")
+        val bucket = client.storage.from(PROVIDER_DOCS_BUCKET)
         runCatching {
             bucket.upload(path, fileBytes) { upsert = true }
-        }.getOrElse { return false }
+        }.onFailure { e ->
+            Log.e("SupabaseData", "uploadProviderVerificationDocument storage upload failed", e)
+            return false
+        }
 
-        val publicUrl = "${BuildConfig.SUPABASE_URL}/storage/v1/object/public/avatars/$path"
+        val docUrl = "${BuildConfig.SUPABASE_URL.trimEnd('/')}/storage/v1/object/$PROVIDER_DOCS_BUCKET/$path"
         return runCatching {
             client.from("documents").insert(
-                mapOf(
-                    "user_id" to internalUserId,
-                    "doc_type_id" to docTypeId,
-                    "name" to publicUrl,
-                    "verified" to false,
+                ProviderDocumentInsertPayload(
+                    user_id = internalUserId,
+                    doc_type_id = docTypeId,
+                    name = docUrl,
+                    verified = false,
                 ),
             )
             true
+        }.onFailure { e ->
+            Log.e("SupabaseData", "uploadProviderVerificationDocument documents insert failed", e)
         }.getOrDefault(false)
     }
 
-    private fun mapProviderToUser(p: ProviderRpcRow): User = User(
-        id = p.user_name ?: p.id?.toString() ?: "",
-        first_name = p.first_name ?: "",
-        last_name = p.last_name ?: "",
-        title = p.title,
-        user_name = p.user_name ?: "",
-        nat_id = p.nat_id,
-        dob = p.dob,
-        gender = p.gender,
-        occupation = null,
-        pic = p.pic,
-        isIdVerified = null,
-        isMobileVerified = null,
-        isAvailable = true,
-        details = null,
-        phoneNumber = p.phone,
-        country = p.country,
-        county = p.county,
-        area_name = p.area_name,
-        email = null
-    )
+    private fun mapProviderToUser(p: ProviderRpcRow): User {
+        val rawPic = p.pic
+        val picUrl = when {
+            rawPic.isNullOrBlank() -> null
+            rawPic.startsWith("http", ignoreCase = true) -> rawPic
+            else -> null
+        }
+        return User(
+            id = p.user_name ?: p.id?.toString() ?: "",
+            first_name = p.first_name ?: "",
+            last_name = p.last_name ?: "",
+            title = p.title,
+            user_name = p.user_name ?: "",
+            nat_id = p.nat_id,
+            dob = p.dob,
+            gender = p.gender,
+            occupation = p.occupation,
+            pic = picUrl,
+            isIdVerified = null,
+            isMobileVerified = null,
+            isAvailable = true,
+            details = p.occupation,
+            phoneNumber = p.phone,
+            country = p.country,
+            county = p.county,
+            area_name = p.area_name,
+            email = null,
+            userDbId = p.id,
+            professionalTitle = p.title,
+            workingHours = p.working_hours,
+        )
+    }
+
+    suspend fun searchUsers(query: String): List<User> {
+        if (!isConfigured() || query.isBlank()) return emptyList()
+        val client = SupabaseClientProvider.publicClient
+        val mapped = runCatching {
+            val pattern = "%${query.trim()}%"
+            val rows = client.postgrest.from("users").select {
+                filter {
+                    or {
+                        ilike("first_name", pattern)
+                        ilike("last_name", pattern)
+                        ilike("occupation", pattern)
+                        ilike("county", pattern)
+                    }
+                }
+                limit(30)
+            }.decodeList<DbUser>()
+            rows.filter { it.service_provider == true }.map { mapDbUserToUser(it) }
+        }.getOrElse {
+            Log.w("SupabaseData", "searchUsers failed", it)
+            emptyList()
+        }
+        return excludeCurrentUserFromProviderList(mapped)
+    }
 
     private fun mapDbUserToUser(db: DbUser): User = User(
         id = db.user_id ?: db.id.toString(),
@@ -1011,7 +1689,10 @@ object SupabaseData {
         country = db.country,
         county = db.county,
         area_name = db.area_name,
-        email = db.email
+        email = db.email,
+        userDbId = db.id,
+        isServiceProvider = db.service_provider,
+        isProviderApplicationPending = db.provider_application_pending,
     )
 }
 

@@ -25,6 +25,7 @@ data class User(
     val email: String? = null,
     val userDbId: Int? = null,
     val isServiceProvider: Boolean? = null,
+    val isProviderApplicationPending: Boolean? = null,
     val workingHours: String? = null,
     val availableForBooking: Boolean? = null,
     val professionalTitle: String? = null

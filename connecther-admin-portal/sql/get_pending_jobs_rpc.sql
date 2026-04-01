@@ -1,5 +1,10 @@
 -- RPCs for Jobs screen in ConnectHer app (pending + completed + complete).
 -- Run after supabase_rls_android.sql (current_user_pk exists).
+--
+-- NOTE: Supabase migrations in woman-global/supabase/migrations/ supersede this file:
+--   - 20260401120000_job_reviews_bidirectional.sql (reviews + job RPC columns)
+--   - 20260402130000_job_completion_timestamps.sql (completed_at, seeker-only complete, started_at in RPCs)
+-- Use those for production; keep this file only for legacy manual reference.
 
 CREATE OR REPLACE FUNCTION public.get_pending_jobs()
 RETURNS TABLE (

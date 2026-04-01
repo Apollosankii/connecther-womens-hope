@@ -1,0 +1,63 @@
+{% extends 'portemp.html' %}
+{% block content %}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <div>
+            <h2 class="ch-page-title">App user — {{ appu.first_name }} {{ appu.last_name }}</h2>
+            <p class="ch-page-subtitle">Free-tier connect balance (no paid subscription quota).</p>
+        </div>
+        <a href="{{ url_for('app_users') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">← App users</a>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Profile</h5>
+            <table class="table table-borderless ch-table">
+                <tr><th width="200">Internal id</th><td>{{ appu.id }}</td></tr>
+                <tr><th>Auth user_id</th><td><code>{{ appu.user_id or '—' }}</code></td></tr>
+                <tr><th>Phone</th><td>{{ appu.phone }}</td></tr>
+                <tr><th>Email</th><td>{{ appu.email or '—' }}</td></tr>
+                <tr><th>Service provider</th><td>{% if appu.service_provider %}Yes{% else %}No{% endif %}</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="ch-card mb-4">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Free connects</h5>
+            <table class="table table-borderless ch-table">
+                <tr><th width="200">Granted (cap)</th><td>{% if appu.free_connects_granted is none %}<span class="text-muted">Not set (allocated from platform default on first use)</span>{% else %}{{ appu.free_connects_granted }}{% endif %}</td></tr>
+                <tr><th>Used</th><td>{{ appu.free_connects_used }}</td></tr>
+                <tr><th>Remaining</th><td>{% if appu.free_connects_remaining is not none %}{{ appu.free_connects_remaining }}{% else %}<span class="text-muted">— (set granted to see remaining)</span>{% endif %}</td></tr>
+                <tr><th>Platform default</th><td>{{ appu.platform_free_tier_default }} connects</td></tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="ch-card">
+        <div class="ch-card-body">
+            <h5 class="mb-3">Adjust free connects (support)</h5>
+            <form method="post">
+                <input type="hidden" name="_action" value="update_free_connects">
+                <div class="form-group">
+                    <label for="free_connects_granted">Granted cap (optional)</label>
+                    <input type="number" class="form-control" id="free_connects_granted" name="free_connects_granted" min="0" step="1"
+                           placeholder="Leave empty to leave unchanged">
+                </div>
+                <div class="form-group">
+                    <div class="custom-control custom-checkbox">
+                        <input type="checkbox" class="custom-control-input" id="clear_free_granted" name="clear_free_granted" value="1">
+                        <label class="custom-control-label" for="clear_free_granted">Clear granted (NULL — use platform-driven allocation)</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="free_connects_used">Used count (optional)</label>
+                    <input type="number" class="form-control" id="free_connects_used" name="free_connects_used" min="0" step="1"
+                           placeholder="Leave empty to leave unchanged">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm">Apply changes</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

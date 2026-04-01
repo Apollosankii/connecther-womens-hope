@@ -60,6 +60,33 @@
         android:secondaryProgressTint="@color/star_yellow"
         style="@style/Widget.AppCompat.RatingBar.Small"/>
 
+    <TextView
+        android:id="@+id/ratingYourSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="13sp"
+        android:textColor="@color/black"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/ratingTheirSummary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="13sp"
+        android:textColor="@color/black"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/ratingWaitHint"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="12sp"
+        android:textColor="@color/on_surface_variant"
+        android:visibility="gone" />
+
     <Button
         android:id="@+id/rateJobButton"
         style="@style/main_button"

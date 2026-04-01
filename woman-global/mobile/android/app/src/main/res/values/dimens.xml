@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="chat_bubble_max_width">280dp</dimen> <!-- Approx 70% of screen width -->
+    <dimen name="login_card_corner">20dp</dimen>
+    <dimen name="login_card_padding">24dp</dimen>
+    <dimen name="login_horizontal_padding">20dp</dimen>
+    <!-- Centered splash / launcher gate logo (not full-bleed) -->
+    <dimen name="splash_logo_size">112dp</dimen>
 </resources>

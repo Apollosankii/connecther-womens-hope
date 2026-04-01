@@ -21,6 +21,14 @@ object SupabaseJwtUtils {
         return left <= 0
     }
 
+    /** Bridge JWT `sub` (Firebase UID); matches `users.clerk_user_id` for RLS. */
+    fun decodeJwtSub(jwt: String): String? {
+        val parts = jwt.split('.')
+        if (parts.size < 2) return null
+        val json = decodeBase64Url(parts[1]) ?: return null
+        return runCatching { JSONObject(json).getString("sub") }.getOrNull()
+    }
+
     private fun decodeExpUnix(jwt: String): Long? {
         val parts = jwt.split('.')
         if (parts.size < 2) return null

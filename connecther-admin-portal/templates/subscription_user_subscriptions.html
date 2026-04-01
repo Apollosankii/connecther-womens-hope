@@ -34,6 +34,7 @@
                         <tr>
                             <th>User</th>
                             <th>Plan</th>
+                            <th>Connects</th>
                             <th>Status</th>
                             <th>Start</th>
                             <th>End</th>
@@ -46,6 +47,7 @@
                         <tr>
                             <td class="ch-td-name">{{ s.user_name }}<br><small class="text-muted">{{ s.user_phone }} · {{ s.user_email or '—' }}</small></td>
                             <td>{{ s.plan_name }}</td>
+                            <td class="small">{{ s.connects_label }}</td>
                             <td>
                                 {% if s.status == 'active' %}<span class="badge badge-success">Active</span>
                                 {% elif s.status == 'cancelled' %}<span class="badge badge-secondary">Cancelled</span>
@@ -59,7 +61,7 @@
                         </tr>
                         {% endfor %}
                         {% if not subscriptions %}
-                        <tr><td colspan="7" class="ch-empty-state">No subscriptions match the filters.</td></tr>
+                        <tr><td colspan="8" class="ch-empty-state">No subscriptions match the filters.</td></tr>
                         {% endif %}
                     </tbody>
                 </table>

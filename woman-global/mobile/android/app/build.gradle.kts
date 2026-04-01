@@ -1,18 +1,30 @@
+buildscript {
+    repositories {
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        google()
+        maven { url = uri("https://repo1.maven.org/maven2/") }
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
-    id("com.google.gms.google-services")
 }
 
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 fun loadEnvValue(key: String): String {
     val envCandidates = listOf(
-        rootProject.file("../backend/.env"),
-        rootProject.file("../../backend/.env"),
-        rootProject.file(".env"),
+        rootProject.file("../../.env"),           // woman-global/.env  (canonical)
+        rootProject.file("../.env"),              // woman-global/mobile/.env
+        rootProject.file(".env"),                 // woman-global/mobile/android/.env
     )
     val envFile = envCandidates.firstOrNull { it.exists() } ?: return ""
     val line = envFile.readLines().firstOrNull { raw ->
@@ -20,6 +32,20 @@ fun loadEnvValue(key: String): String {
         trimmed.isNotEmpty() && !trimmed.startsWith("#") && trimmed.startsWith("$key=")
     } ?: return ""
     return line.substringAfter("=").trim().trim('"')
+}
+
+/** True if tasks being run include an Android *Release* assemble/bundle. */
+fun isReleaseGradleTask(): Boolean =
+    gradle.startParameter.taskNames.any { name ->
+        name.contains("Release", ignoreCase = true) &&
+            (name.contains("assemble", ignoreCase = true) ||
+                name.contains("bundle", ignoreCase = true))
+    }
+
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(keystorePropertiesFile.inputStream())
 }
 
 android {
@@ -48,13 +74,46 @@ android {
         val supabaseAnonKey = loadEnvValue("SUPABASE_ANON_KEY")
         val paystackPublicKey = loadEnvValue("PAYSTACK_PUBLIC_KEY").ifEmpty {
             (project.findProperty("PAYSTACK_PUBLIC_KEY") as? String)?.trim().orEmpty()
-        }.ifEmpty {
-            // Dev fallback only — override via backend/.env or gradle.properties for production.
-            "pk_test_a4f61b52dfd676787a999a12a741037ad4e11792"
+        }
+        if (paystackPublicKey.isBlank()) {
+            println(
+                "WARNING: PAYSTACK_PUBLIC_KEY is missing. " +
+                    "Add it to woman-global/.env (or gradle.properties). " +
+                    "Otherwise Paystack PaymentSheet will fail. " +
+                    "If the server uses sk_live_*, you MUST use pk_live_* here or you get 'Access code not found'.",
+            )
+        } else {
+            val mode =
+                when {
+                    paystackPublicKey.startsWith("pk_live_") -> "pk_live"
+                    paystackPublicKey.startsWith("pk_test_") -> "pk_test"
+                    else -> "unknown_prefix"
+                }
+            println("ConnectHer: PAYSTACK_PUBLIC_KEY loaded ($mode) from env / gradle.properties")
+        }
+        check(!(paystackPublicKey.isBlank() && isReleaseGradleTask())) {
+            "PAYSTACK_PUBLIC_KEY is required for release builds. Set in woman-global/.env or gradle.properties."
         }
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
         buildConfigField("String", "PAYSTACK_PUBLIC_KEY", "\"${paystackPublicKey.replace("\"", "\\\"")}\"")
+    }
+
+    signingConfigs {
+        create("release") {
+            require(keystorePropertiesFile.exists()) {
+                "Release signing requires android/keystore.properties (copy keystore.properties.example)."
+            }
+            val storePath = keystoreProperties.getProperty("storeFile")
+                ?: error("keystore.properties: missing storeFile")
+            storeFile = rootProject.file(storePath)
+            storePassword = keystoreProperties.getProperty("storePassword")
+                ?: error("keystore.properties: missing storePassword")
+            keyAlias = keystoreProperties.getProperty("keyAlias")
+                ?: error("keystore.properties: missing keyAlias")
+            keyPassword = keystoreProperties.getProperty("keyPassword")
+                ?: error("keystore.properties: missing keyPassword")
+        }
     }
 
     buildTypes {
@@ -64,6 +123,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -78,6 +138,10 @@ android {
         buildConfig = true
     }
 
+    // Kotlin 2.x + UAST: NonNullableMutableLiveDataDetector crashes (KaCallableMemberCall class vs interface).
+    lint {
+        disable += "NullSafeMutableLiveData"
+    }
 }
 
 kotlin {
@@ -90,7 +154,7 @@ dependencies {
     // Import the Firebase BoM
     implementation(platform("com.google.firebase:firebase-bom:33.11.0"))
     // Paystack native PaymentSheet (multi-channel: card, USSD, bank, mobile money, etc.)
-    implementation("com.paystack.android:paystack-ui:0.0.10")
+    implementation("com.paystack.android:paystack-ui:0.0.11")
     // TODO: Add the dependencies for Firebase products you want to use
     // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-messaging")
@@ -142,14 +206,8 @@ dependencies {
     // Material Components (for UI like BottomNavigationView)
     implementation(libs.material.v190)
 
-    // ✅ Retrofit for HTTP API requests
-    implementation(libs.retrofit)
-    implementation(libs.converter.gson)
-
-    // ✅ OkHttp for Networking
+    // ✅ OkHttp (used by Supabase/Ktor client)
     implementation(libs.okhttp)
-    implementation(libs.logging.interceptor)
-    implementation(libs.okhttp.v491)  // Latest OkHttp version
 
     // ✅ Gson for JSON parsing
     implementation(libs.gson)
@@ -160,16 +218,18 @@ dependencies {
 
     // ✅ Material Calendar View
     implementation(libs.material.calendarview)
-
-    // ✅ Mock Retrofit for Testing
-    implementation(libs.retrofit)
-    implementation(libs.converter.gson)
-    testImplementation(libs.retrofit.mock)
 }
 
 // ✅ Fix NoSuchMethodError by forcing dependency resolution
 configurations.all {
     resolutionStrategy {
+        // storage-kt-android 3.4.1 POM pins -android-debug; release needs releaseApiElements from -android.
+        dependencySubstitution {
+            substitute(module("com.russhwolf:multiplatform-settings-no-arg-android-debug:1.3.0"))
+                .using(module("com.russhwolf:multiplatform-settings-no-arg-android:1.3.0"))
+            substitute(module("com.russhwolf:multiplatform-settings-coroutines-android-debug:1.3.0"))
+                .using(module("com.russhwolf:multiplatform-settings-coroutines-android:1.3.0"))
+        }
         force("androidx.core:core:1.15.0") // Forces latest version of androidx.core
         force("androidx.activity:activity:1.10.0")
         force("androidx.activity:activity-ktx:1.10.0")
@@ -177,3 +237,5 @@ configurations.all {
         force("androidx.browser:browser:1.8.0")
     }
 }
+
+apply(plugin = "com.google.gms.google-services")

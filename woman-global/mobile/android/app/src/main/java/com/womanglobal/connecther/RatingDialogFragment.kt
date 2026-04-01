@@ -5,61 +5,67 @@ import android.app.Dialog
 import android.os.Bundle
 import android.widget.EditText
 import android.widget.RatingBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.DialogFragment
+import androidx.lifecycle.lifecycleScope
 import com.womanglobal.connecther.data.Job
-import com.womanglobal.connecther.services.ApiService
-import com.womanglobal.connecther.services.RateJobRequest
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import com.womanglobal.connecther.supabase.SupabaseData
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 class RatingDialogFragment(
     private val job: Job,
-    private val onRatingSubmitted: () -> Unit
+    private val isProvider: Boolean,
+    private val onRatingSubmitted: () -> Unit,
 ) : DialogFragment() {
-
-    private val apiService: ApiService by lazy { ApiServiceFactory.createApiService() }
-
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val dialogView = layoutInflater.inflate(R.layout.fragment_rating_dialog, null)
         val ratingBar: RatingBar = dialogView.findViewById(R.id.ratingBar)
-        val reviewText: EditText = dialogView.findViewById(R.id.reviewText)
+        val reviewEdit: EditText = dialogView.findViewById(R.id.reviewText)
+        val titleText: TextView = dialogView.findViewById(R.id.titleText)
 
-        return AlertDialog.Builder(requireContext()) // Standard AlertDialog
-            .setTitle("Rate Job")
+        val rateeName = if (isProvider) job.client.trim() else job.provider.trim()
+        val displayName = rateeName.ifBlank { getString(R.string.booking_request_party_unknown) }
+        titleText.text = getString(R.string.rating_dialog_title, displayName)
+
+        val dialog = AlertDialog.Builder(requireContext())
             .setView(dialogView)
-            .setPositiveButton("Submit") { _, _ ->
-                val rating = ratingBar.rating
-                postRating(job.job_id, rating)
-            }
-            .setNegativeButton("Cancel", null)
+            .setPositiveButton(R.string.rating_submit, null)
+            .setNegativeButton(R.string.rating_cancel, null)
             .create()
-    }
 
-    private fun postRating(jobId: Int, rating: Float) {
-        val request = RateJobRequest(jobId, rating)
-        apiService.rateJob(request).enqueue(object : Callback<String> {
-            override fun onResponse(call: Call<String>, response: Response<String>) {
-                context?.let { ctx ->
-                    if (response.isSuccessful) {
-                        Toast.makeText(ctx, "Rating submitted", Toast.LENGTH_SHORT).show()
-                        onRatingSubmitted()
-                        dismissAllowingStateLoss() // Use this instead of dismiss() to avoid crashes
-                    } else {
-                        Toast.makeText(ctx, "Failed to submit rating", Toast.LENGTH_SHORT).show()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val rating = ratingBar.rating
+                if (rating < 0.5f) {
+                    Toast.makeText(requireContext(), R.string.rating_pick_stars, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+                val stars = rating.roundToInt().coerceIn(1, 5)
+                val text = reviewEdit.text?.toString()
+                val submitBtn = dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                submitBtn.isEnabled = false
+                lifecycleScope.launch {
+                    val result = SupabaseData.submitJobReview(job.job_id, stars, text)
+                    submitBtn.isEnabled = true
+                    val ctx = context ?: return@launch
+                    when {
+                        result.ok -> {
+                            Toast.makeText(ctx, R.string.rating_submitted, Toast.LENGTH_SHORT).show()
+                            onRatingSubmitted()
+                            dialog.dismiss()
+                        }
+                        result.err == "already_rated" ->
+                            Toast.makeText(ctx, R.string.rating_already_submitted, Toast.LENGTH_LONG).show()
+                        else ->
+                            Toast.makeText(ctx, R.string.rating_failed, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
+        }
 
-            override fun onFailure(call: Call<String>, t: Throwable) {
-                context?.let { ctx ->
-                    Toast.makeText(ctx, "Error: ${t.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        })
+        return dialog
     }
 }
-
-

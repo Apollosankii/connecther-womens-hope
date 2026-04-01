@@ -6,6 +6,16 @@
     android:background="@color/background"
     android:padding="16dp">
 
+    <TextView
+        android:id="@+id/emptyText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:paddingTop="48dp"
+        android:textSize="16sp"
+        android:visibility="gone"
+        android:textColor="?android:attr/textColorSecondary" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"

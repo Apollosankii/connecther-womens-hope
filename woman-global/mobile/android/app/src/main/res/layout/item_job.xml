@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="8dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="4dp"
-    android:background="@color/white">
+    android:layout_marginBottom="12dp"
+    app:cardBackgroundColor="@color/surface"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:strokeColor="@color/outline"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,64 +17,105 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:paddingBottom="6dp">
-
-            <TextView
-                android:id="@+id/clientName"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Client: Christine"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/black"/>
-
-        </LinearLayout>
-
         <TextView
-            android:id="@+id/providerName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Provider: Caroline"
-            android:textSize="14sp"
-            android:textColor="@color/black_translucent"/>
+            android:text="@string/job_card_active_label"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.06" />
 
         <TextView
             android:id="@+id/serviceName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="@color/on_background"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            tools:text="Mama Fua" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="@color/outline" />
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Service: Mama Fua"
-            android:textSize="14sp"
-            android:textColor="@color/black"/>
+            android:text="@string/job_card_client_label"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.04" />
+
+        <TextView
+            android:id="@+id/clientName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/on_surface"
+            android:textSize="15sp"
+            tools:text="Christine" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/job_card_provider_label"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.04" />
+
+        <TextView
+            android:id="@+id/providerName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/on_surface"
+            android:textSize="15sp"
+            tools:text="Caroline" />
 
         <TextView
             android:id="@+id/jobPrice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Price: KES 2000"
-            android:textSize="14sp"
-            android:textColor="@color/black"
-            android:textStyle="bold"/>
-
-        <!-- Complete Task Button -->
-        <Button
-            android:id="@+id/completeTaskButton"
-            android:text="Complete Job"
-            android:textAllCaps="false"
-            android:textStyle="bold"
-            android:backgroundTint="@color/accent_color"
-            android:textColor="@color/white"
             android:layout_marginTop="12dp"
-            style="@style/main_button"
-            android:layout_width="match_parent"
-            android:layout_height="45dp"
-            android:layout_gravity="center"
-            android:drawablePadding="8dp"/>
-    </LinearLayout>
-</androidx.cardview.widget.CardView>
+            android:textColor="@color/primary"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            tools:text="KES 2,000" />
 
+        <TextView
+            android:id="@+id/jobTimeline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="13sp"
+            android:visibility="gone"
+            tools:text="Started: …"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/jobCompleteHint"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:lineSpacingMultiplier="1.12"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/completeTaskButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="@string/job_action_complete"
+            android:textAllCaps="false" />
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>
