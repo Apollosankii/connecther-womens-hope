@@ -34,7 +34,7 @@
             android:layout_marginStart="12dp"
             android:background="@drawable/circular_clipped_image"
             android:scaleType="centerCrop"
-            android:src="@mipmap/woman_profile"
+            android:src="@drawable/ic_avatar_neutral"
             app:layout_constraintBottom_toBottomOf="@id/backButton"
             app:layout_constraintStart_toEndOf="@id/backButton"
             app:layout_constraintTop_toTopOf="@id/backButton" />

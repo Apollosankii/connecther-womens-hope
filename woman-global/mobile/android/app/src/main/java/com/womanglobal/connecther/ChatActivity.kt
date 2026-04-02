@@ -97,8 +97,8 @@ class ChatActivity : AppCompatActivity() {
         serviceNameTextView.text = serviceName
         Glide.with(this)
             .load(peerPic?.takeIf { it.isNotBlank() })
-            .placeholder(R.mipmap.woman_profile)
-            .error(R.mipmap.woman_profile)
+            .placeholder(R.drawable.ic_avatar_neutral)
+            .error(R.drawable.ic_avatar_neutral)
             .signature(ObjectKey(peerPic ?: peerName))
             .circleCrop()
             .into(userImage)

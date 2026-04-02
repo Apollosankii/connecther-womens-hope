@@ -14,6 +14,12 @@
         <div class="col-sm-6 col-xl-6">
             <div class="ch-service-card">
                 <div class="ch-service-id">#{{service.service_id}}</div>
+                {% set _u = service.pic | ch_service_image_url %}
+                {% if _u %}
+                <div class="mb-2" style="border-radius:var(--ch-radius-sm);overflow:hidden;max-height:140px;">
+                    <img src="{{ _u }}" alt="" style="width:100%;height:120px;object-fit:cover;display:block;">
+                </div>
+                {% endif %}
                 <h4 class="ch-service-name">{{service.name}}</h4>
                 <p class="ch-service-desc">{{service.description}}</p>
                 <div class="ch-service-footer">

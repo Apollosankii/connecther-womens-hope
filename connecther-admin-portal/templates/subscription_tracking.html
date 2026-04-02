@@ -3,11 +3,11 @@
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
     <div class="ch-page-header">
         <div>
-            <h2 class="ch-page-title">Subscription tracking</h2>
-            <p class="ch-page-subtitle">Live metrics from Supabase: <code>user_plan_subscriptions</code>, <code>subscription_plans</code>, and <code>paystack_transactions</code>. Use this with <a href="{{ url_for('subscription_user_subscriptions') }}">User Subscriptions</a> for per-row management.</p>
+            <h2 class="ch-page-title">Subscription overview</h2>
+            <p class="ch-page-subtitle">High-level counts, connect usage on capped plans, and recent online payments. To change or cancel someone’s plan, use <a href="{{ url_for('subscription_user_subscriptions') }}">Member subscriptions</a>.</p>
         </div>
         <div class="d-flex flex-wrap ch-gap-sm">
-            <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">All subscriptions</a>
+            <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">Member subscriptions</a>
             <a href="{{ url_for('subscription_platform_settings') }}" class="ch-btn-sm btn-outline-secondary">Free tier</a>
         </div>
     </div>
@@ -16,9 +16,9 @@
         <div class="col-md-4 mb-3">
             <div class="ch-card h-100">
                 <div class="ch-card-body">
-                    <h6 class="text-muted text-uppercase small">Subscription rows</h6>
+                    <h6 class="text-muted text-uppercase small">All subscription records</h6>
                     <p class="display-4 mb-0">{{ dash.total_sub_rows }}</p>
-                    <p class="small text-muted mb-0">Total rows in <code>user_plan_subscriptions</code> (all statuses).</p>
+                    <p class="small text-muted mb-0">Includes active, cancelled, and expired (full history).</p>
                 </div>
             </div>
         </div>
@@ -89,8 +89,8 @@
 
     <div class="ch-card">
         <div class="ch-card-body">
-            <h5 class="mb-3">Recent Paystack transactions</h5>
-            <p class="text-muted small">Latest attempts (success, pending, failed). Amounts in kobo as stored.</p>
+            <h5 class="mb-3">Recent online payments</h5>
+            <p class="text-muted small">Latest card/online attempts (success, pending, or failed). Amount is shown in the smallest currency unit (e.g. kobo for KES).</p>
             <div class="table-responsive">
                 <table class="ch-table">
                     <thead>
@@ -109,7 +109,7 @@
                             <td class="small">{{ t.created_at }}</td>
                             <td>{{ t.user_label }}<br><small class="text-muted">{{ t.user_email or '—' }}</small></td>
                             <td>{{ t.plan_name }}</td>
-                            <td class="small"><code>{{ t.reference }}</code></td>
+                            <td class="small text-break">{{ t.reference }}</td>
                             <td>
                                 {% if t.status == 'success' %}<span class="badge badge-success">success</span>
                                 {% elif t.status == 'pending' %}<span class="badge badge-warning">pending</span>

@@ -156,8 +156,8 @@ class SettingsActivity : AppCompatActivity() {
 
         Glide.with(this)
             .load(user.pic)
-            .placeholder(R.drawable.placeholder)
-            .error(R.drawable.placeholder)
+            .placeholder(R.drawable.ic_avatar_neutral)
+            .error(R.drawable.ic_avatar_neutral)
             .circleCrop()
             .into(binding.settingsAvatar)
     }

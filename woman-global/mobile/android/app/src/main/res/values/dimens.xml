@@ -6,4 +6,9 @@
     <dimen name="login_horizontal_padding">20dp</dimen>
     <!-- Centered splash / launcher gate logo (not full-bleed) -->
     <dimen name="splash_logo_size">112dp</dimen>
+    <!-- Floating “island” bottom nav: inset from screen edges (extra + system insets in code) -->
+    <dimen name="bottom_nav_island_margin_horizontal">14dp</dimen>
+    <!-- Small lift only; system nav/gesture inset added in code -->
+    <dimen name="bottom_nav_island_margin_bottom">4dp</dimen>
+    <dimen name="bottom_nav_island_corner_radius">26dp</dimen>
 </resources>

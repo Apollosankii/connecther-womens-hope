@@ -22,3 +22,6 @@ local.properties
 keystore.properties
 release-key.keystore
 *.jks
+
+# Play bundle / local release output (build with Android Studio or gradlew)
+/app/release/

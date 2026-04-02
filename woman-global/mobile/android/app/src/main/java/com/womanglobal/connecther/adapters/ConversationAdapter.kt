@@ -58,8 +58,8 @@ class ConversationAdapter(
 
             Glide.with(context)
                 .load(conversation.peerPic?.takeIf { it.isNotBlank() })
-                .placeholder(R.mipmap.woman_profile)
-                .error(R.mipmap.woman_profile)
+                .placeholder(R.drawable.ic_avatar_neutral)
+                .error(R.drawable.ic_avatar_neutral)
                 .signature(ObjectKey(conversation.peerPic ?: peerName))
                 .circleCrop()
                 .into(providerImage)

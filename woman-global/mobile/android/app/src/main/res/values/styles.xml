@@ -32,4 +32,11 @@
 
     <style name="CalendarWeekDayStyle"></style>
 
+    <!-- Bottom nav sits inside MaterialCardView; kill Material’s own surface fill so only the card shows -->
+    <style name="Widget.ConnectHer.BottomNavigation.Island" parent="Widget.MaterialComponents.BottomNavigationView">
+        <item name="android:background">@android:color/transparent</item>
+        <item name="backgroundTint">@android:color/transparent</item>
+        <item name="elevation">0dp</item>
+    </style>
+
 </resources>

@@ -3,8 +3,8 @@
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
     <div class="ch-page-header">
         <div>
-            <h2 class="ch-page-title">Free tier (exploration)</h2>
-            <p class="ch-page-subtitle">Default number of connects for seekers without a paid subscription—used for testing and exploring the app. Per-user caps live on each user record; this value seeds new users and platform defaults.</p>
+            <h2 class="ch-page-title">Free trial connects</h2>
+            <p class="ch-page-subtitle">How many booking “connects” a new member gets before they pay for a plan. Each person’s balance is stored on their account; this number is the default for new sign-ups only.</p>
         </div>
         <a href="{{ url_for('subscription_plans') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">Subscription plans</a>
     </div>
@@ -13,10 +13,10 @@
         <div class="ch-card-body">
             <form method="post">
                 <div class="form-group">
-                    <label for="free_tier_connects">Default free connects (platform)</label>
+                    <label for="free_tier_connects">Default free connects for new members</label>
                     <input type="number" id="free_tier_connects" name="free_tier_connects" class="form-control" min="0" step="1"
                            value="{{ settings.free_tier_connects }}" required>
-                    <small class="form-text text-muted">Stored in <code>platform_settings</code> (singleton id=1). Changing this does NOT reset <code>free_connects_used</code> or update <code>free_connects_granted</code> on existing accounts (see below).</small>
+                    <small class="form-text text-muted">Saving here updates the platform default only. It does not change existing members’ balances unless you use “Apply to all existing users” below.</small>
                 </div>
                 {% if settings.updated_at %}
                 <p class="text-muted small mb-3">Last updated: {{ settings.updated_at }}</p>
@@ -29,7 +29,7 @@
     <div class="ch-card">
         <div class="ch-card-body">
             <h5 class="mb-3">Apply cap to existing users</h5>
-            <p class="text-muted small">This will set <code>free_connects_granted</code> to <strong>{{ settings.free_tier_connects }}</strong> for all users who already have a value (i.e. have been allocated). It does NOT reset their <code>free_connects_used</code>. Users who exceed the new cap will be blocked until they purchase a subscription or an admin adjusts their balance.</p>
+            <p class="text-muted small">Sets every existing member’s <strong>free connect allowance</strong> to <strong>{{ settings.free_tier_connects }}</strong>. It does not reset how many they have already used. Anyone who has already used more than the new allowance may be blocked from booking until you grant more or they subscribe.</p>
             <form method="post">
                 <input type="hidden" name="_action" value="apply_to_all">
                 <button type="submit" class="btn btn-warning" onclick="return confirm('Apply the platform cap ({{ settings.free_tier_connects }}) to ALL existing users? This may block users who have used more than the new cap.');">Apply to all existing users</button>

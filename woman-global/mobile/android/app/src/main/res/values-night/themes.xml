@@ -30,4 +30,8 @@
         <item name="colorControlNormal">@color/on_surface_variant</item>
     </style>
 
+    <style name="Theme.ConnectHer.Home" parent="Theme.ConnectHer">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
 </resources>

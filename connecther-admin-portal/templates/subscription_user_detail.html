@@ -4,7 +4,7 @@
     <div class="ch-page-header">
         <div>
             <h2 class="ch-page-title">Subscription #{{ sub.id }}</h2>
-            <p class="ch-page-subtitle">User plan subscription detail and actions.</p>
+            <p class="ch-page-subtitle">Member’s paid plan, dates, and optional connect limits.</p>
         </div>
         <a href="{{ url_for('subscription_user_subscriptions') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">← Back to list</a>
     </div>
@@ -22,7 +22,7 @@
                 <tr><th>Payment ref</th><td>{{ sub.payment_reference or '—' }}</td></tr>
                 <tr><th>Notes</th><td>{{ sub.notes or '—' }}</td></tr>
             </table>
-            <h6 class="mt-4 mb-2">Connects (subscription quota)</h6>
+            <h6 class="mt-4 mb-2">Booking connects (this plan)</h6>
             <table class="table table-borderless ch-table">
                 <tr><th width="180">Plan limit</th><td>{% if sub.plan_connects_limit_enabled and sub.plan_connects_per_period is not none %}{{ sub.plan_connects_per_period }} / {{ sub.plan_connects_period_rule|replace('_', ' ') }}{% else %}Unlimited (plan){% endif %}</td></tr>
                 <tr><th>Granted</th><td>{% if sub.connects_granted is none %}<span class="text-muted">— (unlimited)</span>{% else %}{{ sub.connects_granted }}{% endif %}</td></tr>
@@ -35,7 +35,7 @@
 
     <div class="ch-card mb-4">
         <div class="ch-card-body">
-            <h5 class="mb-3">Adjust connects (support)</h5>
+            <h5 class="mb-3">Adjust booking connects (support)</h5>
             <form method="post">
                 <input type="hidden" name="_action" value="update_connects">
                 <div class="form-row">
@@ -57,7 +57,7 @@
                 </div>
                 <div class="custom-control custom-checkbox mb-2">
                     <input type="checkbox" class="custom-control-input" id="clear_connects_granted" name="clear_connects_granted" value="1">
-                    <label class="custom-control-label" for="clear_connects_granted">Clear granted (NULL — unlimited for this row)</label>
+                    <label class="custom-control-label" for="clear_connects_granted">Remove connect limit for this subscription (unlimited for quota)</label>
                 </div>
                 <div class="form-group">
                     <label>Note (appended to subscription notes)</label>

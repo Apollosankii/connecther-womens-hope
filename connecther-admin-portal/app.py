@@ -2,8 +2,9 @@
 ConnectHer Admin Portal – Flask app with direct Supabase connection.
 No FastAPI required. Run supabase_rls_admin.sql in Supabase before use.
 """
-from flask import Flask, url_for, redirect, render_template, request, session, make_response, jsonify, flash, send_from_directory
+from flask import Flask, url_for, redirect, render_template, request, session, make_response, jsonify, flash, send_from_directory, abort
 import logging
+import mimetypes
 import os
 import uuid
 import base64
@@ -46,6 +47,18 @@ if os.environ.get('FLASK_DEBUG') == '1':
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+
+@app.template_filter('ch_service_image_url')
+def _ch_service_image_url(pic):
+    """Resolve services.service_pic to a URL (Supabase public URL or legacy local file)."""
+    if not pic:
+        return ''
+    s = str(pic).strip()
+    if s.startswith('http://') or s.startswith('https://'):
+        return s
+    return url_for('legacy_service_local_image', filename=os.path.basename(s))
+
 
 SUPABASE_URL = (os.environ.get('SUPABASE_URL') or '').strip().rstrip('/')
 SUPABASE_ANON_KEY = (os.environ.get('SUPABASE_ANON_KEY') or '').strip()
@@ -554,6 +567,23 @@ def service(service_id):
     return render_template('service_Zoom.html', user=user, service=service_obj)
 
 
+@app.route('/legacy/service-images/<path:filename>')
+def legacy_service_local_image(filename):
+    """Serve images saved before Supabase Storage (filename only in DB)."""
+    redir = _require_auth()
+    if redir:
+        return redir
+    from werkzeug.utils import secure_filename
+    safe = secure_filename(os.path.basename(filename))
+    if not safe:
+        abort(404)
+    pic_dir = os.path.join(_ROOT, 'service_images')
+    path = os.path.join(pic_dir, safe)
+    if not os.path.isfile(path):
+        abort(404)
+    return send_from_directory(pic_dir, safe, max_age=86400)
+
+
 @app.route('/add/service/', methods=['GET', 'POST'])
 def add_service():
     redir = _require_auth()
@@ -562,21 +592,49 @@ def add_service():
     from werkzeug.utils import secure_filename
     import supabase_data
     if request.method == 'POST':
-        name = request.form.get('name')
+        name = (request.form.get('name') or '').strip()
         min_price = request.form.get('min_price')
-        description = request.form.get('description')
-        service_pic = request.files.get('service_pic')
-        payload = {'description': description, 'min_price': float(min_price or 0), 'name': name}
-        if service_pic and service_pic.filename:
-            filename = secure_filename(str(uuid.uuid4()) + '_' + service_pic.filename)
-            payload['service_pic'] = filename
-            pic_dir = os.path.join(_ROOT, 'service_images')
-            os.makedirs(pic_dir, exist_ok=True)
-            service_pic.save(os.path.join(pic_dir, filename))
+        description = (request.form.get('description') or '').strip()
+        if not name:
+            flash('Please enter a service name.', 'error')
+            return redirect(url_for('add_service_page'))
         try:
-            supabase_data.add_service(session, payload)
-        except Exception:
-            pass
+            price_val = float(min_price or 0)
+        except (TypeError, ValueError):
+            flash('Minimum price must be a number.', 'error')
+            return redirect(url_for('add_service_page'))
+        payload = {'description': description or None, 'min_price': price_val, 'name': name}
+        service_pic = request.files.get('service_pic')
+        if service_pic and service_pic.filename:
+            raw = service_pic.read()
+            if not raw:
+                flash('Selected image file was empty.', 'error')
+                return redirect(url_for('add_service_page'))
+            fn = secure_filename(str(uuid.uuid4()) + '_' + service_pic.filename)
+            ct = service_pic.content_type or mimetypes.guess_type(fn)[0] or 'application/octet-stream'
+            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct)
+            if pic_url:
+                payload['service_pic'] = pic_url
+            else:
+                pic_dir = os.path.join(_ROOT, 'service_images')
+                os.makedirs(pic_dir, exist_ok=True)
+                payload['service_pic'] = fn
+                with open(os.path.join(pic_dir, fn), 'wb') as out:
+                    out.write(raw)
+                flash(
+                    'Image saved on the portal only. For the mobile app to show it, set '
+                    'SUPABASE_SERVICE_ROLE_KEY in .env and ensure the service_catalog bucket exists '
+                    f'({err or "upload failed"}).',
+                    'warning',
+                )
+        try:
+            if supabase_data.add_service(session, payload):
+                flash('Service created.', 'success')
+            else:
+                flash('Could not create service. Check that you are signed in as an admin and Supabase is configured.', 'error')
+        except Exception as ex:
+            logger.exception('add_service')
+            flash(f'Could not create service: {ex}', 'error')
         return redirect(url_for('services'))
     return redirect(url_for('add_service_page'))
 
@@ -595,13 +653,48 @@ def update_service(service_id):
     redir = _require_auth()
     if redir:
         return redir
+    from werkzeug.utils import secure_filename
     import supabase_data
-    payload = {'description': request.form.get('description'), 'min_price': float(request.form.get('min_price') or 0)}
     try:
-        supabase_data.update_service(session, int(service_id), payload)
-    except Exception:
-        pass
-    return redirect(url_for('services'))
+        price_val = float(request.form.get('min_price') or 0)
+    except (TypeError, ValueError):
+        flash('Minimum price must be a number.', 'error')
+        return redirect(url_for('service', service_id=service_id))
+    payload = {
+        'description': (request.form.get('description') or '').strip() or None,
+        'min_price': price_val,
+    }
+    service_pic = request.files.get('service_pic')
+    if service_pic and service_pic.filename:
+        raw = service_pic.read()
+        if raw:
+            fn = secure_filename(str(uuid.uuid4()) + '_' + service_pic.filename)
+            ct = service_pic.content_type or mimetypes.guess_type(fn)[0] or 'application/octet-stream'
+            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct)
+            if pic_url:
+                payload['service_pic'] = pic_url
+                flash('Photo updated — new image is live for the app.', 'success')
+            else:
+                pic_dir = os.path.join(_ROOT, 'service_images')
+                os.makedirs(pic_dir, exist_ok=True)
+                payload['service_pic'] = fn
+                with open(os.path.join(pic_dir, fn), 'wb') as out:
+                    out.write(raw)
+                flash(
+                    'Image saved on the portal only. Set SUPABASE_SERVICE_ROLE_KEY for app-visible URLs. '
+                    + (err or ''),
+                    'warning',
+                )
+    try:
+        if supabase_data.update_service(session, int(service_id), payload):
+            if 'service_pic' not in payload:
+                flash('Service updated.', 'success')
+        else:
+            flash('Update failed. Ensure admin access / Supabase is configured.', 'error')
+    except Exception as ex:
+        logger.exception('update_service')
+        flash(f'Update failed: {ex}', 'error')
+    return redirect(url_for('service', service_id=service_id))
 
 
 @app.route('/service/delete/<service_id>', methods=['POST'])

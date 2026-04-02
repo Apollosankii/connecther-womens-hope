@@ -31,8 +31,39 @@ def _supabase_anon_key() -> str:
 
 
 def _supabase_service_role_key() -> str:
-    """Used only to sign private Storage URLs for admin document preview (optional)."""
+    """Server-side only: private Storage URLs, and service catalog image uploads."""
     return (os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
+
+
+def upload_service_catalog_public_url(file_bytes: bytes, object_name: str, content_type: str = 'application/octet-stream'):
+    """
+    Upload a service listing image to Storage bucket service_catalog.
+    Returns (public_https_url, error_message). public_https_url is suitable for services.service_pic (mobile app).
+    Requires SUPABASE_SERVICE_ROLE_KEY and migration service_catalog_storage_bucket.
+    """
+    base = _supabase_url().rstrip('/')
+    sk = _supabase_service_role_key()
+    if not base or not sk:
+        return None, 'Set SUPABASE_SERVICE_ROLE_KEY in connecther-admin-portal/.env (Dashboard → Settings → API).'
+    path = object_name.lstrip('/').replace('..', '')
+    if not path:
+        return None, 'Invalid file name.'
+    url = f"{base}/storage/v1/object/service_catalog/{path}"
+    headers = {
+        'apikey': sk,
+        'Authorization': f'Bearer {sk}',
+        'Content-Type': content_type or 'application/octet-stream',
+        'x-upsert': 'true',
+    }
+    try:
+        r = requests.post(url, headers=headers, data=file_bytes, timeout=120)
+        if r.status_code not in (200, 201):
+            msg = (r.text or r.reason or '')[:500]
+            return None, f'Storage upload failed ({r.status_code}). {msg}'.strip()
+        pub = f"{base}/storage/v1/object/public/service_catalog/{path}"
+        return pub, None
+    except Exception as e:
+        return None, str(e)
 
 
 def _parse_bucket_and_path_from_storage_url(raw_url: str):

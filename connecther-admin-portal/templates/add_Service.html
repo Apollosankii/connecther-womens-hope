@@ -3,64 +3,67 @@
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
     <div class="ch-page-header">
         <div>
-            <h2 class="ch-page-title">Add Service</h2>
-            <p class="ch-page-subtitle">Create a new service listing</p>
+            <h2 class="ch-page-title">Add a service</h2>
+            <p class="ch-page-subtitle">New services appear in the mobile app for seekers. Add a clear name, price, and an optional photo.</p>
         </div>
-        <a href="{{url_for('services')}}" class="ch-btn-sm">&larr; Back to Services</a>
+        <a href="{{url_for('services')}}" class="ch-btn-sm">&larr; Back to catalog</a>
     </div>
 
     <form action="{{url_for('add_service')}}" method="POST" enctype="multipart/form-data">
     <div class="ch-card">
         <div class="ch-card-header">
-            <h5 class="ch-card-title">Service Details</h5>
+            <h5 class="ch-card-title">Details</h5>
         </div>
         <div class="ch-card-body">
             <div class="row">
                 <div class="col-md-6">
                     <div class="ch-field">
-                        <label class="ch-field-label">Service Name</label>
-                        <input type="text" class="form-control" name="name" value="Service Name"
+                        <label class="ch-field-label">Service name</label>
+                        <input type="text" class="form-control" name="name" required placeholder="e.g. Home cleaning"
                             style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="ch-field">
-                        <label class="ch-field-label">Minimum Price</label>
-                        <input type="text" class="form-control" name="min_price" value="0.00"
+                        <label class="ch-field-label">Minimum price (KES)</label>
+                        <input type="text" class="form-control" name="min_price" value="0" inputmode="decimal"
                             style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
                     </div>
                 </div>
+                <div class="col-12">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Short description</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="What does this service include?"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;"></textarea>
+                    </div>
+                </div>
                 <div class="col-md-6">
                     <div class="ch-field">
-                        <label class="ch-field-label">Description</label>
-                        <input type="text" class="form-control" name="description" value="Service Description"
+                        <label class="ch-field-label">Category (optional)</label>
+                        <input type="text" class="form-control" name="category" placeholder="e.g. Domestic"
                             style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                        <small class="text-muted">For your notes only — not stored in the database yet.</small>
                     </div>
                 </div>
                 <div class="col-md-6">
                     <div class="ch-field">
-                        <label class="ch-field-label">Category</label>
-                        <input type="text" class="form-control" name="category" value="Domestic"
-                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="ch-field">
-                        <label class="ch-field-label">Country</label>
-                        <div class="ch-field-value">Kenya</div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="ch-field">
-                        <label class="ch-field-label">Service Picture</label>
-                        <input type="file" name="service_pic" accept=".png, .jpg, .jpeg"
+                        <label class="ch-field-label">Photo (optional)</label>
+                        <input type="file" name="service_pic" accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                             style="padding:0.5rem;background:var(--ch-bg-muted);border:1px solid var(--ch-border);border-radius:var(--ch-radius-sm);color:var(--ch-text);width:100%;">
+                        <small class="text-muted d-block mt-1">JPEG or PNG. Shown in the app when <strong>SUPABASE_SERVICE_ROLE_KEY</strong> is set in <code>.env</code> (uploads go to your Supabase project).</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Region</label>
+                        <div class="ch-field-value text-muted">Kenya (default)</div>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;">
-            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Create Service</button>
+        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;gap:0.5rem;">
+            <a href="{{ url_for('services') }}" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Create service</button>
         </div>
     </div>
     </form>

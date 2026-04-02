@@ -11,6 +11,11 @@
     <string name="get_started">Get Started</string>
     <string name="default_notification_channel_id">FCM_CHANNEL_ID</string>
     <string name="notification_channel_name">ConnectHer alerts</string>
+    <string name="notifications_permission_title">Turn on notifications?</string>
+    <string name="notifications_permission_message">Get booking updates, messages, and important alerts when you’re not in the app.</string>
+    <string name="notifications_permission_allow">Allow</string>
+    <string name="notifications_permission_not_now">Not now</string>
+    <string name="notifications_permission_enabled">Notifications enabled</string>
 
     <!-- Messages / conversations -->
     <string name="messages_screen_title">Messages</string>
@@ -153,6 +158,8 @@
 
     <string name="jobs_screen_title">Bookings</string>
     <string name="jobs_screen_subtitle">Your requests and active jobs in one place.</string>
+    <string name="jobs_section_active_jobs">Active jobs — mark complete when the visit is done</string>
+    <string name="jobs_section_booking_requests">Booking requests</string>
     <string name="jobs_rate_provider_title">Rate your provider?</string>
     <string name="jobs_rate_provider_message">Optional — share a quick star rating and short feedback. You can also do this later from History.</string>
     <string name="jobs_rate_now">Rate now</string>
@@ -173,6 +180,7 @@
     <string name="booking_error_connects_exhausted">You have used all connects on your current plan for this period. Open Subscriptions to renew or choose a plan with more connects.</string>
     <string name="booking_error_subscribe_for_connects">Subscribe to get more connects and continue booking service providers.</string>
     <string name="booking_action_view_subscriptions">View subscriptions</string>
+    <string name="booking_error_duplicate_same_provider">You already have an open booking or active job with this provider. Finish or cancel it before booking again.</string>
     <string name="job_card_active_label">Active job</string>
     <string name="job_card_client_label">Client</string>
     <string name="job_card_provider_label">Provider</string>

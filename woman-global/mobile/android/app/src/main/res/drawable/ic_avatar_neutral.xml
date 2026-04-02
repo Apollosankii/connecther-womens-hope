@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Gender-neutral default avatar (silhouette on soft circle). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+    <path
+        android:fillColor="#DDE1E4"
+        android:pathData="M60,60m-60,0a60,60 0,1 1,120 0a60,60 0,1 1,-120 0" />
+    <path
+        android:fillColor="#8A8F94"
+        android:pathData="M60,44c8.8,0 16,-7.2 16,-16s-7.2,-16 -16,-16 -16,7.2 -16,16 7.2,16 16,16zM60,52c-12,0 -36,6 -36,18v10h72V70c0,-12 -24,-18 -36,-18z" />
+</vector>

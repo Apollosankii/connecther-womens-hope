@@ -64,7 +64,7 @@
             android:contentDescription="@null"
             android:elevation="4dp"
             android:scaleType="centerCrop"
-            android:src="@mipmap/woman_profile" />
+            android:src="@drawable/ic_avatar_neutral" />
 
         <LinearLayout
             android:id="@+id/verificationLayout"

@@ -165,6 +165,9 @@ object SupabaseData {
             "provider_not_found" -> "Provider is unavailable. Please choose another provider."
             "provider_not_subscribed_to_service" -> "This provider is not subscribed to this service."
             "provider_busy" -> "Provider is currently unavailable for booking."
+            "duplicate_booking_same_provider" ->
+                context.getString(R.string.booking_error_duplicate_same_provider)
+            "cannot_book_self" -> "You cannot book yourself."
             "free_tier_exhausted" -> context.getString(R.string.booking_error_free_tier_exhausted)
             "connects_exhausted" -> context.getString(R.string.booking_error_connects_exhausted)
             "insufficient_connects", "subscription_required" ->
@@ -188,6 +191,8 @@ object SupabaseData {
                 msg.contains("jwt") || msg.contains("auth") || msg.contains("not authenticated") -> return "auth_required"
                 msg.contains("provider_not_found_or_unavailable") -> return "provider_not_found_or_unavailable"
                 msg.contains("provider_not_found") -> return "provider_not_found"
+                msg.contains("duplicate_booking_same_provider") -> return "duplicate_booking_same_provider"
+                msg.contains("cannot_book_self") -> return "cannot_book_self"
                 msg.contains("provider_busy") || msg.contains("available_for_booking") -> return "provider_busy"
                 msg.contains("free_tier_exhausted") -> return "free_tier_exhausted"
                 msg.contains("connects_exhausted") -> return "connects_exhausted"

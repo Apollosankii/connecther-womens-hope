@@ -111,6 +111,8 @@ class RequestBookingActivity : AppCompatActivity() {
                     err.contains("connects_exhausted") -> "connects_exhausted"
                     err.contains("insufficient_connects") -> "insufficient_connects"
                     err.contains("subscription") -> "subscription_required"
+                    err.contains("duplicate_booking_same_provider") -> "duplicate_booking_same_provider"
+                    err.contains("cannot_book_self") -> "cannot_book_self"
                     else -> "request_failed"
                 }
                 showBookingFailure(mapped)

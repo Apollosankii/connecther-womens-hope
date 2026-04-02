@@ -40,7 +40,7 @@
                 android:layout_height="match_parent"
                 android:contentDescription="@null"
                 android:scaleType="centerCrop"
-                android:src="@mipmap/woman_profile" />
+                android:src="@drawable/ic_avatar_neutral" />
         </com.google.android.material.card.MaterialCardView>
 
         <LinearLayout

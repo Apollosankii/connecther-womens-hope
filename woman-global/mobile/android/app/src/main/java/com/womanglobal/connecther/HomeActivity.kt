@@ -3,26 +3,39 @@ package com.womanglobal.connecther
 import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.location.Location
 import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.View
+import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ScrollView
 import android.widget.Toast
+import androidx.core.widget.NestedScrollView
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentManager
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.forEachIndexed
 import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -38,6 +51,10 @@ import com.womanglobal.connecther.utils.UIHelper
 import kotlinx.coroutines.launch
 
 class HomeActivity : AppCompatActivity() {
+
+    /** Island height + bottom margin; applied to each tab’s scrollable, not ViewPager2 (so content can scroll into the gutters). */
+    private var homeTabBottomInsetPx: Int = 0
+
     private lateinit var binding: ActivityHomeBinding
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -45,6 +62,13 @@ class HomeActivity : AppCompatActivity() {
     private lateinit var locationCallback: LocationCallback
     private lateinit var bottomNavigationView: BottomNavigationView
     private val handler = Handler(Looper.getMainLooper())
+
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted) {
+                Toast.makeText(this, R.string.notifications_permission_enabled, Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -62,19 +86,42 @@ class HomeActivity : AppCompatActivity() {
 
         binding = ActivityHomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        applyHomeTransparentNavigationBar()
+        wireViewPager2UnderFloatingIsland()
+        registerHomeTabScrollInsetCallbacks()
+
+        binding.bottomNavCardContainer.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            syncFloatingIslandInsetsToTabs()
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            val statusBars = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val cutout = insets.getInsets(WindowInsetsCompat.Type.displayCutout())
+            val navBars = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val mandatoryGestures = insets.getInsets(WindowInsetsCompat.Type.mandatorySystemGestures())
+            val leftInset = maxOf(statusBars.left, cutout.left, navBars.left, mandatoryGestures.left)
+            val rightInset = maxOf(statusBars.right, cutout.right, navBars.right, mandatoryGestures.right)
+            val bottomInset = maxOf(navBars.bottom, mandatoryGestures.bottom)
+            val topInset = maxOf(statusBars.top, cutout.top)
+
+            val baseH = resources.getDimensionPixelSize(R.dimen.bottom_nav_island_margin_horizontal)
+            val baseB = resources.getDimensionPixelSize(R.dimen.bottom_nav_island_margin_bottom)
+            (binding.bottomNavCardContainer.layoutParams as FrameLayout.LayoutParams).apply {
+                leftMargin = leftInset + baseH
+                rightMargin = rightInset + baseH
+                bottomMargin = bottomInset + baseB
+            }.also { binding.bottomNavCardContainer.layoutParams = it }
+
+            binding.bottomNavigation.setPadding(0, 0, 0, 0)
             binding.viewPager.updatePadding(
-                left = bars.left,
-                right = bars.right,
-                top = bars.top
+                left = leftInset,
+                right = rightInset,
+                top = topInset,
+                bottom = 0,
             )
-            binding.bottomNavigation.updatePadding(
-                left = bars.left,
-                right = bars.right,
-                bottom = bars.bottom
-            )
+
+            binding.root.post { syncFloatingIslandInsetsToTabs() }
+
             WindowInsetsCompat.Builder(insets)
                 .setInsets(WindowInsetsCompat.Type.systemBars(), Insets.NONE)
                 .build()
@@ -87,7 +134,7 @@ class HomeActivity : AppCompatActivity() {
        // Initialize ViewPager with the appropriate adapter
         val viewPagerAdapter = ViewPagerAdapter(this)
         viewPager.adapter = viewPagerAdapter
-
+        viewPager.post { ensureInnerRecyclerViewClipToPaddingFalse() }
 
         applyFragmentFromIntent(intent)
 
@@ -98,6 +145,10 @@ class HomeActivity : AppCompatActivity() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
                 bottomNavigationView.menu.getItem(position).isChecked = true
+                if (homeTabBottomInsetPx > 0) {
+                    supportFragmentManager.findFragmentByTag("f$position")
+                        ?.let { applyIslandBottomInsetToTab(it) }
+                }
             }
         })
 
@@ -138,6 +189,31 @@ class HomeActivity : AppCompatActivity() {
 
         // Schedule periodic location updates every 5 minutes
         startLocationUpdates()
+
+        handler.postDelayed({
+            promptNotificationPermissionIfNeeded()
+        }, 1800L)
+    }
+
+    private fun promptNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        val prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        if (prefs.getBoolean("notification_permission_prompted", false)) return
+        prefs.edit().putBoolean("notification_permission_prompted", true).apply()
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.notifications_permission_title)
+            .setMessage(R.string.notifications_permission_message)
+            .setPositiveButton(R.string.notifications_permission_allow) { _, _ ->
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+            .setNegativeButton(R.string.notifications_permission_not_now, null)
+            .show()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -356,7 +432,125 @@ class HomeActivity : AppCompatActivity() {
         fusedLocationClient.removeLocationUpdates(locationCallback) // Stop location updates
     }
 
+    /** Transparent gesture/nav region so only the island capsule reads as a solid bar. */
+    private fun applyHomeTransparentNavigationBar() {
+        window.navigationBarColor = Color.TRANSPARENT
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.navigationBarDividerColor = Color.TRANSPARENT
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+        }
+        val isNight =
+            (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        WindowCompat.getInsetsController(window, binding.root).isAppearanceLightNavigationBars = !isNight
+    }
+
+    private fun registerHomeTabScrollInsetCallbacks() {
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(
+                    fm: FragmentManager,
+                    f: Fragment,
+                    v: View,
+                    savedInstanceState: Bundle?,
+                ) {
+                    if (!HOMETAB_FRAGMENT_TAG.matches(f.tag ?: "")) return
+                    if (homeTabBottomInsetPx > 0) applyIslandBottomInsetToTab(f)
+                }
+            },
+            false,
+        )
+    }
+
+    /** Island size changed or system insets changed — push overlap onto each tab’s NestedScrollView / RecyclerView / ScrollView. */
+    private fun syncFloatingIslandInsetsToTabs() {
+        val card = binding.bottomNavCardContainer
+        if (card.height <= 0) {
+            card.post { syncFloatingIslandInsetsToTabs() }
+            return
+        }
+        val lp = card.layoutParams as FrameLayout.LayoutParams
+        homeTabBottomInsetPx = card.height + lp.bottomMargin
+        applyIslandBottomInsetToAllTabs()
+        ensureInnerRecyclerViewClipToPaddingFalse()
+    }
+
+    private fun applyIslandBottomInsetToAllTabs() {
+        val overlap = homeTabBottomInsetPx
+        if (overlap <= 0) return
+        val n = binding.viewPager.adapter?.itemCount ?: return
+        for (i in 0 until n) {
+            supportFragmentManager.findFragmentByTag("f$i")?.let { applyIslandBottomInsetToTab(it) }
+        }
+    }
+
+    private fun applyIslandBottomInsetToTab(f: Fragment) {
+        val overlap = homeTabBottomInsetPx
+        if (overlap <= 0) return
+        val root = f.view ?: return
+        val target = scrollableForBottomInset(root) ?: return
+        applyIslandScrollPadding(target, overlap)
+    }
+
+    private fun scrollableForBottomInset(v: View): View? {
+        when (v) {
+            is NestedScrollView, is ScrollView, is RecyclerView -> return v
+            is ViewGroup -> {
+                for (i in 0 until v.childCount) {
+                    scrollableForBottomInset(v.getChildAt(i))?.let { return it }
+                }
+            }
+        }
+        return null
+    }
+
+    private fun applyIslandScrollPadding(target: View, overlapPx: Int) {
+        if (!target.isAttachedToWindow) return
+        val stored = target.getTag(R.id.home_scroll_base_padding_bottom)
+        val base = when (stored) {
+            is Int -> stored
+            else -> {
+                val b = target.paddingBottom
+                target.setTag(R.id.home_scroll_base_padding_bottom, b)
+                b
+            }
+        }
+        target.updatePadding(bottom = base + overlapPx)
+        when (target) {
+            is NestedScrollView -> target.clipToPadding = false
+            is ScrollView -> target.clipToPadding = false
+            is RecyclerView -> {
+                target.clipToPadding = false
+                target.clipChildren = false
+            }
+        }
+    }
+
+    private fun wireViewPager2UnderFloatingIsland() {
+        binding.viewPager.clipToPadding = false
+        binding.viewPager.clipChildren = false
+    }
+
+    private fun viewPagerInnerRecyclerView(): RecyclerView? {
+        for (i in 0 until binding.viewPager.childCount) {
+            val child = binding.viewPager.getChildAt(i)
+            if (child is RecyclerView) return child
+        }
+        return null
+    }
+
+    private fun ensureInnerRecyclerViewClipToPaddingFalse() {
+        viewPagerInnerRecyclerView()?.apply {
+            clipToPadding = false
+            clipChildren = false
+        }
+    }
+
     companion object {
+        private val HOMETAB_FRAGMENT_TAG = Regex("^f\\d+$")
+
         private const val LOCATION_UPDATE_INTERVAL = 5 * 60 * 1000L // 5 minutes in milliseconds
         private const val LOCATION_FASTEST_INTERVAL = 2 * 60 * 1000L // 2 minutes in milliseconds
         private const val LOCATION_PERMISSION_REQUEST_CODE = 1001

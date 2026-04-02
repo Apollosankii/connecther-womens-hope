@@ -56,7 +56,7 @@ class SearchAdapter(
 
             Glide.with(itemView.context)
                 .load(user.pic)
-                .placeholder(R.mipmap.woman_profile)
+                .placeholder(R.drawable.ic_avatar_neutral)
                 .signature(ObjectKey(user.pic ?: user.user_name))
                 .circleCrop()
                 .into(itemView.findViewById(R.id.userProfileImage))

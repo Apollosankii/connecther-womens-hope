@@ -124,12 +124,12 @@ class ProfileActivity : AppCompatActivity() {
         if (picUrl != null) {
             Glide.with(this)
                 .load(picUrl)
-                .placeholder(R.drawable.placeholder)
+                .placeholder(R.drawable.ic_avatar_neutral)
                 .centerInside()
                 .into(profileImage)
         } else {
             Glide.with(this).clear(profileImage)
-            profileImage.setImageResource(R.drawable.placeholder)
+            profileImage.setImageResource(R.drawable.ic_avatar_neutral)
         }
 
         val showId = user.isIdVerified == true

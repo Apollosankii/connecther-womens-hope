@@ -30,6 +30,11 @@
         <item name="colorControlNormal">@color/on_surface_variant</item>
     </style>
 
+    <!-- Home: transparent system nav; gutters come from fragment + ViewPager clip (see HomeActivity) -->
+    <style name="Theme.ConnectHer.Home" parent="Theme.ConnectHer">
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+    </style>
+
     <style name="ProfileFieldLabel" parent="TextAppearance.AppCompat.Caption">
         <item name="android:textSize">12sp</item>
         <item name="android:textColor">@color/on_surface_variant</item>

@@ -202,8 +202,8 @@ class ProfileFragment : Fragment() {
         Glide.with(this)
             .load(user.pic)
             .signature(ObjectKey(prefs.getLong("profile_pic_version", 0L)))
-            .placeholder(R.drawable.placeholder)
-            .error(R.drawable.placeholder)
+            .placeholder(R.drawable.ic_avatar_neutral)
+            .error(R.drawable.ic_avatar_neutral)
             .circleCrop()
             .into(binding.profilePicture)
     }
