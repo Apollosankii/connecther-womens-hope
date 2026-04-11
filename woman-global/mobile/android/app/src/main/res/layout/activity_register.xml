@@ -11,11 +11,11 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
+        android:gravity="top|center_horizontal"
         android:orientation="vertical"
         android:paddingHorizontal="@dimen/login_horizontal_padding"
-        android:paddingTop="28dp"
-        android:paddingBottom="28dp">
+        android:paddingTop="@dimen/auth_screen_vertical_padding"
+        android:paddingBottom="@dimen/auth_screen_vertical_padding">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
@@ -31,16 +31,19 @@
                 android:padding="@dimen/login_card_padding">
 
                 <ImageView
-                    android:layout_width="match_parent"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="20dp"
+                    android:layout_gravity="center_horizontal"
+                    android:layout_marginBottom="12dp"
                     android:adjustViewBounds="true"
                     android:contentDescription="@string/app_name"
-                    android:maxHeight="200dp"
+                    android:maxWidth="@dimen/auth_logo_max_width"
+                    android:maxHeight="@dimen/auth_logo_max_height"
                     android:scaleType="fitCenter"
                     android:src="@drawable/ic_splash_logo" />
 
                 <TextView
+                    android:id="@+id/registerHeaderTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/poppins"
@@ -50,10 +53,11 @@
                     android:textStyle="bold" />
 
                 <TextView
+                    android:id="@+id/registerHeaderSubtitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="6dp"
-                    android:layout_marginBottom="24dp"
+                    android:layout_marginBottom="16dp"
                     android:fontFamily="@font/poppins"
                     android:text="@string/register_subtitle"
                     android:textColor="@color/on_surface_variant"
@@ -236,6 +240,19 @@
                     android:textStyle="bold"
                     app:backgroundTint="@color/accent_color"
                     app:cornerRadius="12dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/continueWithGoogleButton"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="10dp"
+                    android:enabled="false"
+                    android:fontFamily="@font/poppins"
+                    android:text="@string/register_continue_google"
+                    android:textAllCaps="false"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/outline" />
 
                 <ProgressBar
                     android:id="@+id/progressBar"

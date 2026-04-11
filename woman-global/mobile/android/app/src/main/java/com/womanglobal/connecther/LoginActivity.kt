@@ -12,6 +12,10 @@ import android.text.style.ForegroundColorSpan
 import android.util.Patterns
 import android.view.View
 import android.widget.Toast
+import com.google.android.gms.tasks.Task
+import com.google.firebase.auth.AuthResult
+import com.google.firebase.auth.FirebaseAuthMultiFactorException
+import com.google.firebase.auth.FirebaseUser
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import androidx.activity.result.contract.ActivityResultContracts
@@ -27,6 +31,8 @@ import com.womanglobal.connecther.databinding.ActivityLoginBinding
 import com.womanglobal.connecther.supabase.AuthBridgeClient
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.supabase.SupabaseTokenStore
+import com.womanglobal.connecther.utils.FirebaseEmailLinkAuth
+import com.womanglobal.connecther.utils.FirebaseMfaHelper
 import com.womanglobal.connecther.utils.PushRegistration
 import com.womanglobal.connecther.utils.UserFriendlyMessages
 import kotlinx.coroutines.CoroutineScope
@@ -55,7 +61,7 @@ class LoginActivity : AppCompatActivity() {
                         Toast.makeText(this, R.string.auth_google_failed, Toast.LENGTH_LONG).show()
                         return@onSuccess
                     }
-                    signInWithGoogle(idToken)
+                    signInWithGoogle(idToken, account.email ?: "")
                 }
         }
 
@@ -65,6 +71,37 @@ class LoginActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         sharedPreferences = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+
+        processEmailLinkIntent(intent)
+
+        binding.emailLinkSignInButton.setOnClickListener {
+            binding.emailInputLayout.error = null
+            val email = binding.emailInput.text.toString().trim()
+            if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                binding.emailInputLayout.error = getString(R.string.login_error_email)
+                return@setOnClickListener
+            }
+            setLoading(true)
+            sharedPreferences.edit().putString(FirebaseEmailLinkAuth.PREF_PENDING_EMAIL, email).apply()
+            FirebaseEmailLinkAuth.sendSignInLink(
+                auth,
+                email,
+                this,
+                onSuccess = {
+                    setLoading(false)
+                    Toast.makeText(this, R.string.auth_email_link_sent, Toast.LENGTH_LONG).show()
+                },
+                onFailure = { msg ->
+                    setLoading(false)
+                    sharedPreferences.edit().remove(FirebaseEmailLinkAuth.PREF_PENDING_EMAIL).apply()
+                    Toast.makeText(
+                        this,
+                        getString(R.string.auth_email_link_failed) + (if (msg.isNotBlank()) ": $msg" else ""),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                },
+            )
+        }
 
         binding.loginButton.setOnClickListener {
             binding.emailInputLayout.error = null
@@ -84,72 +121,7 @@ class LoginActivity : AppCompatActivity() {
 
             setLoading(true)
             auth.signInWithEmailAndPassword(email, password)
-                .addOnSuccessListener { res ->
-                    val user = res.user
-                    if (user == null) {
-                        setLoading(false)
-                        Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
-                        return@addOnSuccessListener
-                    }
-
-                    if (UserFriendlyMessages.requiresPasswordVerification(user)) {
-                        setLoading(false)
-                        showEmailVerificationDialog(user)
-                        return@addOnSuccessListener
-                    }
-
-                    user.getIdToken(true)
-                        .addOnSuccessListener { tokenRes ->
-                            val idToken = tokenRes.token.orEmpty()
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val bridgeRes = AuthBridgeClient.exchangeFirebaseIdToken(idToken)
-                                val bridge = bridgeRes.getOrNull()
-                                val bridgeErr = bridgeRes.exceptionOrNull()?.message
-                                if (bridge != null) {
-                                    SupabaseTokenStore.setJwt(bridge.supabaseJwt)
-                                    sharedPreferences.edit()
-                                        .putBoolean("isLoggedIn", true)
-                                        .putBoolean("isFirstLaunch", false)
-                                        .putString("user_email", user.email ?: email)
-                                        .putString("firebase_uid", bridge.firebaseUid)
-                                        .putString("firebase_id_token", idToken)
-                                        .putString("user_id", bridge.userId)
-                                        .apply()
-                                    SupabaseData.syncLocalProfileFromSupabase(bridge.firebaseUid, sharedPreferences)
-                                }
-                                runOnUiThread {
-                                    if (bridge == null) {
-                                        setLoading(false)
-                                        Toast.makeText(
-                                            this@LoginActivity,
-                                            UserFriendlyMessages.authBridge(this@LoginActivity, bridgeErr),
-                                            Toast.LENGTH_LONG,
-                                        ).show()
-                                        return@runOnUiThread
-                                    }
-                                    registerDeviceForPush()
-                                    startActivity(Intent(this@LoginActivity, HomeActivity::class.java))
-                                    finish()
-                                }
-                            }
-                        }
-                        .addOnFailureListener { err ->
-                            setLoading(false)
-                            Toast.makeText(
-                                this@LoginActivity,
-                                UserFriendlyMessages.sessionToken(this@LoginActivity, err),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                        }
-                }
-                .addOnFailureListener { err ->
-                    setLoading(false)
-                    Toast.makeText(
-                        this,
-                        UserFriendlyMessages.firebaseAuth(this, err),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
+                .addOnCompleteListener { task -> handleAuthTask(task, email) }
         }
 
         binding.forgotPasswordText.setOnClickListener { showForgotPasswordDialog() }
@@ -182,74 +154,181 @@ class LoginActivity : AppCompatActivity() {
         binding.registerText.movementMethod = LinkMovementMethod.getInstance()
     }
 
-    private fun signInWithGoogle(idToken: String) {
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        processEmailLinkIntent(intent)
+    }
+
+    private fun processEmailLinkIntent(intent: Intent?) {
+        val link = intent?.data?.toString() ?: return
+        if (!auth.isSignInWithEmailLink(link)) return
+        val email = sharedPreferences.getString(FirebaseEmailLinkAuth.PREF_PENDING_EMAIL, null)?.trim().orEmpty()
+        if (email.isBlank()) {
+            Toast.makeText(this, R.string.auth_email_link_need_email, Toast.LENGTH_LONG).show()
+            return
+        }
         setLoading(true)
-        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null))
-            .addOnSuccessListener { res ->
-                val user = res.user
-                if (user == null) {
-                    setLoading(false)
-                    Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
-                    return@addOnSuccessListener
-                }
+        auth.signInWithEmailLink(email, link)
+            .addOnCompleteListener { task -> handleAuthTask(task, email) }
+    }
 
-                if (UserFriendlyMessages.requiresPasswordVerification(user)) {
-                    setLoading(false)
-                    showEmailVerificationDialog(user)
-                    return@addOnSuccessListener
-                }
+    private fun onFirebaseAuthSuccess(
+        user: FirebaseUser,
+        emailForPrefs: String,
+        isNewGoogleAccount: Boolean = false,
+        hasPendingEmailLinkRegistration: Boolean = false,
+    ) {
+        if (UserFriendlyMessages.requiresPasswordVerification(user)) {
+            setLoading(false)
+            showEmailVerificationDialog(user)
+            return
+        }
+        if (hasPendingEmailLinkRegistration) {
+            setLoading(false)
+            startActivity(
+                Intent(this, RegisterActivity::class.java).apply {
+                    putExtra(RegisterActivity.EXTRA_EMAIL_LINK_PROFILE_COMPLETION, true)
+                },
+            )
+            finish()
+            return
+        }
+        if (isNewGoogleAccount) {
+            setLoading(false)
+            startActivity(
+                Intent(this, RegisterActivity::class.java).apply {
+                    putExtra(RegisterActivity.EXTRA_GOOGLE_PROFILE_COMPLETION, true)
+                },
+            )
+            finish()
+            return
+        }
+        exchangeBridgeAndGoHome(user, user.email ?: emailForPrefs)
+    }
 
-                user.getIdToken(true)
-                    .addOnSuccessListener { tokenRes ->
-                        val freshToken = tokenRes.token.orEmpty()
-                        CoroutineScope(Dispatchers.IO).launch {
-                            val bridgeRes = AuthBridgeClient.exchangeFirebaseIdToken(freshToken)
-                            val bridge = bridgeRes.getOrNull()
-                            val bridgeErr = bridgeRes.exceptionOrNull()?.message
-                            if (bridge != null) {
-                                SupabaseTokenStore.setJwt(bridge.supabaseJwt)
-                                sharedPreferences.edit()
-                                    .putBoolean("isLoggedIn", true)
-                                    .putBoolean("isFirstLaunch", false)
-                                    .putString("user_email", user.email ?: "")
-                                    .putString("firebase_uid", bridge.firebaseUid)
-                                    .putString("firebase_id_token", freshToken)
-                                    .putString("user_id", bridge.userId)
-                                    .apply()
-                                SupabaseData.syncLocalProfileFromSupabase(bridge.firebaseUid, sharedPreferences)
-                            }
-                            runOnUiThread {
-                                if (bridge == null) {
-                                    setLoading(false)
-                                    Toast.makeText(
-                                        this@LoginActivity,
-                                        UserFriendlyMessages.authBridge(this@LoginActivity, bridgeErr),
-                                        Toast.LENGTH_LONG,
-                                    ).show()
-                                    return@runOnUiThread
-                                }
-                                registerDeviceForPush()
-                                startActivity(Intent(this@LoginActivity, HomeActivity::class.java))
-                                finish()
-                            }
+    private fun handleAuthTask(task: Task<AuthResult>, emailForPrefs: String) {
+        if (task.isSuccessful) {
+            val user = task.result?.user
+            if (user == null) {
+                setLoading(false)
+                Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
+            } else {
+                sharedPreferences.edit().remove(FirebaseEmailLinkAuth.PREF_PENDING_EMAIL).apply()
+                setIntent(Intent(this, LoginActivity::class.java))
+                val isNewUser = task.result?.additionalUserInfo?.isNewUser == true
+                val isNewGoogleAccount =
+                    isNewUser && user.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+                val hasPendingEmailLinkRegistration =
+                    sharedPreferences.getBoolean(RegisterActivity.PREF_PENDING_REGISTRATION, false)
+                onFirebaseAuthSuccess(
+                    user = user,
+                    emailForPrefs = user.email ?: emailForPrefs,
+                    isNewGoogleAccount = isNewGoogleAccount,
+                    hasPendingEmailLinkRegistration = hasPendingEmailLinkRegistration,
+                )
+            }
+        } else {
+            when (val e = task.exception) {
+                is FirebaseAuthMultiFactorException -> {
+                    setLoading(false)
+                    FirebaseMfaHelper.startMfaResolution(
+                        this,
+                        auth,
+                        e.resolver,
+                        onSuccess = { u ->
+                            sharedPreferences.edit().remove(FirebaseEmailLinkAuth.PREF_PENDING_EMAIL).apply()
+                            onFirebaseAuthSuccess(
+                                u,
+                                u.email ?: emailForPrefs,
+                                isNewGoogleAccount = false,
+                                hasPendingEmailLinkRegistration = false,
+                            )
+                        },
+                        onFailure = { err ->
+                            Toast.makeText(
+                                this,
+                                UserFriendlyMessages.firebaseAuth(this, err as? Exception ?: Exception(err)),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        },
+                    )
+                }
+                else -> {
+                    setLoading(false)
+                    Toast.makeText(
+                        this,
+                        UserFriendlyMessages.firebaseAuth(this, e as? Exception ?: Exception(e)),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun exchangeBridgeAndGoHome(user: com.google.firebase.auth.FirebaseUser, emailForPrefs: String) {
+        user.getIdToken(true)
+            .addOnSuccessListener { tokenRes ->
+                val idToken = tokenRes.token.orEmpty()
+                CoroutineScope(Dispatchers.IO).launch {
+                    val bridgeRes = AuthBridgeClient.exchangeFirebaseIdToken(idToken)
+                    val bridge = bridgeRes.getOrNull()
+                    val bridgeErr = bridgeRes.exceptionOrNull()?.message
+                    if (bridge != null) {
+                        SupabaseTokenStore.setJwt(bridge.supabaseJwt)
+                        sharedPreferences.edit()
+                            .putBoolean("isLoggedIn", true)
+                            .putBoolean("isFirstLaunch", false)
+                            .putString("user_email", user.email ?: emailForPrefs)
+                            .putString("firebase_uid", bridge.firebaseUid)
+                            .putString("firebase_id_token", idToken)
+                            .putString("user_id", bridge.userId)
+                            .apply()
+                        SupabaseData.syncLocalProfileFromSupabase(bridge.firebaseUid, sharedPreferences)
+                    }
+                    runOnUiThread {
+                        if (bridge == null) {
+                            setLoading(false)
+                            Toast.makeText(
+                                this@LoginActivity,
+                                UserFriendlyMessages.authBridge(this@LoginActivity, bridgeErr),
+                                Toast.LENGTH_LONG,
+                            ).show()
+                            return@runOnUiThread
                         }
+                        registerDeviceForPush()
+                        startActivity(Intent(this@LoginActivity, HomeActivity::class.java))
+                        finish()
                     }
-                    .addOnFailureListener { err ->
-                        setLoading(false)
-                        Toast.makeText(
-                            this@LoginActivity,
-                            UserFriendlyMessages.sessionToken(this@LoginActivity, err),
-                            Toast.LENGTH_LONG,
-                        ).show()
-                    }
+                }
             }
             .addOnFailureListener { err ->
                 setLoading(false)
                 Toast.makeText(
-                    this,
-                    UserFriendlyMessages.firebaseGoogle(this, err as? Exception ?: Exception(err)),
+                    this@LoginActivity,
+                    UserFriendlyMessages.sessionToken(this@LoginActivity, err),
                     Toast.LENGTH_LONG,
                 ).show()
+            }
+    }
+
+    private fun signInWithGoogle(idToken: String, accountEmailFallback: String) {
+        setLoading(true)
+        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null))
+            .addOnCompleteListener { task ->
+                if (!task.isSuccessful && task.exception !is FirebaseAuthMultiFactorException) {
+                    setLoading(false)
+                    Toast.makeText(
+                        this,
+                        UserFriendlyMessages.firebaseGoogle(
+                            this,
+                            task.exception as? Exception ?: Exception(task.exception),
+                        ),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                    return@addOnCompleteListener
+                }
+                handleAuthTask(task, task.result?.user?.email ?: accountEmailFallback)
             }
     }
 
@@ -320,6 +399,7 @@ class LoginActivity : AppCompatActivity() {
         binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         binding.loginButton.visibility = if (loading) View.GONE else View.VISIBLE
         binding.googleSignInButton.isEnabled = !loading
+        binding.emailLinkSignInButton.isEnabled = !loading
         binding.forgotPasswordText.isEnabled = !loading
     }
 

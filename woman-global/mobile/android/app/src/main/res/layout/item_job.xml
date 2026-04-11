@@ -110,6 +110,58 @@
             android:textColor="@color/on_surface_variant"
             android:textSize="12sp" />
 
+        <TextView
+            android:id="@+id/jobLocationExtra"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="Floor: 3\nUnit: B2" />
+
+        <TextView
+            android:id="@+id/jobSafetyStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="Safety check-ins active." />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonJobArrivalPhoto"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:insetTop="10dp"
+            android:insetBottom="10dp"
+            android:text="@string/job_action_arrival_photo"
+            android:textAllCaps="false"
+            app:icon="@drawable/ic_camera_24"
+            app:iconPadding="10dp"
+            app:iconTint="@color/on_surface"
+            app:strokeColor="@color/outline"
+            android:visibility="gone" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/buttonJobStartWork"
+            style="@style/Widget.MaterialComponents.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:insetTop="10dp"
+            android:insetBottom="10dp"
+            android:text="@string/job_action_start_work"
+            android:textAllCaps="false"
+            app:icon="@drawable/ic_play_arrow_24"
+            app:iconPadding="10dp"
+            app:iconTint="@color/white"
+            app:backgroundTint="@color/accent_color"
+            android:visibility="gone" />
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/completeTaskButton"
             android:layout_width="match_parent"

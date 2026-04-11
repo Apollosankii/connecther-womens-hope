@@ -7,7 +7,9 @@ import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -15,18 +17,37 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.womanglobal.connecther.data.Service
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.utils.EmergencyHelper
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
 
 class RequestBookingActivity : AppCompatActivity() {
     private var lat: Double? = null
     private var lon: Double? = null
     private var isSubmitting: Boolean = false
+    private var bookingService: Service? = null
+    private val extraFieldInputs = linkedMapOf<String, EditText>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_request_booking)
+
+        val serviceIdStr =
+            intent.getStringExtra("service_id") ?: intent.getStringExtra("serviceId").orEmpty()
+        val serviceIdInt = serviceIdStr.toIntOrNull()
+        if (serviceIdInt != null) {
+            lifecycleScope.launch {
+                val svc = SupabaseData.getServiceById(serviceIdInt)
+                withContext(Dispatchers.Main) {
+                    bookingService = svc
+                    applyServiceLocationFields(svc)
+                }
+            }
+        }
 
         findViewById<MaterialButton>(R.id.buttonUseMyLocation).setOnClickListener { useGpsLocation() }
         findViewById<MaterialButton>(R.id.buttonOpenGoogleMaps).setOnClickListener {
@@ -39,6 +60,57 @@ class RequestBookingActivity : AppCompatActivity() {
         }
         findViewById<MaterialButton>(R.id.buttonSubmitBooking).setOnClickListener { submitBooking() }
     }
+
+    private fun applyServiceLocationFields(svc: Service?) {
+        val container = findViewById<LinearLayout>(R.id.extraLocationFieldsContainer)
+        val label = findViewById<TextView>(R.id.labelExtraLocation)
+        container.removeAllViews()
+        extraFieldInputs.clear()
+        if (svc?.require_location_detail != true) {
+            label.visibility = View.GONE
+            container.visibility = View.GONE
+            return
+        }
+        label.visibility = View.VISIBLE
+        container.visibility = View.VISIBLE
+        val arr = runCatching { JSONArray(svc.location_detail_schema_json) }.getOrNull()
+        if (arr == null || arr.length() == 0) {
+            val et = EditText(this).apply {
+                hint = getString(R.string.booking_extra_address_hint)
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = ContextCompat.getDrawable(this@RequestBookingActivity, R.drawable.rounded_edittext)
+            }
+            container.addView(et)
+            extraFieldInputs["detail"] = et
+            return
+        }
+        for (i in 0 until arr.length()) {
+            val o = arr.optJSONObject(i) ?: continue
+            val key = o.optString("key").ifBlank { "field_$i" }
+            val lab = o.optString("label").ifBlank { key }
+            val et = EditText(this).apply {
+                hint = lab
+                setPadding(dp(12), dp(12), dp(12), dp(12))
+                background = ContextCompat.getDrawable(this@RequestBookingActivity, R.drawable.rounded_edittext)
+            }
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+            )
+            lp.topMargin = dp(8)
+            et.layoutParams = lp
+            container.addView(et)
+            extraFieldInputs[key] = et
+        }
+    }
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    private fun collectLocationExtra(): Map<String, String> =
+        extraFieldInputs.mapNotNull { (k, et) ->
+            val v = et.text.toString().trim()
+            if (v.isEmpty()) null else k to v
+        }.toMap()
 
     private fun useGpsLocation() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -80,6 +152,13 @@ class RequestBookingActivity : AppCompatActivity() {
             return
         }
 
+        val svc = bookingService
+        val extra = collectLocationExtra()
+        if (svc?.require_location_detail == true && extra.isEmpty()) {
+            Toast.makeText(this, R.string.booking_extra_required_toast, Toast.LENGTH_LONG).show()
+            return
+        }
+
         isSubmitting = true
         progress.visibility = View.VISIBLE
         submitButton.isEnabled = false
@@ -93,6 +172,7 @@ class RequestBookingActivity : AppCompatActivity() {
                     latitude = lat,
                     longitude = lon,
                     message = message.ifBlank { null },
+                    locationExtra = extra,
                 )
                 if (outcome.isSuccess) {
                     Toast.makeText(this@RequestBookingActivity, "Booking request sent", Toast.LENGTH_LONG).show()
@@ -113,6 +193,7 @@ class RequestBookingActivity : AppCompatActivity() {
                     err.contains("subscription") -> "subscription_required"
                     err.contains("duplicate_booking_same_provider") -> "duplicate_booking_same_provider"
                     err.contains("cannot_book_self") -> "cannot_book_self"
+                    err.contains("location_detail_required") -> "location_detail_required"
                     else -> "request_failed"
                 }
                 showBookingFailure(mapped)
@@ -140,4 +221,3 @@ class RequestBookingActivity : AppCompatActivity() {
         }
     }
 }
-

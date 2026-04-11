@@ -68,22 +68,16 @@ class JobAdapter(
                 jobTimeline.visibility = View.GONE
             }
 
-            val sharedPreferences = itemView.context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
-            val isProvider = sharedPreferences.getBoolean("isProvider", false)
             val context = itemView.context
+            val amSeekerOnThisJob = job.i_am_client
 
-            jobCompleteHint.text = if (isProvider) {
-                context.getString(R.string.job_complete_provider_hint)
-            } else {
+            jobCompleteHint.text = if (amSeekerOnThisJob) {
                 context.getString(R.string.job_complete_seeker_hint)
+            } else {
+                context.getString(R.string.job_complete_provider_hint)
             }
 
-            if (isProvider) {
-                completeJobButton.setText(R.string.job_action_view_location)
-                completeJobButton.setOnClickListener {
-                    openJobLocation(context, job.location)
-                }
-            } else {
+            if (amSeekerOnThisJob) {
                 completeJobButton.setText(R.string.job_action_complete)
                 completeJobButton.setOnClickListener {
                     fragment.lifecycleScope.launch {
@@ -91,7 +85,7 @@ class JobAdapter(
                         if (ok) {
                             Toast.makeText(context, R.string.job_complete_success_toast, Toast.LENGTH_SHORT).show()
                             if (!job.rated && !job.my_review_submitted) {
-                                offerOptionalProviderRating(context, job)
+                                offerOptionalPostCompleteRating(context, job)
                             } else {
                                 onJobCompleted()
                             }
@@ -100,16 +94,23 @@ class JobAdapter(
                         }
                     }
                 }
+            } else {
+                completeJobButton.setText(R.string.job_action_view_location)
+                completeJobButton.setOnClickListener {
+                    openJobLocation(context, job.location)
+                }
             }
         }
 
-        private fun offerOptionalProviderRating(context: Context, job: Job) {
+        private fun offerOptionalPostCompleteRating(context: Context, job: Job) {
+            val title = if (job.i_am_client) R.string.jobs_rate_provider_title else R.string.jobs_rate_client_title
+            val message = if (job.i_am_client) R.string.jobs_rate_provider_message else R.string.jobs_rate_client_message
             AlertDialog.Builder(context)
-                .setTitle(context.getString(R.string.jobs_rate_provider_title))
-                .setMessage(context.getString(R.string.jobs_rate_provider_message))
+                .setTitle(context.getString(title))
+                .setMessage(context.getString(message))
                 .setPositiveButton(R.string.jobs_rate_now) { d, _ ->
                     d.dismiss()
-                    RatingDialogFragment(job, isProvider = false) {
+                    RatingDialogFragment(job, isProvider = !job.i_am_client) {
                         onJobCompleted()
                     }.show(fragment.childFragmentManager, "RatingDialog")
                 }

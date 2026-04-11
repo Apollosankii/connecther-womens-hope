@@ -2,7 +2,7 @@
 Ace Responsive Menu Plugin
 Version: 1.0
 Author: Samson.Onna 
-Email : samson3d@gmail.com
+Email : connecther05@gmail.com
 ----------------------------------------*/
 
 (function ($) {

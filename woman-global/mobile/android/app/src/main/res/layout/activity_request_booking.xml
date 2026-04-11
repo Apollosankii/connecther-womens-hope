@@ -51,6 +51,24 @@
             android:minLines="2"
             android:padding="12dp" />
 
+        <TextView
+            android:id="@+id/labelExtraLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="@string/booking_extra_address_section_title"
+            android:textColor="@color/on_background"
+            android:textStyle="bold"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:id="@+id/extraLocationFieldsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone" />
+
         <EditText
             android:id="@+id/inputMessage"
             android:layout_width="match_parent"

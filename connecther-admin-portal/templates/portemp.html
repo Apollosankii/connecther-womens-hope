@@ -75,7 +75,7 @@
                             <a class="dropdown-item" href="{{url_for('subscription_plans')}}"><span class="flaticon-money mr-2"></span>Subscription Plans</a>
                             <a class="dropdown-item" href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile mr-2"></span>Member subscriptions</a>
                             <a class="dropdown-item" href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis mr-2"></span>Subscription overview</a>
-                            <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money mr-2"></span>Free trial connects</a>
+                            <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money mr-2"></span>Platform settings</a>
                             <div class="dropdown-divider"></div>
                             <a class="dropdown-item" href="{{url_for('logout')}}"><span class="flaticon-logout mr-2"></span>Logout</a>
                         </div>
@@ -152,7 +152,7 @@
                                     <a class="dropdown-item" href="{{url_for('subscription_plans')}}"><span class="flaticon-money"></span> Subscription Plans</a>
                                     <a class="dropdown-item" href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile"></span> Member subscriptions</a>
                                     <a class="dropdown-item" href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis"></span> Subscription overview</a>
-                                    <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Free trial connects</a>
+                                    <a class="dropdown-item" href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Platform settings</a>
                                     <a class="dropdown-item" href="{{url_for('logout')}}"><span class="flaticon-logout"></span> Logout</a>
 
                                 </div>
@@ -179,7 +179,7 @@
                     <li><span><a href="{{url_for('subscription_plans')}}">Subscription Plans</a></span></li>
                     <li><span><a href="{{url_for('subscription_user_subscriptions')}}">Member subscriptions</a></span></li>
                     <li><span><a href="{{url_for('subscription_tracking')}}">Subscription overview</a></span></li>
-                    <li><span><a href="{{url_for('subscription_platform_settings')}}">Free trial connects</a></span></li>
+                    <li><span><a href="{{url_for('subscription_platform_settings')}}">Platform settings</a></span></li>
                     <li><span><a href="{{url_for('logout')}}">Logout</a></span></li>
                 </ul>
             </nav>
@@ -236,7 +236,7 @@
                                     <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_plans')}}"><span class="flaticon-money"></span> Subscription Plans</a></li>
                                     <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_user_subscriptions')}}"><span class="flaticon-profile"></span> Member subscriptions</a></li>
                                     <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_tracking')}}"><span class="flaticon-analysis"></span> Subscription overview</a></li>
-                                    <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Free trial connects</a></li>
+                                    <li class="{{ active_sub|default('') }}"><a href="{{url_for('subscription_platform_settings')}}"><span class="flaticon-money"></span> Platform settings</a></li>
                                     <li class="{{active_lo}}"><a href="#"><span class="flaticon-rating"></span> Sponsors</a></li>
                                     <li class="{{active_lo}}"><a href="#"><span class="flaticon-chat"></span> Feedback</a></li>
                                     <li class="{{active_cp}}"><a href="#"><span class="flaticon-locked"></span> Change Password</a></li>

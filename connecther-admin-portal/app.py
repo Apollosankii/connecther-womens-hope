@@ -3,11 +3,13 @@ ConnectHer Admin Portal – Flask app with direct Supabase connection.
 No FastAPI required. Run supabase_rls_admin.sql in Supabase before use.
 """
 from flask import Flask, url_for, redirect, render_template, request, session, make_response, jsonify, flash, send_from_directory, abort
+import json
 import logging
 import mimetypes
 import os
 import uuid
 import base64
+from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +35,39 @@ def _load_env():
 _load_env()
 
 _ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _service_form_extras(form):
+    """Parse marketplace radius and location-detail config from service add/edit forms."""
+    raw_radius = (form.get('search_radius_meters') or '10000').strip()
+    try:
+        r_int = int(float(raw_radius))
+    except (TypeError, ValueError):
+        r_int = 10000
+    r_int = max(100, min(r_int, 500000))
+    require = (form.get('require_location_detail') or '').lower() in ('on', 'true', '1', 'yes')
+    schema_raw = (form.get('location_detail_schema') or '').strip() or '[]'
+    try:
+        schema = json.loads(schema_raw)
+        if not isinstance(schema, list):
+            schema = []
+    except json.JSONDecodeError:
+        schema = []
+    safety_required = (form.get('safety_checkins_required') or '').lower() in ('on', 'true', '1', 'yes')
+    raw_interval = (form.get('safety_checkin_interval_min') or '60').strip()
+    try:
+        interval_int = int(float(raw_interval))
+    except (TypeError, ValueError):
+        interval_int = 60
+    interval_int = max(15, min(interval_int, 240))
+    return {
+        'search_radius_meters': r_int,
+        'require_location_detail': require,
+        'location_detail_schema': schema,
+        'safety_checkins_required': safety_required,
+        'safety_checkin_interval_min': interval_int,
+    }
+
 
 app = Flask(__name__,
     template_folder=os.path.join(_ROOT, 'templates'),
@@ -604,6 +639,7 @@ def add_service():
             flash('Minimum price must be a number.', 'error')
             return redirect(url_for('add_service_page'))
         payload = {'description': description or None, 'min_price': price_val, 'name': name}
+        payload.update(_service_form_extras(request.form))
         service_pic = request.files.get('service_pic')
         if service_pic and service_pic.filename:
             raw = service_pic.read()
@@ -664,6 +700,7 @@ def update_service(service_id):
         'description': (request.form.get('description') or '').strip() or None,
         'min_price': price_val,
     }
+    payload.update(_service_form_extras(request.form))
     service_pic = request.files.get('service_pic')
     if service_pic and service_pic.filename:
         raw = service_pic.read()
@@ -1259,23 +1296,48 @@ def subscription_platform_settings():
             return redirect(url_for('subscription_platform_settings'))
         try:
             v = int(raw)
+            pmax = int(request.form.get('panic_sms_max_dispatches_per_24h', '6'))
+            pmin = int(request.form.get('panic_sms_min_seconds_between', '180'))
+            pglob = int(request.form.get('panic_sms_max_global_per_hour', '200'))
         except (ValueError, TypeError):
-            flash('Invalid number.')
+            flash('Invalid number in form.')
             return redirect(url_for('subscription_platform_settings'))
-        if supabase_data.update_platform_settings(session, v):
-            flash('Free tier default updated. Existing users keep their current cap unless you apply below.')
+        if not (1 <= pmax <= 200):
+            flash('Panic SMS: max dispatches per 24h must be between 1 and 200.')
+            return redirect(url_for('subscription_platform_settings'))
+        if not (0 <= pmin <= 86400):
+            flash('Panic SMS: cooldown seconds must be 0–86400 (0 = no minimum gap).')
+            return redirect(url_for('subscription_platform_settings'))
+        if not (10 <= pglob <= 100000):
+            flash('Panic SMS: global cap per hour must be between 10 and 100000.')
+            return redirect(url_for('subscription_platform_settings'))
+        if supabase_data.update_platform_settings(session, v, pmax, pmin, pglob):
+            flash('Platform settings saved (free connects and subscribed panic SMS limits).')
         else:
             flash('Failed to update platform settings.')
         return redirect(url_for('subscription_platform_settings'))
     try:
         settings = supabase_data.get_platform_settings(session)
     except Exception:
-        settings = {'id': 1, 'free_tier_connects': 5, 'updated_at': None}
+        settings = {
+            'id': 1,
+            'free_tier_connects': 5,
+            'updated_at': None,
+            'panic_sms_max_dispatches_per_24h': 6,
+            'panic_sms_min_seconds_between': 180,
+            'panic_sms_max_global_per_hour': 200,
+        }
+    since_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    since_1h = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+    panic_count_24h = supabase_data.count_panic_sms_dispatch_since(session, since_24h)
+    panic_count_1h = supabase_data.count_panic_sms_dispatch_since(session, since_1h)
     return render_template(
         'subscription_platform_settings.html',
         user=user,
         name=user.get('name', user.get('email', 'Admin')),
         settings=settings,
+        panic_count_24h=panic_count_24h,
+        panic_count_1h=panic_count_1h,
         active_d='',
         active_p='',
         active_b='',

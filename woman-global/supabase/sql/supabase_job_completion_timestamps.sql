@@ -46,7 +46,8 @@ RETURNS TABLE (
   their_review_submitted boolean,
   their_stars real,
   started_at timestamptz,
-  completed_at timestamptz
+  completed_at timestamptz,
+  i_am_client boolean
 )
 LANGUAGE sql
 STABLE
@@ -67,7 +68,8 @@ AS $$
     false::boolean AS their_review_submitted,
     0::real AS their_stars,
     j.date AS started_at,
-    j.completed_at AS completed_at
+    j.completed_at AS completed_at,
+    (q.client_id = current_user_pk()) AS i_am_client
   FROM jobs j
   JOIN quotes q ON q.id = j.quote_id
   JOIN users cli ON cli.id = q.client_id
@@ -93,7 +95,8 @@ RETURNS TABLE (
   their_review_submitted boolean,
   their_stars real,
   started_at timestamptz,
-  completed_at timestamptz
+  completed_at timestamptz,
+  i_am_client boolean
 )
 LANGUAGE sql
 STABLE
@@ -111,7 +114,8 @@ AS $$
       j.price AS jprice,
       COALESCE(j.location, '')::text AS jloc,
       q.client_id AS q_client,
-      q.provider_id AS q_provider
+      q.provider_id AS q_provider,
+      (q.client_id = current_user_pk()) AS i_am_client
     FROM jobs j
     JOIN quotes q ON q.id = j.quote_id
     JOIN users cli ON cli.id = q.client_id
@@ -144,10 +148,13 @@ AS $$
     (tr.job_id IS NOT NULL) AS their_review_submitted,
     COALESCE(tr.st, 0::real) AS their_stars,
     b.j_started AS started_at,
-    b.j_completed AS completed_at
+    b.j_completed AS completed_at,
+    b.i_am_client AS i_am_client
   FROM base b
   LEFT JOIN my_rev mr ON mr.job_id = b.jid
   LEFT JOIN their_rev tr ON tr.job_id = b.jid;
 $$;
 
 COMMENT ON FUNCTION public.complete_my_job(integer) IS 'Seeker (quote client_id) only: marks job complete and sets completed_at.';
+COMMENT ON FUNCTION public.get_pending_jobs() IS 'Incomplete jobs for current user; i_am_client distinguishes seeker vs provider rows.';
+COMMENT ON FUNCTION public.get_completed_jobs() IS 'Completed jobs for current user; i_am_client for UI (labels, rate flow).';

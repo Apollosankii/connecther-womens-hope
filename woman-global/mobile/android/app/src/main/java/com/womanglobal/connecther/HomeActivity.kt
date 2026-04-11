@@ -47,6 +47,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.womanglobal.connecther.databinding.ActivityHomeBinding
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.ui.adapter.ViewPagerAdapter
+import com.womanglobal.connecther.util.reduceDragSensitivity
 import com.womanglobal.connecther.utils.UIHelper
 import kotlinx.coroutines.launch
 
@@ -134,7 +135,10 @@ class HomeActivity : AppCompatActivity() {
        // Initialize ViewPager with the appropriate adapter
         val viewPagerAdapter = ViewPagerAdapter(this)
         viewPager.adapter = viewPagerAdapter
-        viewPager.post { ensureInnerRecyclerViewClipToPaddingFalse() }
+        viewPager.post {
+            viewPager.reduceDragSensitivity()
+            ensureInnerRecyclerViewClipToPaddingFalse()
+        }
 
         applyFragmentFromIntent(intent)
 
@@ -477,6 +481,11 @@ class HomeActivity : AppCompatActivity() {
         ensureInnerRecyclerViewClipToPaddingFalse()
     }
 
+    /** After async content shows a scrollable (e.g. Bookings list), re-apply nav island padding. */
+    fun notifyTabScrollableContentChanged() {
+        binding.bottomNavCardContainer.post { syncFloatingIslandInsetsToTabs() }
+    }
+
     private fun applyIslandBottomInsetToAllTabs() {
         val overlap = homeTabBottomInsetPx
         if (overlap <= 0) return
@@ -496,7 +505,10 @@ class HomeActivity : AppCompatActivity() {
 
     private fun scrollableForBottomInset(v: View): View? {
         when (v) {
-            is NestedScrollView, is ScrollView, is RecyclerView -> return v
+            is NestedScrollView, is ScrollView ->
+                if (v.isShown) return v else null
+            is RecyclerView ->
+                if (v.isShown) return v else null
             is ViewGroup -> {
                 for (i in 0 until v.childCount) {
                     scrollableForBottomInset(v.getChildAt(i))?.let { return it }

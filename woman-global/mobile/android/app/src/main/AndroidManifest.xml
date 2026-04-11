@@ -7,7 +7,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Hourly job safety alarms (provider check-ins). -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.SEND_SMS"/>
+    <!-- Required on API 33+ if Play Console declares use of advertising ID (e.g. Firebase Analytics). Omit only if you set declaration to “No” and disable ad ID collection. -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
 
 
     <application
@@ -20,9 +24,19 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ConnectHer"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         tools:replace="android:allowBackup,android:usesCleartextTraffic"
         tools:targetApi="35">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <activity
             android:name=".PasswordChangeActivity"
             android:exported="false" />
@@ -36,6 +50,9 @@
             android:launchMode="singleTop" />
         <activity
             android:name=".ProfileActivity"
+            android:exported="false" />
+        <activity
+            android:name=".SecureProviderDocumentActivity"
             android:exported="false" />
         <activity
             android:name=".SettingsActivity"
@@ -85,7 +102,22 @@
         </activity>
         <activity android:name=".OnboardingActivity" />
         <activity android:name=".RegisterActivity" />
-        <activity android:name=".LoginActivity" />
+        <activity
+            android:name=".LoginActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="connecther-d6e1a.firebaseapp.com"
+                    android:pathPrefix="/__/auth"
+                    android:scheme="https" />
+            </intent-filter>
+        </activity>
         <activity android:name=".SearchActivity" />
         <activity android:name=".AboutUsActivity" />
         <activity android:name=".RequestBookingActivity" />
@@ -120,6 +152,15 @@
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
+
+        <receiver
+            android:name=".util.SafetyCheckinReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.womanglobal.connecther.action.SAFETY_ALARM" />
+                <action android:name="com.womanglobal.connecther.action.SAFETY_CONFIRM" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

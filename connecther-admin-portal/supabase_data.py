@@ -3,7 +3,9 @@ Admin Portal data layer: direct Supabase REST calls with user JWT.
 Replaces FastAPI for admin operations. Requires RLS (run backend/sql/ migrations first).
 """
 import hashlib
+import json
 import os
+import re
 import requests
 
 def _gen_user_id(phone: str) -> str:
@@ -569,12 +571,22 @@ def approve_provider_by_id(session, internal_id, service_ids=None):
 
 def _service_to_dict(row):
     """Map services row to asdict shape."""
+    schema = row.get('location_detail_schema')
+    if isinstance(schema, (dict, list)):
+        schema_txt = json.dumps(schema)
+    elif schema is None:
+        schema_txt = '[]'
+    else:
+        schema_txt = str(schema)
     return {
         'service_id': row.get('id'),
         'name': row.get('name'),
         'description': row.get('description'),
         'min_price': row.get('min_price'),
         'pic': row.get('service_pic'),
+        'search_radius_meters': row.get('search_radius_meters') if row.get('search_radius_meters') is not None else 10000,
+        'require_location_detail': bool(row.get('require_location_detail')),
+        'location_detail_schema': schema_txt,
     }
 
 
@@ -712,7 +724,7 @@ def list_document_types(session):
 def _build_jobs(session, complete):
     """Fetch jobs with quote embed, resolve client/provider/service names."""
     path = f'/jobs?complete=is.{str(complete).lower()}'
-    path += '&select=id,price,date,quote_id,quote:quotes(quote_code,client_id,provider_id,service_id)'
+    path += '&select=id,price,date,arrived_at,work_started_at,site_photo_path,quote_id,quote:quotes(quote_code,client_id,provider_id,service_id)'
     data = _req(session, 'GET', path)
     if not data or not isinstance(data, list):
         return []
@@ -745,12 +757,59 @@ def _build_jobs(session, complete):
             if svc and isinstance(svc, list):
                 for s in svc:
                     services_by_id[s['id']] = s.get('name') or ''
+    job_ids = [j.get('id') for j in data if j.get('id')]
+    checkins_by_job = {}
+    if job_ids:
+        # Fetch all checkins for these jobs and count unique hour_index.
+        for i in range(0, len(job_ids), 150):
+            chunk = job_ids[i:i + 150]
+            rows = _req(session, 'GET', '/job_safety_checkins', params={
+                'job_id': 'in.(' + ','.join(map(str, chunk)) + ')',
+                'select': 'job_id,hour_index',
+            })
+            if rows and isinstance(rows, list):
+                for r in rows:
+                    jid = r.get('job_id')
+                    hi = r.get('hour_index')
+                    if jid is None or hi is None:
+                        continue
+                    checkins_by_job.setdefault(jid, set()).add(int(hi))
+
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc)
+
+    def _parse_ts(ts):
+        if not ts:
+            return None
+        try:
+            # Accept both Z and offset formats.
+            s = str(ts).replace('Z', '+00:00')
+            return datetime.fromisoformat(s)
+        except Exception:
+            return None
+
     for j in data:
         q = j.get('quote') or {}
         if isinstance(q, dict):
             client = users_by_id.get(q.get('client_id'), '')
             provider = users_by_id.get(q.get('provider_id'), '')
             service = services_by_id.get(q.get('service_id'), '')
+            site_path = (j.get('site_photo_path') or '').strip() or None
+            site_url = None
+            if site_path:
+                base = _supabase_url().rstrip('/')
+                raw = f"{base}/storage/v1/object/job_site_photos/{site_path.lstrip('/')}"
+                site_url = _sign_storage_download_url(raw) or raw
+            started = _parse_ts(j.get('work_started_at'))
+            done_set = checkins_by_job.get(j.get('id'), set())
+            done_count = len(done_set)
+            expected = 0
+            missed = 0
+            if started:
+                delta = now - started
+                hrs = int(delta.total_seconds() // 3600)
+                expected = max(0, hrs + 1)  # include hour 0
+                missed = max(0, expected - done_count)
             out.append({
                 'quote': q.get('quote_code'),
                 'client': client,
@@ -758,9 +817,13 @@ def _build_jobs(session, complete):
                 'price': j.get('price'),
                 'date': j.get('date'),
                 'service': service,
+                'arrival_photo_url': site_url,
+                'checkins_done': done_count,
+                'checkins_expected': expected,
+                'checkins_missed': missed,
             })
         else:
-            out.append({'quote': '', 'client': '', 'provider': '', 'price': j.get('price'), 'date': j.get('date'), 'service': ''})
+            out.append({'quote': '', 'client': '', 'provider': '', 'price': j.get('price'), 'date': j.get('date'), 'service': '', 'arrival_photo_url': None, 'checkins_done': 0, 'checkins_expected': 0, 'checkins_missed': 0})
     return out
 
 
@@ -865,25 +928,71 @@ def get_platform_settings(session):
     """Singleton platform_settings row id=1."""
     data = _req(session, 'GET', '/platform_settings', params={'id': 'eq.1'})
     if not data or not isinstance(data, list) or len(data) == 0:
-        return {'id': 1, 'free_tier_connects': 5, 'updated_at': None}
+        return {
+            'id': 1,
+            'free_tier_connects': 5,
+            'updated_at': None,
+            'panic_sms_max_dispatches_per_24h': 6,
+            'panic_sms_min_seconds_between': 180,
+            'panic_sms_max_global_per_hour': 200,
+        }
     r = data[0]
     return {
         'id': r.get('id'),
         'free_tier_connects': int(r.get('free_tier_connects') or 0),
         'updated_at': r.get('updated_at'),
+        'panic_sms_max_dispatches_per_24h': int(r.get('panic_sms_max_dispatches_per_24h') or 6),
+        'panic_sms_min_seconds_between': int(r.get('panic_sms_min_seconds_between') or 180),
+        'panic_sms_max_global_per_hour': int(r.get('panic_sms_max_global_per_hour') or 200),
     }
 
 
-def update_platform_settings(session, free_tier_connects):
-    """Update default free-tier cap (new users / exploration)."""
+def update_platform_settings(session, free_tier_connects, panic_max=None, panic_min=None, panic_global=None):
+    """Update free-tier default and optional subscribed panic SMS limits (same row id=1)."""
     try:
         v = int(free_tier_connects)
     except (TypeError, ValueError):
         return False
     if v < 0:
         return False
-    res = _req_write(session, 'PATCH', '/platform_settings?id=eq.1', json_data={'free_tier_connects': v})
+    body = {'free_tier_connects': v}
+    if panic_max is not None:
+        body['panic_sms_max_dispatches_per_24h'] = int(panic_max)
+    if panic_min is not None:
+        body['panic_sms_min_seconds_between'] = int(panic_min)
+    if panic_global is not None:
+        body['panic_sms_max_global_per_hour'] = int(panic_global)
+    res = _req_write(session, 'PATCH', '/platform_settings?id=eq.1', json_data=body)
     return _patch_ok(res)
+
+
+def count_panic_sms_dispatch_since(session, since_iso):
+    """
+    Count rows in panic_sms_dispatch with created_at >= since_iso (PostgREST Prefer: count=exact).
+    since_iso should be RFC3339 / ISO8601 string.
+    """
+    bearer = _get_bearer(session)
+    base, key = _supabase_url(), _supabase_anon_key()
+    if not bearer or not base or not key:
+        return None
+    url = f"{base}/rest/v1/panic_sms_dispatch"
+    headers = {
+        'apikey': key,
+        'Authorization': f'Bearer {bearer}',
+        'Prefer': 'count=exact',
+    }
+    params = {'select': 'id', 'created_at': f'gte.{since_iso}'}
+    try:
+        r = requests.get(url, params=params, headers=headers, timeout=20)
+        if r.status_code != 200:
+            return None
+        cr = (r.headers.get('Content-Range') or r.headers.get('content-range') or '').strip()
+        m = re.search(r'/(\d+)\s*$', cr)
+        if m:
+            return int(m.group(1))
+        return 0
+    except Exception:
+        return None
 
 
 def get_app_user_detail(session, internal_id):

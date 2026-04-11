@@ -55,6 +55,48 @@
                 </div>
                 <div class="col-md-6">
                     <div class="ch-field">
+                        <label class="ch-field-label">Search radius (meters)</label>
+                        <input type="number" class="form-control" name="search_radius_meters" value="10000" min="100" max="500000" step="100"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                        <small class="text-muted">Seekers with location enabled see providers within this distance for this service (default 10&nbsp;km).</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label d-flex align-items-center gap-2">
+                            <input type="checkbox" name="require_location_detail" value="on">
+                            Require extra address detail at booking
+                        </label>
+                        <small class="text-muted">Apartments: floor, unit, building name, etc. The app shows extra fields when enabled.</small>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Location detail field schema (JSON array)</label>
+                        <textarea class="form-control font-monospace small" name="location_detail_schema" rows="4" placeholder='[{"key":"floor","label":"Floor / level"},{"key":"unit","label":"Unit / apartment"}]'
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;"></textarea>
+                        <small class="text-muted">Optional hints for the mobile form (each entry: <code>key</code> and <code>label</code>). Use <code>[]</code> for generic free-form JSON object from the app.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label d-flex align-items-center gap-2">
+                            <input type="checkbox" name="safety_checkins_required" value="on">
+                            Enable safety check-ins (provider)
+                        </label>
+                        <small class="text-muted">When enabled, providers must tap <strong>Start work</strong> and will receive periodic check-in reminders during the job.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Check-in interval (minutes)</label>
+                        <input type="number" class="form-control" name="safety_checkin_interval_min" value="60" min="15" max="240" step="5"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                        <small class="text-muted">Default 60 minutes. Use 15–240 minutes.</small>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="ch-field">
                         <label class="ch-field-label">Region</label>
                         <div class="ch-field-value text-muted">Kenya (default)</div>
                     </div>

@@ -45,7 +45,11 @@ class PaystackNativePaymentActivity : AppCompatActivity() {
 
         val pk = BuildConfig.PAYSTACK_PUBLIC_KEY.trim()
         if (pk.isBlank()) {
-            Toast.makeText(this, R.string.paystack_public_key_missing, Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                this,
+                getString(R.string.paystack_public_key_missing, getString(R.string.support_email)),
+                Toast.LENGTH_LONG,
+            ).show()
             finish()
             return
         }

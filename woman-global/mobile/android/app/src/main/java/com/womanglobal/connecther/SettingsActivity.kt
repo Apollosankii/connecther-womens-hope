@@ -16,7 +16,10 @@ import com.womanglobal.connecther.databinding.ActivitySettingsBinding
 import com.womanglobal.connecther.supabase.SupabaseClientProvider
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.EmailAuthProvider
 import com.womanglobal.connecther.utils.CurrentUser
+import com.womanglobal.connecther.utils.FirebaseMfaHelper
+import com.womanglobal.connecther.utils.UserFriendlyMessages
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,8 +64,14 @@ class SettingsActivity : AppCompatActivity() {
 
         binding.saveButton.setOnClickListener { saveUserInfo() }
 
+        // SMS MFA uses Firebase Phone Auth (separate from Twilio app verification); hidden — use TOTP.
+        binding.mfaSmsEnrollButton.visibility = View.GONE
+        binding.mfaTotpEnrollButton.setOnClickListener { enrollMfaTotp() }
+        binding.setPasswordButton.setOnClickListener { showSetPasswordDialogIfNeeded() }
+
         val prefs = getSharedPreferences("user_session", Context.MODE_PRIVATE)
         applyUserToForm(resolveUser(prefs), prefs)
+        updateSetPasswordVisibility()
     }
 
     override fun onResume() {
@@ -76,8 +85,104 @@ class SettingsActivity : AppCompatActivity() {
             }
             if (!isFinishing) {
                 applyUserToForm(resolveUser(prefs), prefs)
+                updateSetPasswordVisibility()
             }
         }
+    }
+
+    private fun updateSetPasswordVisibility() {
+        val user = FirebaseAuth.getInstance().currentUser
+        val hasEmailPassword = user?.providerData?.any { it.providerId == EmailAuthProvider.PROVIDER_ID } == true
+        binding.setPasswordButton.visibility = if (user != null && !hasEmailPassword) View.VISIBLE else View.GONE
+    }
+
+    private fun showSetPasswordDialogIfNeeded() {
+        val user = FirebaseAuth.getInstance().currentUser ?: run {
+            Toast.makeText(this, R.string.password_change_sign_in_first, Toast.LENGTH_LONG).show()
+            return
+        }
+        val hasEmailPassword = user.providerData.any { it.providerId == EmailAuthProvider.PROVIDER_ID }
+        if (hasEmailPassword) {
+            Toast.makeText(this, R.string.settings_set_password_success, Toast.LENGTH_SHORT).show()
+            updateSetPasswordVisibility()
+            return
+        }
+
+        val container = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val emailInput = android.widget.EditText(this).apply {
+            hint = getString(R.string.settings_set_password_email_hint)
+            inputType = android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
+            setText(
+                user.email?.trim().orEmpty().ifBlank { binding.emailEditText.text?.toString()?.trim().orEmpty() },
+            )
+        }
+        val passInput = android.widget.EditText(this).apply {
+            hint = getString(R.string.settings_set_password_password_hint)
+            inputType =
+                android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        val pass2Input = android.widget.EditText(this).apply {
+            hint = getString(R.string.settings_set_password_confirm_hint)
+            inputType =
+                android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD
+        }
+        container.addView(emailInput)
+        container.addView(passInput)
+        container.addView(pass2Input)
+
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle(R.string.settings_set_password_title)
+            .setMessage(R.string.settings_set_password_body)
+            .setView(container)
+            .setPositiveButton(R.string.password_save, null)
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+            .also { dialog ->
+                dialog.setOnShowListener {
+                    val ok = dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE)
+                    ok.setOnClickListener {
+                        val email = emailInput.text?.toString()?.trim().orEmpty()
+                        val p1 = passInput.text?.toString().orEmpty()
+                        val p2 = pass2Input.text?.toString().orEmpty()
+                        if (email.isBlank() || !Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                            Toast.makeText(this, R.string.login_error_email, Toast.LENGTH_LONG).show()
+                            return@setOnClickListener
+                        }
+                        if (p1.length < 6) {
+                            Toast.makeText(this, R.string.register_error_password_too_short, Toast.LENGTH_LONG).show()
+                            return@setOnClickListener
+                        }
+                        if (p1 != p2) {
+                            Toast.makeText(this, R.string.register_error_password_mismatch, Toast.LENGTH_LONG).show()
+                            return@setOnClickListener
+                        }
+
+                        setLoading(true)
+                        user.linkWithCredential(EmailAuthProvider.getCredential(email, p1))
+                            .addOnCompleteListener { t ->
+                                setLoading(false)
+                                if (!t.isSuccessful) {
+                                    Toast.makeText(
+                                        this,
+                                        UserFriendlyMessages.firebaseAuth(
+                                            this,
+                                            t.exception as? Exception ?: Exception(t.exception),
+                                        ),
+                                        Toast.LENGTH_LONG,
+                                    ).show()
+                                    return@addOnCompleteListener
+                                }
+                                Toast.makeText(this, R.string.settings_set_password_success, Toast.LENGTH_LONG).show()
+                                dialog.dismiss()
+                                updateSetPasswordVisibility()
+                            }
+                    }
+                }
+                dialog.show()
+            }
     }
 
     private fun occupationChoices(): List<String> {
@@ -160,6 +265,35 @@ class SettingsActivity : AppCompatActivity() {
             .error(R.drawable.ic_avatar_neutral)
             .circleCrop()
             .into(binding.settingsAvatar)
+    }
+
+    private fun enrollMfaTotp() {
+        val user = FirebaseAuth.getInstance().currentUser ?: run {
+            Toast.makeText(this, R.string.settings_mfa_enrolled_fail, Toast.LENGTH_LONG).show()
+            return
+        }
+        setLoading(true)
+        FirebaseMfaHelper.startTotpEnrollment(
+            this,
+            user,
+            onEnrolled = {
+                if (!isFinishing) {
+                    setLoading(false)
+                    Toast.makeText(this, R.string.settings_mfa_enrolled_ok, Toast.LENGTH_LONG).show()
+                }
+            },
+            onFailure = { e ->
+                if (!isFinishing) {
+                    setLoading(false)
+                    Toast.makeText(
+                        this,
+                        e.message?.takeIf { it.isNotBlank() }
+                            ?: getString(R.string.settings_mfa_enrolled_fail),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            },
+        )
     }
 
     private fun clearFieldErrors() {
@@ -268,5 +402,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun setLoading(loading: Boolean) {
         binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         binding.saveButton.isEnabled = !loading
+        binding.mfaTotpEnrollButton.isEnabled = !loading
     }
 }

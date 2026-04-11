@@ -47,8 +47,9 @@ async function verifyFirebaseIdToken(idToken: string) {
 
   const email = typeof payload.email === "string" ? payload.email : null;
   const name = typeof payload.name === "string" ? payload.name : null;
+  const phone = typeof payload.phone_number === "string" ? payload.phone_number : null;
 
-  return { uid, email, name, raw: payload };
+  return { uid, email, name, phone, raw: payload };
 }
 
 function splitName(name: string | null): { first: string | null; last: string | null } {
@@ -101,7 +102,12 @@ function getJwtSigningSecret(): string {
   );
 }
 
-async function mintSupabaseJwt(params: { uid: string; email: string | null; role: string }) {
+async function mintSupabaseJwt(params: {
+  uid: string;
+  email: string | null;
+  role: string;
+  phone?: string | null;
+}) {
   const secret = getJwtSigningSecret();
 
   const now = Math.floor(Date.now() / 1000);
@@ -112,6 +118,7 @@ async function mintSupabaseJwt(params: { uid: string; email: string | null; role
   const jwt = await new SignJWT({
     email: params.email ?? undefined,
     role: params.role,
+    phone: params.phone?.trim() || undefined,
   })
     .setProtectedHeader({ alg: "HS256", typ: "JWT" })
     .setSubject(params.uid)
@@ -145,12 +152,13 @@ Deno.serve(async (req) => {
     const verified = await verifyFirebaseIdToken(idToken);
     const { first, last } = splitName(verified.name);
     const fallback = fallbackNames(verified.email);
+    const phoneFromToken = verified.phone?.trim() || null;
 
     const admin = createClient(supabaseUrl, serviceKey);
 
     const { data: existing, error: existingErr } = await admin
       .from("users")
-      .select("id, user_id, email")
+      .select("id, user_id, email, phone, phone_verified_at")
       .eq("clerk_user_id", verified.uid)
       .maybeSingle();
     if (existingErr) {
@@ -159,6 +167,10 @@ Deno.serve(async (req) => {
 
     const userId = (existing?.user_id as string | null) ??
       `usr_${await sha256Base36(verified.uid, 12)}`;
+
+    const dbPhoneRaw = (existing as { phone?: string | null } | null)?.phone;
+    const dbPhone = (dbPhoneRaw ?? "").trim() || null;
+    const phoneForJwt = dbPhone || phoneFromToken;
 
     if (existing?.id != null) {
       /**
@@ -187,6 +199,25 @@ Deno.serve(async (req) => {
           }
         }
       }
+      // Only sync phone from Firebase token when the token carries a verified phone number.
+      // Twilio-verified phones live in Postgres only (no Firebase phone_number claim).
+      if (phoneFromToken) {
+        const row = existing as { id?: number; phone?: string | null };
+        const rowPhone = (row.phone ?? "").trim();
+        if (rowPhone !== phoneFromToken) {
+          const { error: phoneErr } = await admin
+            .from("users")
+            .update({ phone: phoneFromToken })
+            .eq("clerk_user_id", verified.uid);
+          if (phoneErr) {
+            console.warn("auth-bridge: phone sync failed (login continues)", {
+              uid: verified.uid,
+              phone: phoneFromToken,
+              err: phoneErr,
+            });
+          }
+        }
+      }
     } else {
       // `clerk_user_id` is a legacy column name; value is the Firebase Auth UID (JWT `sub` from auth-bridge).
       const insertPayload: Record<string, unknown> = {
@@ -195,7 +226,7 @@ Deno.serve(async (req) => {
         title: "Ms",
         first_name: first ?? fallback.first,
         last_name: last ?? fallback.last,
-        phone: "0000000000",
+        phone: phoneFromToken ?? "0000000000",
         password: `firebase:${verified.uid}`,
       };
       if (verified.email) insertPayload.email = verified.email;
@@ -221,6 +252,7 @@ Deno.serve(async (req) => {
       uid: verified.uid,
       email: verified.email,
       role: "authenticated",
+      phone: phoneForJwt,
     });
 
     return corsJson({

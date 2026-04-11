@@ -16,10 +16,16 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.firebase.auth.FirebaseAuth
+import com.womanglobal.connecther.supabase.PanicSmsClient
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.ConnectHerPhoneAuth
 import com.womanglobal.connecther.utils.EmergencyHelper
 import com.womanglobal.connecther.utils.SosShockwaveAnimator
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 
 class PanicActivity : AppCompatActivity() {
     private var isGbvSelected = true
@@ -58,7 +64,12 @@ class PanicActivity : AppCompatActivity() {
         if (isGbvSelected) {
             triggerGbvPanic()
         } else {
-            startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$NAIROBI_WOMENS_GBV_HOTLINE")))
+            startActivity(
+                Intent(
+                    Intent.ACTION_DIAL,
+                    Uri.parse("tel:${getString(R.string.helpline_nairobi_womens_number_dial)}"),
+                ),
+            )
             Toast.makeText(this, R.string.panic_medical_opening_hotline, Toast.LENGTH_LONG).show()
         }
     }
@@ -66,29 +77,90 @@ class PanicActivity : AppCompatActivity() {
     private fun triggerGbvPanic() {
         EmergencyHelper.getCurrentLocation(this) { location ->
             lifecycleScope.launch {
-                val ok = SupabaseData.reportGbvEmergency(
+                val reportOk = SupabaseData.reportGbvEmergency(
                     latitude = location?.latitude,
                     longitude = location?.longitude,
                     locationText = if (location != null) "${location.latitude},${location.longitude}" else null,
                 )
-                if (ok) {
-                    Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_sent, Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_failed, Toast.LENGTH_LONG).show()
+                withContext(Dispatchers.Main) {
+                    if (reportOk) {
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_sent, Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_failed, Toast.LENGTH_LONG).show()
+                    }
                 }
-            }
 
-            when {
-                ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS) == PackageManager.PERMISSION_GRANTED -> {
-                    sendGbvSmsAndNotify(location)
+                val contacts = EmergencyHelper.getContacts(this@PanicActivity)
+                if (contacts.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_add_contacts_hint, Toast.LENGTH_LONG).show()
+                    }
+                    return@launch
                 }
-                else -> {
-                    pendingGbvSmsLocation = location
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.SEND_SMS),
-                        REQUEST_SMS_GBV
+
+                val sub = SupabaseData.getActiveSubscription()
+                if (sub != null) {
+                    val user = FirebaseAuth.getInstance().currentUser
+                    if (user == null) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+                    val token = runCatching { user.getIdToken(false).await().token?.trim().orEmpty() }.getOrDefault("")
+                    if (token.isEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+                    val e164 = Regex("^\\+[1-9]\\d{6,14}$")
+                    val recipients = contacts.mapNotNull { c ->
+                        ConnectHerPhoneAuth.normalizeKenyaE164(c.phone)?.takeIf { e164.matches(it) }
+                    }.distinct().take(5)
+                    if (recipients.isEmpty()) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_phone_invalid, Toast.LENGTH_LONG).show()
+                        }
+                        return@launch
+                    }
+                    val result = PanicSmsClient.send(
+                        token,
+                        recipients,
+                        location?.latitude,
+                        location?.longitude,
                     )
+                    withContext(Dispatchers.Main) {
+                        result.onSuccess {
+                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_notified_connecther, Toast.LENGTH_LONG).show()
+                        }.onFailure { e ->
+                            val code = (e as? PanicSmsClient.PanicSmsException)?.code
+                            val msgRes = when (code) {
+                                "RATE_LIMIT" -> R.string.panic_gbv_connecther_sms_rate_limit
+                                else -> R.string.panic_gbv_connecther_sms_failed
+                            }
+                            Toast.makeText(this@PanicActivity, msgRes, Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        when {
+                            ContextCompat.checkSelfPermission(
+                                this@PanicActivity,
+                                Manifest.permission.SEND_SMS,
+                            ) == PackageManager.PERMISSION_GRANTED -> {
+                                sendGbvSmsAndNotify(location)
+                            }
+                            else -> {
+                                pendingGbvSmsLocation = location
+                                ActivityCompat.requestPermissions(
+                                    this@PanicActivity,
+                                    arrayOf(Manifest.permission.SEND_SMS),
+                                    REQUEST_SMS_GBV,
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -143,8 +215,6 @@ class PanicActivity : AppCompatActivity() {
     }
 
     companion object {
-        /** Nairobi Women’s GBV hotline — also listed under Emergency contacts. */
-        const val NAIROBI_WOMENS_GBV_HOTLINE = "0800720565"
         private const val REQUEST_SMS_GBV = 7001
     }
 }

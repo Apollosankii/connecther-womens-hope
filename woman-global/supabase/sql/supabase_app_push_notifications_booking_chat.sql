@@ -5,7 +5,20 @@
 -- Ensure pg_net is available for async HTTP from DB.
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
--- Helper: send payload to notify-app-user edge function.
+-- Single-row config: full URL to notify-app-user (must match your Supabase project ref).
+CREATE TABLE IF NOT EXISTS public.push_notification_settings (
+  id smallint PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  notify_app_user_url text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.push_notification_settings ENABLE ROW LEVEL SECURITY;
+
+INSERT INTO public.push_notification_settings (id, notify_app_user_url)
+VALUES (1, 'https://nlemxqlnvurjkunxcnwu.supabase.co/functions/v1/notify-app-user')
+ON CONFLICT (id) DO NOTHING;
+-- Then in SQL Editor: UPDATE public.push_notification_settings SET notify_app_user_url = 'https://<ref>.supabase.co/functions/v1/notify-app-user' WHERE id = 1;
+
+-- Helper: send payload to notify-app-user (deploy with verify_jwt = false; see supabase/config.toml).
 CREATE OR REPLACE FUNCTION public.notify_app_user(
   p_user_id integer,
   p_title text,
@@ -19,14 +32,24 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_url text := 'https://nlemxqlnvurjkunxcnwu.supabase.co/functions/v1/notify-app-user';
+  v_url text;
 BEGIN
   IF p_user_id IS NULL OR p_user_id <= 0 THEN
     RETURN;
   END IF;
 
+  SELECT s.notify_app_user_url INTO v_url
+  FROM public.push_notification_settings s
+  WHERE s.id = 1
+  LIMIT 1;
+
+  IF v_url IS NULL OR length(trim(v_url)) = 0 THEN
+    RAISE WARNING 'notify_app_user: set push_notification_settings.notify_app_user_url';
+    RETURN;
+  END IF;
+
   PERFORM net.http_post(
-    url := v_url,
+    url := trim(v_url),
     headers := '{"Content-Type":"application/json"}'::jsonb,
     body := jsonb_build_object(
       'user_id', p_user_id,
@@ -108,15 +131,24 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT c.chat_code, q.quote_code
-  INTO v_chat_code, v_quote_code
-  FROM public.quotes q
-  JOIN public.chats c ON c.quote_id = q.id
-  WHERE q.client_id = NEW.client_id
-    AND q.provider_id = NEW.provider_id
-    AND q.service_id = NEW.service_id
-  ORDER BY q.id DESC
-  LIMIT 1;
+  IF NEW.quote_id IS NOT NULL THEN
+    SELECT c.chat_code, q.quote_code
+    INTO v_chat_code, v_quote_code
+    FROM public.quotes q
+    INNER JOIN public.chats c ON c.quote_id = q.id
+    WHERE q.id = NEW.quote_id
+    LIMIT 1;
+  ELSE
+    SELECT c.chat_code, q.quote_code
+    INTO v_chat_code, v_quote_code
+    FROM public.quotes q
+    INNER JOIN public.chats c ON c.quote_id = q.id
+    WHERE q.client_id = NEW.client_id
+      AND q.provider_id = NEW.provider_id
+      AND q.service_id = NEW.service_id
+    ORDER BY q.id DESC
+    LIMIT 1;
+  END IF;
 
   PERFORM public.notify_app_user(
     NEW.client_id,

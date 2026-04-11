@@ -9,6 +9,7 @@ import android.os.Looper
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.appcompat.widget.AppCompatImageButton
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
@@ -58,6 +59,10 @@ class CategoryUsersActivity : AppCompatActivity() {
 
         val categoryTitle = findViewById<TextView>(R.id.categoryTitle)
         categoryTitle.text = categoryName
+
+        findViewById<AppCompatImageButton>(R.id.buttonCategoryBack).setOnClickListener {
+            onBackPressedDispatcher.onBackPressed()
+        }
 
         searchAdapter = SearchAdapter(users, categoryName, serviceId)
 

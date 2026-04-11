@@ -2,43 +2,93 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp"
     android:background="@color/background">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:paddingStart="20dp"
+        android:paddingTop="20dp"
+        android:paddingEnd="20dp"
+        android:paddingBottom="32dp">
+
+        <ImageView
+            android:id="@+id/backButton"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_marginBottom="16dp"
+            android:contentDescription="Back"
+            android:src="@drawable/arrow_back_24px" />
 
         <TextView
             android:id="@+id/termsTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Terms and Conditions"
-            android:textSize="24sp"
+            android:text="@string/terms_title"
+            android:textColor="@color/on_background"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/terms_last_updated"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:layout_marginBottom="16dp" />
 
         <TextView
             android:id="@+id/termsContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Here you can display your terms and conditions..."
-            android:layout_marginBottom="16dp" />
+            android:lineSpacingMultiplier="1.35"
+            android:textColor="@color/on_surface"
+            android:textSize="14sp"
+            android:layout_marginBottom="32dp" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginBottom="24dp"
+            android:background="@color/outline" />
 
         <TextView
             android:id="@+id/privacyPolicyTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Privacy Policy"
-            android:textSize="24sp"
+            android:text="@string/privacy_title"
+            android:textColor="@color/on_background"
+            android:textSize="22sp"
             android:textStyle="bold"
-            android:layout_marginBottom="8dp" />
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/terms_last_updated"
+            android:textColor="@color/on_surface_variant"
+            android:textSize="12sp"
+            android:layout_marginBottom="16dp" />
 
         <TextView
             android:id="@+id/privacyPolicyContent"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Here you can display your privacy policy..." />
+            android:lineSpacingMultiplier="1.35"
+            android:textColor="@color/on_surface"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/privacyPolicyOnlineLink"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text="@string/privacy_open_full_online"
+            android:textColor="?attr/colorPrimary"
+            android:textSize="15sp"
+            android:focusable="true"
+            android:clickable="true" />
     </LinearLayout>
 </ScrollView>

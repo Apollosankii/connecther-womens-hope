@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.womanglobal.connecther.supabase.SupabaseClientProvider
@@ -32,8 +33,12 @@ import java.io.InputStream
 class ProfileFragment : Fragment() {
     private var _binding: FragmentProfileBinding? = null
     private val binding get() = _binding!!
-    private val pickImageLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
+    private var pendingCameraUri: Uri? = null
+    private val takeProfilePhotoLauncher = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        val uri = pendingCameraUri
+        pendingCameraUri = null
+        if (!ok || uri == null) return@registerForActivityResult
+        uri.let {
             Glide.with(this)
                 .load(it)
                 .circleCrop()
@@ -65,7 +70,14 @@ class ProfileFragment : Fragment() {
 
         // Set up click listener for profile picture change
         binding.profilePicture.setOnClickListener {
-            pickImageLauncher.launch("image/*")
+            val photoFile = File.createTempFile("profile_", ".jpg", requireContext().cacheDir)
+            val outUri = FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.fileprovider",
+                photoFile,
+            )
+            pendingCameraUri = outUri
+            takeProfilePhotoLauncher.launch(outUri)
         }
 
 

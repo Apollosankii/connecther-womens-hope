@@ -51,3 +51,24 @@ supabase functions deploy notify-app-user
 ```
 
 Then set the secrets in the Dashboard (or via CLI).
+
+### Database triggers (`pg_net`)
+
+Triggers call this function over HTTP **without a JWT**. In `supabase/config.toml` you **must** have:
+
+```toml
+[functions.notify-app-user]
+verify_jwt = false
+```
+
+Redeploy after changing `config.toml` so the setting applies.
+
+Store the full invoke URL in Postgres (`push_notification_settings.notify_app_user_url` — see migration `20260502120000_push_notifications_pg_net_and_triggers.sql`). Update the row if the default project ref is not yours:
+
+```sql
+UPDATE public.push_notification_settings
+SET notify_app_user_url = 'https://<your-project-ref>.supabase.co/functions/v1/notify-app-user'
+WHERE id = 1;
+```
+
+If you set **`NOTIFY_SECRET`**, HTTP callers (including `pg_net`) must send header `x-notify-secret`; the stock `notify_app_user` SQL does not — either leave `NOTIFY_SECRET` unset for trigger-based pushes or extend the function to add that header (e.g. from Vault).

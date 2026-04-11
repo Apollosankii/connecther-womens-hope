@@ -26,7 +26,7 @@
     <string name="messages_empty_illustration_cd">No conversations illustration</string>
     <string name="messages_preview_placeholder">Tap to open chat</string>
     <string name="offline_no_cached_messages">You’re offline and there’s no saved copy of this chat yet.</string>
-    <string name="providers_nearby_hint">Showing professionals within about 10 km when location is allowed.</string>
+    <string name="providers_nearby_hint">Showing professionals within each service’s search radius when location is allowed.</string>
     <string name="providers_all_hint">Showing all professionals for this service (enable location for nearby only).</string>
 
     <!-- Firebase Google Sign-In (enable Google provider in Firebase, then re-download google-services.json) -->
@@ -52,7 +52,8 @@
     <string name="paystack_error_generic">Payment couldn’t start. Check your connection and try again.</string>
     <string name="paystack_error_sheet_generic">The payment screen had a problem. You can try again or pay in the browser if offered.</string>
     <string name="paystack_cancelled">Payment was cancelled.</string>
-    <string name="paystack_public_key_missing">Payment isn’t set up in this build yet. Contact support or try again later.</string>
+    <string name="support_email" translatable="false">connecther05@gmail.com</string>
+    <string name="paystack_public_key_missing">Payment isn’t set up in this build yet. Email %1$s or try again later.</string>
     <string name="paystack_fallback_title">Try paying in the browser</string>
     <string name="paystack_fallback_message">The in‑app payment window had a problem. You can finish safely on Paystack’s site instead.</string>
     <string name="paystack_fallback_open_browser">Open secure checkout</string>
@@ -83,6 +84,11 @@
     <string name="panic_gbv_sms_permission_denied">SMS permission is needed to alert your emergency contacts.</string>
     <string name="panic_gbv_report_sent">Emergency report sent to authorities.</string>
     <string name="panic_gbv_report_failed">Could not send emergency report. SMS alerts will still be sent.</string>
+    <string name="panic_gbv_contacts_notified_connecther">Your emergency contacts were notified by SMS (included with your plan).</string>
+    <string name="panic_gbv_connecther_sms_sign_in_required">Sign in to send plan SMS alerts to your emergency contacts.</string>
+    <string name="panic_gbv_contacts_phone_invalid">Add valid phone numbers (with country code) for your emergency contacts.</string>
+    <string name="panic_gbv_connecther_sms_failed">Couldn’t send plan SMS. Try again in a moment.</string>
+    <string name="panic_gbv_connecther_sms_rate_limit">Too many SMS alerts were sent recently. Try again later or use device SMS if available.</string>
 
     <string name="toggle_theme">Toggle theme</string>
     <string name="no_notifications">No notifications yet</string>
@@ -91,6 +97,12 @@
     <string name="home_sos_label">SOS</string>
     <string name="home_emergency_contacts_title">Emergency contacts</string>
     <string name="home_emergency_contacts_subtitle">Helplines &amp; support</string>
+    <!-- Nairobi Women’s GBV hotline (official toll-free); must match medical panic dial. -->
+    <string name="helpline_nairobi_womens_title">Nairobi Women\'s GBV Hotline</string>
+    <string name="helpline_nairobi_womens_subtitle">Nairobi County — gender-based violence support (24/7)</string>
+    <string name="helpline_nairobi_womens_number_display">0800 720 565</string>
+    <string name="helpline_nairobi_womens_number_dial" translatable="false">0800720565</string>
+    <string name="emergency_contacts_tap_helpline">Tap the helpline to call. Add personal contacts below for SMS alerts.</string>
     <string name="home_services_section_label">Services</string>
     <string name="home_book_provider_title">Book a provider</string>
     <string name="home_see_all">See all</string>
@@ -138,6 +150,8 @@
     <string name="profile_documents_open">View %1$s</string>
     <string name="profile_documents_unavailable">Couldn\'t open this file. Try again later.</string>
     <string name="profile_documents_verified">Verified</string>
+    <string name="secure_document_title">Credential</string>
+    <string name="secure_document_download_blocked">Saving or exporting this credential isn’t allowed. You can view it here only.</string>
 
     <string name="history_label_client">Client: %1$s</string>
     <string name="history_label_provider">Provider: %1$s</string>
@@ -159,9 +173,12 @@
     <string name="jobs_screen_title">Bookings</string>
     <string name="jobs_screen_subtitle">Your requests and active jobs in one place.</string>
     <string name="jobs_section_active_jobs">Active jobs — mark complete when the visit is done</string>
+    <string name="jobs_section_completed_jobs">Completed jobs</string>
     <string name="jobs_section_booking_requests">Booking requests</string>
     <string name="jobs_rate_provider_title">Rate your provider?</string>
     <string name="jobs_rate_provider_message">Optional — share a quick star rating and short feedback. You can also do this later from History.</string>
+    <string name="jobs_rate_client_title">Rate your client?</string>
+    <string name="jobs_rate_client_message">Optional — share a quick star rating for safety and trust. You can also do this later from History.</string>
     <string name="jobs_rate_now">Rate now</string>
     <string name="jobs_rate_not_now">Not now</string>
     <string name="jobs_empty_title">Nothing here yet</string>
@@ -191,11 +208,39 @@
     <string name="job_complete_provider_hint">You are the provider. The client marks the job complete and pays. Tap View location for directions to the job address.</string>
     <string name="job_complete_failed">Couldn\'t mark the job complete. Check connection or try again.</string>
     <string name="job_complete_success_toast">Job marked complete.</string>
+    <string name="booking_extra_address_hint">Building, floor, unit, directions (required for this service)</string>
+    <string name="booking_extra_address_section_title">Extra address details (required for this service)</string>
+    <string name="booking_extra_required_toast">Add the required building or unit details before sending this request.</string>
+    <string name="job_action_arrival_photo">Upload arrival photo (optional)</string>
+    <string name="job_action_start_work">Start work — enable hourly check-ins</string>
+    <string name="job_arrival_upload_failed">Could not upload arrival photo. Check connection and try again.</string>
+    <string name="job_arrival_recorded">Arrival photo saved.</string>
+    <string name="job_work_started">Work started — you’ll get hourly safety reminders.</string>
+    <string name="job_start_work_failed">Could not start work: %1$s</string>
+    <string name="job_safety_seeker_arrived">Provider checked in with a workplace photo.</string>
+    <string name="job_safety_seeker_active">Provider is doing hourly safety check-ins during this visit.</string>
+    <string name="job_safety_provider_active">Hourly safety check-ins are on. Confirm each hour from the notification.</string>
+    <string name="safety_checkin_channel_name">Safety check-ins</string>
+    <string name="safety_checkin_title">Safety check-in</string>
+    <string name="safety_checkin_message">Tap “I’m OK” to log your hourly check-in for this job.</string>
+    <string name="safety_checkin_ok">I’m OK</string>
+    <string name="safety_checkin_submitted">Check-in saved.</string>
+    <string name="safety_checkin_failed">Check-in could not be saved.</string>
 
     <string name="login_brand_name">ConnectHer</string>
     <string name="login_welcome_back">Welcome back</string>
     <string name="login_subtitle">Sign in to continue to your account</string>
     <string name="login_continue_google">Continue with Google</string>
+    <string name="auth_phone_hint">Mobile number</string>
+    <string name="auth_phone_invalid">Enter a valid number (e.g. 07… or +254…).</string>
+    <string name="auth_otp_hint">SMS code</string>
+    <string name="auth_verify">Verify</string>
+    <string name="auth_otp_title">Enter verification code</string>
+    <string name="auth_otp_sent">Code sent. Check your SMS.</string>
+    <string name="auth_phone_verify_failed">Phone verification failed.</string>
+    <string name="auth_phone_verify_sign_out_first">You are already signed in. Sign out from the other account to register a new one.</string>
+    <string name="register_phone_link_title">Verify your number</string>
+    <string name="register_phone_link_body">We’ll text you a verification code to confirm this number belongs to you.</string>
     <string name="login_or">OR</string>
     <string name="login_email_hint">Email</string>
     <string name="login_password_hint">Password</string>
@@ -211,18 +256,50 @@
     <string name="forgot_password_sent">If an account exists for that email, we’ve sent password reset instructions. Check your inbox and spam folder.</string>
     <string name="forgot_password_failed">Couldn’t send the email. Check your connection and try again.</string>
     <string name="login_terms_footer">By signing in you agree to our Terms of Service and Privacy Policy.</string>
+    <!-- Must match Firebase project; whitelisted in Firebase Console → Auth → Settings → Authorized domains -->
+    <string name="auth_email_link_continue_url" translatable="false">https://connecther-d6e1a.firebaseapp.com</string>
+    <string name="login_continue_email_link">Sign in with email link</string>
+    <string name="auth_email_link_sent">Check your email — we sent a sign-in link. Open it on this device to finish signing in.</string>
+    <string name="auth_email_link_failed">Couldn’t send the sign-in email. Check the address and try again.</string>
+    <string name="auth_email_link_need_email">Enter your email address first.</string>
+    <string name="auth_email_link_complete_failed">Couldn’t complete sign-in from the link. Request a new link and try again.</string>
+    <string name="auth_mfa_title">Two-step verification</string>
+    <string name="auth_mfa_enter_sms_code">Enter the code we texted to your saved number.</string>
+    <string name="auth_mfa_totp_title">Authenticator code</string>
+    <string name="auth_mfa_totp_body">Open your authenticator app and enter the 6-digit code for ConnectHer.</string>
+    <string name="auth_mfa_totp_hint">6-digit code</string>
+    <string name="auth_mfa_invalid_code">Enter a valid 6-digit code.</string>
+    <string name="auth_mfa_no_method">No supported second step is set up on this account. Contact support.</string>
+    <string name="auth_mfa_enroll_sms_title">Confirm your number</string>
+    <string name="auth_mfa_enroll_totp_title">Authenticator app</string>
+    <string name="auth_mfa_enroll_totp_message">Add this account in Google Authenticator (or another TOTP app): open the link or scan a QR from your app using this setup URL:\n\n%1$s\n\nThen enter the 6-digit code below.</string>
+    <string name="auth_mfa_totp_display_name">Authenticator app</string>
+    <string name="settings_section_security">Security</string>
+    <string name="settings_security_subtitle">SMS codes and an authenticator app add a second step when you sign in with email and password. Email “magic link” sign-in confirms your inbox without a password.</string>
+    <string name="settings_mfa_enroll_sms">Add SMS two-step verification</string>
+    <string name="settings_mfa_enroll_totp">Add authenticator app</string>
+    <string name="settings_mfa_enrolled_ok">Two-step method added.</string>
+    <string name="settings_mfa_enrolled_fail">Couldn’t add two-step verification. Sign out, sign in again, then retry.</string>
+    <string name="settings_set_password">Set a password</string>
+    <string name="settings_set_password_title">Set a password</string>
+    <string name="settings_set_password_body">Create a password so you can sign in with email and password in the future.</string>
+    <string name="settings_set_password_email_hint">Email</string>
+    <string name="settings_set_password_password_hint">New password</string>
+    <string name="settings_set_password_confirm_hint">Confirm password</string>
+    <string name="settings_set_password_success">Password set.</string>
 
     <!-- Auth: user-facing (avoid Firebase/Google raw error codes) -->
     <string name="auth_error_invalid_email">That doesn’t look like a valid email. Please check and try again.</string>
     <string name="auth_error_wrong_password">Wrong password. Try again or use “Forgot password” if your app offers it.</string>
     <string name="auth_error_user_not_found">No account uses this email yet. Create an account or check the spelling.</string>
-    <string name="auth_error_user_disabled">This account has been disabled. Contact support if you need help.</string>
+    <string name="auth_error_user_disabled">This account has been disabled. Email %1$s if you need help.</string>
     <string name="auth_error_email_in_use">This email is already registered. Sign in instead.</string>
     <string name="auth_error_weak_password">Choose a stronger password (at least 6 characters).</string>
     <string name="auth_error_too_many_requests">Too many attempts. Wait a minute, then try again.</string>
     <string name="auth_error_network">No stable internet connection. Check Wi‑Fi or mobile data and try again.</string>
     <string name="auth_error_invalid_credential">Email or password isn’t correct. Double‑check both and try again.</string>
-    <string name="auth_error_not_allowed">Email sign‑in isn’t allowed for this app. Contact support.</string>
+    <string name="auth_error_not_allowed">Email sign‑in isn’t allowed for this app. Contact %1$s.</string>
+    <string name="auth_error_admin_restricted_operation">Phone verification needs a temporary sign-in step. Ask your project admin to open Firebase Console → Authentication → Sign-in method → enable Anonymous, then try again.</string>
     <string name="auth_error_account_exists_different">An account already exists with this email using a different sign‑in method.</string>
     <string name="auth_error_generic">Something went wrong signing you in. Please try again.</string>
     <string name="auth_google_cancelled">Google sign‑in was cancelled.</string>
@@ -243,6 +320,18 @@
 
     <string name="register_title">Create your account</string>
     <string name="register_subtitle">Fill in your details to get started</string>
+    <string name="register_google_complete_title">Finish signing up</string>
+    <string name="register_google_complete_subtitle">You signed in with Google. Add your profile details and verify your phone number to continue.</string>
+    <string name="register_google_button">Continue</string>
+    <string name="register_success_google">Welcome! Your profile is ready.</string>
+    <string name="register_complete_with_password_subtitle">Add your details, verify your phone number, and create a password for future sign-ins.</string>
+    <string name="register_button_send_link">Send email link</string>
+    <string name="register_email_link_sent">Check your email — we sent a link to continue registration on this device.</string>
+    <string name="register_email_link_failed">Couldn’t send the email link</string>
+    <string name="register_email_link_complete_title">Finish registration</string>
+    <string name="register_email_link_complete_subtitle">We verified your email. Now verify your phone number to protect your account.</string>
+    <string name="register_phone_complete_title">Finish signing up</string>
+    <string name="register_phone_complete_subtitle">Your phone number is verified. Add your profile details to continue.</string>
     <string name="register_title_hint">Title</string>
     <string name="register_first_name_hint">First name</string>
     <string name="register_last_name_hint">Last name</string>
@@ -250,6 +339,12 @@
     <string name="register_password_hint">Password</string>
     <string name="register_confirm_password_hint">Confirm password</string>
     <string name="register_button_label">Create account</string>
+    <string name="register_button_verify_phone">Verify phone number</string>
+    <string name="register_button_phone_verified">Phone verified</string>
+    <string name="auth_phone_verified_success_title">Phone verified</string>
+    <string name="auth_phone_verified_success_message">Your phone number was verified successfully. You can continue with Google to finish creating your account.</string>
+    <string name="register_continue_google">Continue with Google</string>
+    <string name="register_google_email_mismatch">The email you entered doesn’t match the Google account you selected. Use the same email, or change it and try again.</string>
     <string name="register_sign_in_prompt">Already have an account? Sign in</string>
     <string name="register_terms_footer">By creating an account you agree to our Terms of Service and Privacy Policy.</string>
     <string name="register_error_first_name">First name is required</string>
@@ -257,6 +352,7 @@
     <string name="register_error_phone">Phone number is required</string>
     <string name="register_error_title">Title is required</string>
     <string name="register_error_password_empty">Please enter and confirm your password.</string>
+    <string name="register_error_password_too_short">Choose a password with at least 6 characters.</string>
     <string name="register_error_password_mismatch">Passwords don’t match. Type the same password twice.</string>
     <string name="register_success_verify_email">Account created. We sent a verification link to your email—open it when you can to confirm your address.</string>
     <string name="register_bridge_failed">Account created, but we couldn’t finish setup. Sign in after verifying your email.</string>
@@ -293,4 +389,12 @@
     <string name="settings_occupation_other">Other</string>
     <string name="settings_error_full_name">Please enter your full name</string>
     <string name="settings_error_occupation_custom">Please describe your occupation</string>
+
+    <!-- Terms & Privacy -->
+    <string name="terms_title">Terms of Service</string>
+    <string name="privacy_title">Privacy Policy</string>
+    <string name="terms_last_updated">Last updated: April 2026</string>
+    <!-- Same document as Play Console → App content → Privacy policy. Share: Anyone with the link can view. -->
+    <string name="privacy_policy_url" translatable="false">https://docs.google.com/document/d/1Xd6eqWVaJEkzaMQlHH6wLDCoAsB2ltUFPhQHHOJH61E/preview</string>
+    <string name="privacy_open_full_online">View full privacy policy online</string>
 </resources>

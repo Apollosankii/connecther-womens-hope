@@ -12,7 +12,6 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.womanglobal.connecther.adapters.MultiTypeAdapter
 import com.womanglobal.connecther.data.Category
 import com.womanglobal.connecther.data.Service
@@ -161,8 +160,7 @@ class HomeFragment : Fragment() {
         val sharedPreferences = ctx.getSharedPreferences("app_cache", Context.MODE_PRIVATE)
         val json = sharedPreferences.getString(sharedPrefKey, null)
         return if (!json.isNullOrEmpty()) {
-            val type = object : TypeToken<List<Service>>() {}.type
-            gson.fromJson(json, type)
+            gson.fromJson(json, Array<Service>::class.java)?.toList() ?: emptyList()
         } else {
             emptyList()
         }

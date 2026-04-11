@@ -16,10 +16,22 @@ const corsHeaders = {
 };
 
 interface NotifyBody {
-  user_id: number; // public.users.id (internal PK)
+  user_id: number | string; // public.users.id (internal PK); string allowed for JSON from pg_net
   title?: string;
   body?: string;
   data?: Record<string, string>;
+}
+
+function parseUserId(raw: unknown): number | null {
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    const n = Math.trunc(raw);
+    return n >= 1 ? n : null;
+  }
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = parseInt(raw.trim(), 10);
+    return Number.isFinite(n) && n >= 1 ? n : null;
+  }
+  return null;
 }
 
 async function getFirebaseAccessToken(): Promise<string> {
@@ -147,9 +159,9 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const userId = body.user_id;
-  if (typeof userId !== "number" || userId < 1) {
-    return new Response(JSON.stringify({ error: "user_id (number) is required" }), {
+  const userId = parseUserId(body.user_id);
+  if (userId == null) {
+    return new Response(JSON.stringify({ error: "user_id (positive integer) is required" }), {
       status: 400,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

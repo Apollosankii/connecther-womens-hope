@@ -2,7 +2,6 @@ package com.womanglobal.connecther.data.local
 
 import android.content.Context
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.womanglobal.connecther.data.Job
 import com.womanglobal.connecther.data.SubscriptionPackage
 import com.womanglobal.connecther.services.ChatMessage
@@ -34,6 +33,7 @@ object AppOfflineCache {
     private const val KEY_ACTIVE_SUB = "v2:active_subscription"
     private const val KEY_PENDING_JOBS = "v2:pending_jobs"
     private const val KEY_CONVERSATIONS = "v1:conversations"
+    private const val KEY_COMPLETED_JOBS = "v2:completed_jobs"
 
     fun messagesKey(chatCode: String) = "v1:chat_messages:${chatCode.trim()}"
 
@@ -54,8 +54,7 @@ object AppOfflineCache {
 
     suspend fun readChatMessages(context: Context, chatCode: String): List<ChatMessage>? = withContext(Dispatchers.IO) {
         val raw = prefs(context).getString(messagesKey(chatCode), null) ?: return@withContext null
-        val type = object : TypeToken<List<ChatMessage>>() {}.type
-        runCatching { gson.fromJson<List<ChatMessage>>(raw, type) }.getOrNull()
+        runCatching { gson.fromJson(raw, Array<ChatMessage>::class.java)?.toList() }.getOrNull()
     }
 
     suspend fun writeChatMessages(context: Context, chatCode: String, messages: List<ChatMessage>) = withContext(Dispatchers.IO) {
@@ -64,8 +63,7 @@ object AppOfflineCache {
 
     suspend fun readSubscriptionPlans(context: Context): List<SubscriptionPackage>? = withContext(Dispatchers.IO) {
         val raw = prefs(context).getString(KEY_PLANS, null) ?: return@withContext null
-        val type = object : TypeToken<List<SubscriptionPackage>>() {}.type
-        runCatching { gson.fromJson<List<SubscriptionPackage>>(raw, type) }.getOrNull()
+        runCatching { gson.fromJson(raw, Array<SubscriptionPackage>::class.java)?.toList() }.getOrNull()
     }
 
     suspend fun writeSubscriptionPlans(context: Context, plans: List<SubscriptionPackage>) = withContext(Dispatchers.IO) {
@@ -104,18 +102,25 @@ object AppOfflineCache {
 
     suspend fun readPendingJobs(context: Context): List<Job>? = withContext(Dispatchers.IO) {
         val raw = prefs(context).getString(KEY_PENDING_JOBS, null) ?: return@withContext null
-        val type = object : TypeToken<List<Job>>() {}.type
-        runCatching { gson.fromJson<List<Job>>(raw, type) }.getOrNull()
+        runCatching { gson.fromJson(raw, Array<Job>::class.java)?.toList() }.getOrNull()
     }
 
     suspend fun writePendingJobs(context: Context, jobs: List<Job>) = withContext(Dispatchers.IO) {
         prefs(context).edit().putString(KEY_PENDING_JOBS, gson.toJson(jobs)).apply()
     }
 
+    suspend fun readCompletedJobs(context: Context): List<Job>? = withContext(Dispatchers.IO) {
+        val raw = prefs(context).getString(KEY_COMPLETED_JOBS, null) ?: return@withContext null
+        runCatching { gson.fromJson(raw, Array<Job>::class.java)?.toList() }.getOrNull()
+    }
+
+    suspend fun writeCompletedJobs(context: Context, jobs: List<Job>) = withContext(Dispatchers.IO) {
+        prefs(context).edit().putString(KEY_COMPLETED_JOBS, gson.toJson(jobs)).apply()
+    }
+
     suspend fun readConversations(context: Context): List<Conversation>? = withContext(Dispatchers.IO) {
         val raw = prefs(context).getString(KEY_CONVERSATIONS, null) ?: return@withContext null
-        val type = object : TypeToken<List<Conversation>>() {}.type
-        runCatching { gson.fromJson<List<Conversation>>(raw, type) }.getOrNull()
+        runCatching { gson.fromJson(raw, Array<Conversation>::class.java)?.toList() }.getOrNull()
     }
 
     suspend fun writeConversations(context: Context, rows: List<Conversation>) = withContext(Dispatchers.IO) {

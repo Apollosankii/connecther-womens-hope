@@ -19,6 +19,8 @@
                         <th>Provider</th>
                         <th>Service</th>
                         <th>Date</th>
+                        <th>Arrival photo</th>
+                        <th>Safety check-ins</th>
                         <th class="text-right">Price</th>
                     </tr>
                 </thead>
@@ -30,11 +32,24 @@
                         <td class="ch-td-name">{{job.provider}}</td>
                         <td>{{job.service}}</td>
                         <td>{{job.date}}</td>
+                        <td>
+                            {% if job.arrival_photo_url %}
+                            <a href="{{ job.arrival_photo_url }}" target="_blank" rel="noopener">View</a>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ job.checkins_done }}/{{ job.checkins_expected }}
+                            {% if job.checkins_missed and job.checkins_missed > 0 %}
+                            <span class="text-danger"> (missed {{ job.checkins_missed }})</span>
+                            {% endif %}
+                        </td>
                         <td class="text-right"><strong>KES {{job.price}}</strong></td>
                     </tr>
                     {%endfor%}
                     {%if not jobs%}
-                    <tr><td colspan="6" class="ch-empty-state">No ongoing jobs</td></tr>
+                    <tr><td colspan="8" class="ch-empty-state">No ongoing jobs</td></tr>
                     {%endif%}
                 </tbody>
             </table>

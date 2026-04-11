@@ -29,26 +29,23 @@ class EmergencyContactsActivity : AppCompatActivity() {
         val bgRes: Int
     )
 
-    private val helplines = listOf(
-        Helpline("National Emergency", "Police, Ambulance, Fire", "112", R.drawable.ic_phone_call, R.color.primary, R.drawable.bg_icon_circle_pink),
-        Helpline("GBV Command Centre", "24/7 Gender-Based Violence Helpline", "0800 428 428", R.drawable.ic_emergency_gbv, R.color.primary, R.drawable.bg_icon_circle_pink),
-        Helpline(
-            "Nairobi Women's GBV Hotline",
-            "Nairobi County — gender-based violence support",
-            "0800 720 565",
-            R.drawable.ic_emergency_gbv,
-            R.color.primary,
-            R.drawable.bg_icon_circle_pink
-        ),
-        Helpline("Childline", "Child abuse & protection", "116", R.drawable.ic_heart_outline, R.color.accent_color, R.drawable.bg_icon_circle_orange),
-        Helpline("POWA", "Crisis counselling for women", "011 642 4345", R.drawable.ic_emergency_gbv, R.color.primary, R.drawable.bg_icon_circle_pink),
-        Helpline("Lifeline", "24/7 Crisis support", "0861 322 322", R.drawable.ic_phone_call, R.color.primary, R.drawable.bg_icon_circle_blue)
-    )
+    private lateinit var helplines: List<Helpline>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityEmergencyContactsBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        helplines = listOf(
+            Helpline(
+                getString(R.string.helpline_nairobi_womens_title),
+                getString(R.string.helpline_nairobi_womens_subtitle),
+                getString(R.string.helpline_nairobi_womens_number_display),
+                R.drawable.ic_emergency_gbv,
+                R.color.primary,
+                R.drawable.bg_icon_circle_pink,
+            ),
+        )
 
         binding.backButton.setOnClickListener { finish() }
         binding.addContactButton.setOnClickListener { showAddContactDialog() }

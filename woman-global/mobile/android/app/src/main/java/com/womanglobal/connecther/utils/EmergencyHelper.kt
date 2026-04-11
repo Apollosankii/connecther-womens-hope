@@ -12,7 +12,6 @@ import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 import com.womanglobal.connecther.data.EmergencyContact
 
 object EmergencyHelper {
@@ -24,8 +23,7 @@ object EmergencyHelper {
     fun getContacts(context: Context): List<EmergencyContact> {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val json = prefs.getString(KEY_CONTACTS, null) ?: return emptyList()
-        val type = object : TypeToken<List<EmergencyContact>>() {}.type
-        return Gson().fromJson(json, type) ?: emptyList()
+        return Gson().fromJson(json, Array<EmergencyContact>::class.java)?.toList() ?: emptyList()
     }
 
     fun saveContacts(context: Context, contacts: List<EmergencyContact>) {

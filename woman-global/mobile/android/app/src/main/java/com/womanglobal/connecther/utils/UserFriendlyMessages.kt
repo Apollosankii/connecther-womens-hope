@@ -19,13 +19,20 @@ object UserFriendlyMessages {
             "ERROR_INVALID_EMAIL" -> context.getString(R.string.auth_error_invalid_email)
             "ERROR_WRONG_PASSWORD" -> context.getString(R.string.auth_error_wrong_password)
             "ERROR_USER_NOT_FOUND" -> context.getString(R.string.auth_error_user_not_found)
-            "ERROR_USER_DISABLED" -> context.getString(R.string.auth_error_user_disabled)
+            "ERROR_USER_DISABLED" -> context.getString(
+                R.string.auth_error_user_disabled,
+                context.getString(R.string.support_email),
+            )
             "ERROR_EMAIL_ALREADY_IN_USE" -> context.getString(R.string.auth_error_email_in_use)
             "ERROR_WEAK_PASSWORD" -> context.getString(R.string.auth_error_weak_password)
             "ERROR_TOO_MANY_REQUESTS" -> context.getString(R.string.auth_error_too_many_requests)
             "ERROR_NETWORK_REQUEST_FAILED" -> context.getString(R.string.auth_error_network)
             "ERROR_INVALID_CREDENTIAL" -> context.getString(R.string.auth_error_invalid_credential)
-            "ERROR_OPERATION_NOT_ALLOWED" -> context.getString(R.string.auth_error_not_allowed)
+            "ERROR_OPERATION_NOT_ALLOWED" -> context.getString(
+                R.string.auth_error_not_allowed,
+                context.getString(R.string.support_email),
+            )
+            "ERROR_ADMIN_RESTRICTED_OPERATION" -> context.getString(R.string.auth_error_admin_restricted_operation)
             "ERROR_ACCOUNT_EXISTS_WITH_DIFFERENT_CREDENTIAL" ->
                 context.getString(R.string.auth_error_account_exists_different)
             else -> if (code.isNotBlank()) {

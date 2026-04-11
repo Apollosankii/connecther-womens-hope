@@ -77,6 +77,9 @@ class ChatActivity : AppCompatActivity() {
             chatAdapter = ChatAdapter(chatMessages, currentUserId)
             chatRecyclerView.adapter = chatAdapter
 
+            // Normalize to a real chat_code (some entry points pass numeric chat_id).
+            chatCode = SupabaseData.resolveChatCode(chatCode)
+
             val header = if (chatCode.isNotBlank()) {
                 runCatching { SupabaseData.getChatHeader(chatCode) }.getOrNull()
             } else {

@@ -3,8 +3,8 @@
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
     <div class="ch-page-header">
         <div>
-            <h2 class="ch-page-title">Free trial connects</h2>
-            <p class="ch-page-subtitle">How many booking “connects” a new member gets before they pay for a plan. Each person’s balance is stored on their account; this number is the default for new sign-ups only.</p>
+            <h2 class="ch-page-title">Platform settings</h2>
+            <p class="ch-page-subtitle">Free-trial booking connects for new members, and rate limits for subscribed users who send GBV panic SMS through ConnectHer (Twilio).</p>
         </div>
         <a href="{{ url_for('subscription_plans') }}" class="ch-btn-sm" style="background:var(--ch-text);color:#fff;border:none;">Subscription plans</a>
     </div>
@@ -12,16 +12,48 @@
     <div class="ch-card mb-4">
         <div class="ch-card-body">
             <form method="post">
+                <h5 class="mb-3">Free trial connects</h5>
                 <div class="form-group">
                     <label for="free_tier_connects">Default free connects for new members</label>
                     <input type="number" id="free_tier_connects" name="free_tier_connects" class="form-control" min="0" step="1"
                            value="{{ settings.free_tier_connects }}" required>
-                    <small class="form-text text-muted">Saving here updates the platform default only. It does not change existing members’ balances unless you use “Apply to all existing users” below.</small>
+                    <small class="form-text text-muted">Updates the platform default only. It does not change existing members’ balances unless you use “Apply to all existing users” below.</small>
                 </div>
+
+                <hr class="my-4">
+
+                <h5 class="mb-2">Subscribed panic SMS (Twilio)</h5>
+                <p class="text-muted small mb-3">These values are read by the Supabase Edge function <code>panic-sms</code> on each request. A <strong>dispatch</strong> is one successful send batch (up to five emergency numbers per tap). They reduce spam, mistaken taps, and Twilio cost.</p>
+
+                <div class="form-group">
+                    <label for="panic_sms_max_dispatches_per_24h">Max dispatches per subscriber (rolling 24 hours)</label>
+                    <input type="number" id="panic_sms_max_dispatches_per_24h" name="panic_sms_max_dispatches_per_24h" class="form-control" min="1" max="200" step="1"
+                           value="{{ settings.panic_sms_max_dispatches_per_24h }}" required>
+                    <small class="form-text text-muted">Per Firebase account. Typical range 4–12.</small>
+                </div>
+                <div class="form-group">
+                    <label for="panic_sms_min_seconds_between">Minimum seconds between dispatches (same subscriber)</label>
+                    <input type="number" id="panic_sms_min_seconds_between" name="panic_sms_min_seconds_between" class="form-control" min="0" max="86400" step="1"
+                           value="{{ settings.panic_sms_min_seconds_between }}" required>
+                    <small class="form-text text-muted">Cooldown after a successful send. Use <code>0</code> for no gap (not recommended).</small>
+                </div>
+                <div class="form-group">
+                    <label for="panic_sms_max_global_per_hour">Max dispatches platform-wide (rolling 1 hour)</label>
+                    <input type="number" id="panic_sms_max_global_per_hour" name="panic_sms_max_global_per_hour" class="form-control" min="10" max="100000" step="1"
+                           value="{{ settings.panic_sms_max_global_per_hour }}" required>
+                    <small class="form-text text-muted">Safety fuse across all users; raise only if you expect heavy legitimate load.</small>
+                </div>
+
+                <p class="text-muted small mb-3">
+                    Recent successful dispatches:
+                    last 24h: <strong>{% if panic_count_24h is not none %}{{ panic_count_24h }}{% else %}—{% endif %}</strong>,
+                    last hour: <strong>{% if panic_count_1h is not none %}{{ panic_count_1h }}{% else %}—{% endif %}</strong>.
+                </p>
+
                 {% if settings.updated_at %}
-                <p class="text-muted small mb-3">Last updated: {{ settings.updated_at }}</p>
+                <p class="text-muted small mb-3">Settings row last updated: {{ settings.updated_at }}</p>
                 {% endif %}
-                <button type="submit" class="btn btn-primary">Save default</button>
+                <button type="submit" class="btn btn-primary">Save platform settings</button>
             </form>
         </div>
     </div>

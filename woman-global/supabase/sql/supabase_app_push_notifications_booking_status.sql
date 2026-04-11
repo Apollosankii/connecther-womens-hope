@@ -90,7 +90,7 @@ BEGIN
     PERFORM public.notify_app_user(
       v_client_id,
       'Job completed',
-      'Your provider marked the job as complete.',
+      'Your booking has been marked complete. Tap to open chat.',
       'job_completed',
       jsonb_build_object(
         'chat_code', COALESCE(v_chat_code, ''),

@@ -64,8 +64,8 @@ android {
         minSdk = 24
         // Align with compileSdk and Google Play target API requirements for app updates.
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.6"
+        versionCode = 12
+        versionName = "1.12"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -105,26 +105,31 @@ android {
             require(keystorePropertiesFile.exists()) {
                 "Release signing requires android/keystore.properties (copy keystore.properties.example)."
             }
-            val storePath = keystoreProperties.getProperty("storeFile")
+            val storePath = keystoreProperties.getProperty("storeFile")?.trim()
                 ?: error("keystore.properties: missing storeFile")
             storeFile = rootProject.file(storePath)
-            storePassword = keystoreProperties.getProperty("storePassword")
+            storePassword = keystoreProperties.getProperty("storePassword")?.trim()
                 ?: error("keystore.properties: missing storePassword")
-            keyAlias = keystoreProperties.getProperty("keyAlias")
+            keyAlias = keystoreProperties.getProperty("keyAlias")?.trim()
                 ?: error("keystore.properties: missing keyAlias")
-            keyPassword = keystoreProperties.getProperty("keyPassword")
+            keyPassword = keystoreProperties.getProperty("keyPassword")?.trim()
                 ?: error("keystore.properties: missing keyPassword")
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             signingConfig = signingConfigs.getByName("release")
+            // Native libs (e.g. Paystack, Firebase): upload symbols Play Console recommends for crash/ANR deobfuscation.
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
         }
     }
 
@@ -180,6 +185,7 @@ dependencies {
     // Auth
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.android.gms:play-services-auth:21.4.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
 
     // Supabase Kotlin (Postgrest/Auth/Storage) + engine
     implementation("io.github.jan-tennert.supabase:postgrest-kt:3.4.1")

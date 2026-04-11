@@ -152,8 +152,7 @@ class NotificationService : FirebaseMessagingService() {
 
         private val CHAT_DEEP_LINK_TYPES = setOf(
             "message",
-            "booking_accepted",
-            "job_completed",
+            // Booking accepted should not force-open Messages/Chat; user can choose.
         )
 
         /** FCM [type] → HomeActivity [fragment_to_open] key (see ViewPagerAdapter tab order). */

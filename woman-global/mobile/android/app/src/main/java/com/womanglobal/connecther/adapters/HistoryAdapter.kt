@@ -15,8 +15,7 @@ import com.womanglobal.connecther.utils.JobDateUtils
 class HistoryAdapter(
     private val context: Context,
     private val jobs: List<Job>,
-    private val isProvider: Boolean,
-    private val onRateClick: (Job) -> Unit
+    private val onRateClick: (Job) -> Unit,
 ) : RecyclerView.Adapter<HistoryAdapter.HistoryViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): HistoryViewHolder {
@@ -45,10 +44,10 @@ class HistoryAdapter(
 
         fun bind(job: Job) {
             jobTitle.text = "Completed Job #${job.job_id}"
-            if (isProvider) {
-                clientName.text = context.getString(R.string.history_label_client, job.client)
-            } else {
+            if (job.i_am_client) {
                 clientName.text = context.getString(R.string.history_label_provider, job.provider)
+            } else {
+                clientName.text = context.getString(R.string.history_label_client, job.client)
             }
             serviceName.text = "Service: ${job.service}"
             jobPrice.text = "Price: Ksh ${job.price}"
@@ -64,7 +63,8 @@ class HistoryAdapter(
             }
 
             val needRate = !job.my_review_submitted
-            val counterpartyFirst = if (isProvider) job.client.trim() else job.provider.trim()
+            val counterpartyFirst =
+                if (job.i_am_client) job.provider.trim() else job.client.trim()
             val counterpartyLabel = counterpartyFirst.ifBlank {
                 context.getString(R.string.booking_request_party_unknown)
             }

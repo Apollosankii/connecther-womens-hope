@@ -45,7 +45,7 @@
         android:paddingEnd="20dp"
         android:paddingTop="4dp"
         android:paddingBottom="20dp"
-        android:text="Tap any contact to call directly"
+        android:text="@string/emergency_contacts_tap_helpline"
         android:textSize="14sp"
         android:textColor="@color/on_surface_variant" />
 

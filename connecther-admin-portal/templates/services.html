@@ -24,6 +24,7 @@
                 <p class="ch-service-desc">{{service.description}}</p>
                 <div class="ch-service-footer">
                     <span class="ch-service-price"><span class="flaticon-money"></span> KES {{service.min_price}}</span>
+                    <span class="ch-service-loc text-muted small">Radius {{ service.search_radius_meters or 10000 }}&nbsp;m{% if service.require_location_detail %} · Extra address{% endif %}</span>
                     <span class="ch-service-loc"><span class="flaticon-location-pin"></span> Kenya</span>
                     <a href="{{url_for('service',service_id=service.service_id)}}" class="ch-btn-sm" style="margin-left:auto;">View</a>
                     <form action="{{ url_for('delete_service', service_id=service.service_id) }}" method="POST" style="margin-left:8px;"

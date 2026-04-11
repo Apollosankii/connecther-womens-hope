@@ -1,6 +1,5 @@
 package com.womanglobal.connecther.ui.fragments
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,9 +11,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.womanglobal.connecther.RatingDialogFragment
 import com.womanglobal.connecther.adapters.HistoryAdapter
 import com.womanglobal.connecther.data.Job
+import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.databinding.FragmentHistoryBinding
 import com.womanglobal.connecther.supabase.SupabaseData
+import com.womanglobal.connecther.utils.NetworkStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HistoryFragment : Fragment() {
     private var _binding: FragmentHistoryBinding? = null
@@ -22,25 +25,19 @@ class HistoryFragment : Fragment() {
 
     private lateinit var historyAdapter: HistoryAdapter
     private val completedJobs = mutableListOf<Job>()
-    private var isProviderSession: Boolean = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHistoryBinding.inflate(inflater, container, false)
-
-        val sharedPreferences = requireContext().getSharedPreferences("user_session", Context.MODE_PRIVATE)
-        isProviderSession = sharedPreferences.getBoolean("isProvider", false)
-
-        setupRecyclerView(isProviderSession)
-
+        setupRecyclerView()
         return binding.root
     }
 
-    private fun setupRecyclerView(isProvider: Boolean) {
+    private fun setupRecyclerView() {
         binding.historyRecyclerView.layoutManager = LinearLayoutManager(requireContext())
-        historyAdapter = HistoryAdapter(requireContext(), completedJobs, isProvider) { job ->
+        historyAdapter = HistoryAdapter(requireContext(), completedJobs) { job ->
             showRatingDialog(job)
         }
         binding.historyRecyclerView.adapter = historyAdapter
@@ -48,7 +45,15 @@ class HistoryFragment : Fragment() {
 
     private fun loadCompletedJobs() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val jobs = SupabaseData.getCompletedJobs()
+            val ctx = requireContext()
+            val online = NetworkStatus.isOnline(ctx)
+            val jobs = if (online) {
+                val fetched = SupabaseData.getCompletedJobs()
+                withContext(Dispatchers.IO) { AppOfflineCache.writeCompletedJobs(ctx, fetched) }
+                fetched
+            } else {
+                AppOfflineCache.readCompletedJobs(ctx).orEmpty()
+            }
             completedJobs.clear()
             completedJobs.addAll(jobs)
 
@@ -67,7 +72,7 @@ class HistoryFragment : Fragment() {
     }
 
     private fun showRatingDialog(job: Job) {
-        val dialog = RatingDialogFragment(job, isProviderSession) {
+        val dialog = RatingDialogFragment(job, isProvider = !job.i_am_client) {
             loadCompletedJobs()
         }
         dialog.show(childFragmentManager, "RatingDialog")

@@ -21,6 +21,10 @@ local.properties
 # Signing — never commit secrets
 keystore.properties
 release-key.keystore
+connecther-upload.keystore
+connecther-upload-new.jks
+upload_certificate.pem
+upload-keystore-credentials.local.txt
 *.jks
 
 # Play bundle / local release output (build with Android Studio or gradlew)

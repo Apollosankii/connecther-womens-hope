@@ -15,10 +15,14 @@ import com.womanglobal.connecther.services.Conversation
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.Order
+import com.google.firebase.auth.FirebaseAuth
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlin.time.Duration.Companion.seconds
@@ -27,6 +31,8 @@ object SupabaseData {
 
     /** Must match `supabase_storage_profpics_and_upload_fix.sql` bucket id and public URL path. */
     private const val PROFILE_PHOTOS_BUCKET = "profpics"
+
+    private const val JOB_SITE_PHOTOS_BUCKET = "job_site_photos"
 
     fun isConfigured(): Boolean =
         BuildConfig.SUPABASE_URL.isNotBlank() &&
@@ -75,6 +81,7 @@ object SupabaseData {
         val expires_at: String? = null,
         val proposed_price: Double? = null,
         val location_text: String? = null,
+        @SerialName("location_extra") val location_extra: JsonObject? = null,
         val latitude: Double? = null,
         val longitude: Double? = null,
         @SerialName("maps_url") val maps_url: String? = null,
@@ -101,6 +108,7 @@ object SupabaseData {
         latitude: Double?,
         longitude: Double?,
         message: String?,
+        locationExtra: Map<String, String> = emptyMap(),
     ): BookingOutcome {
         if (!isConfigured()) return BookingOutcome(isSuccess = false, errorCode = "supabase_not_configured")
         if (!SupabaseClientProvider.ensureSupabaseSession()) {
@@ -117,6 +125,12 @@ object SupabaseData {
 
         suspend fun invokeRpc(): BookingOutcome {
             val locationForRpc = buildBookingLocationNotes(locationText, latitude, longitude)
+            val extraJson = buildJsonObject {
+                locationExtra.forEach { (k, v) ->
+                    val key = k.trim()
+                    if (key.isNotEmpty()) put(key, v)
+                }
+            }
             val params = buildJsonObject {
                 put("p_provider_ref", providerRef)
                 put("p_service_id", serviceId)
@@ -125,6 +139,7 @@ object SupabaseData {
                 latitude?.let { put("p_lat", it) }
                 longitude?.let { put("p_lng", it) }
                 put("p_message", message ?: "")
+                put("p_location_extra", extraJson)
             }
             val rows = client.postgrest.rpc("create_booking_request", params).decodeList<CreateBookingRpcRow>()
             val row = rows.firstOrNull()
@@ -173,6 +188,9 @@ object SupabaseData {
             "insufficient_connects", "subscription_required" ->
                 context.getString(R.string.booking_error_subscribe_for_connects)
             "not_implemented" -> "Booking is temporarily unavailable. Please try again later."
+            "location_detail_required" ->
+                "This service needs your building or unit details. Fill in the extra address fields and try again."
+            "service_not_found" -> "This service is no longer available. Go back and pick another service."
             else -> "Booking request failed. Please try again."
         }
     }
@@ -197,6 +215,8 @@ object SupabaseData {
                 msg.contains("free_tier_exhausted") -> return "free_tier_exhausted"
                 msg.contains("connects_exhausted") -> return "connects_exhausted"
                 msg.contains("insufficient_connects") -> return "insufficient_connects"
+                msg.contains("location_detail_required") -> return "location_detail_required"
+                msg.contains("service_not_found") -> return "service_not_found"
                 msg.contains("subscription") -> return "subscription_required"
                 msg.contains("permission denied") || msg.contains("rls") -> return "auth_required"
             }
@@ -272,7 +292,10 @@ object SupabaseData {
         val name: String,
         @SerialName("service_pic") val service_pic: String? = null,
         val description: String? = null,
-        @SerialName("min_price") val min_price: Double? = null
+        @SerialName("min_price") val min_price: Double? = null,
+        @SerialName("search_radius_meters") val search_radius_meters: Int? = null,
+        @SerialName("require_location_detail") val require_location_detail: Boolean? = null,
+        @SerialName("location_detail_schema") val location_detail_schema: JsonElement? = null,
     )
 
     @Serializable
@@ -372,16 +395,45 @@ object SupabaseData {
             .getOrElse { emptyList() }
         if (rows.isNotEmpty()) {
             return rows.map { s ->
+                val schemaJson = s.location_detail_schema?.toString().orEmpty().ifBlank { "[]" }
                 Service(
                     service_id = s.id.toString(),
                     name = s.name,
                     pic = s.service_pic ?: "",
                     description = s.description ?: "",
-                    min_price = s.min_price
+                    min_price = s.min_price,
+                    search_radius_meters = s.search_radius_meters ?: 10_000,
+                    require_location_detail = s.require_location_detail == true,
+                    location_detail_schema_json = schemaJson,
                 )
             }
         }
         return getDefaultServices()
+    }
+
+    /**
+     * Single service row (for booking UI flags). Public read.
+     */
+    suspend fun getServiceById(serviceId: Int): Service? {
+        if (!isConfigured()) return null
+        val row = runCatching {
+            SupabaseClientProvider.publicClient.from("services").select {
+                filter { eq("id", serviceId) }
+            }.decodeList<DbService>().firstOrNull()
+        }.onFailure { e ->
+            Log.w("SupabaseData", "getServiceById failed: ${e.message}")
+        }.getOrNull() ?: return null
+        val schemaJson = row.location_detail_schema?.toString().orEmpty().ifBlank { "[]" }
+        return Service(
+            service_id = row.id.toString(),
+            name = row.name,
+            pic = row.service_pic ?: "",
+            description = row.description ?: "",
+            min_price = row.min_price,
+            search_radius_meters = row.search_radius_meters ?: 10_000,
+            require_location_detail = row.require_location_detail == true,
+            location_detail_schema_json = schemaJson,
+        )
     }
 
     /**
@@ -481,8 +533,15 @@ object SupabaseData {
         }.getOrDefault(false)
     }
 
+    /** Parses DATE / timestamptz strings from PostgREST (uses yyyy-MM-dd prefix). */
+    private fun parseSubscriptionLocalDate(s: String?): java.time.LocalDate? {
+        if (s.isNullOrBlank()) return null
+        return runCatching { java.time.LocalDate.parse(s.trim().take(10)) }.getOrNull()
+    }
+
     /**
      * Returns the user's active subscription (if any) with the plan name resolved from [subscription_plans].
+     * Matches server booking window: [started_at, expires_at] contains today (local device calendar date).
      */
     suspend fun getActiveSubscription(): ActiveSubscription? {
         if (!isConfigured()) return null
@@ -491,9 +550,14 @@ object SupabaseData {
             val rows = SupabaseClientProvider.client.from("user_plan_subscriptions").select {
                 filter { eq("status", "active") }
                 order(column = "expires_at", order = Order.DESCENDING)
-                limit(1)
+                limit(20)
             }.decodeList<DbPlanSubRow>()
-            val active = rows.firstOrNull() ?: return@runCatching null
+            val today = java.time.LocalDate.now()
+            val active = rows.firstOrNull { row ->
+                val start = parseSubscriptionLocalDate(row.started_at) ?: return@firstOrNull false
+                val end = parseSubscriptionLocalDate(row.expires_at) ?: return@firstOrNull false
+                !start.isAfter(today) && !end.isBefore(today)
+            } ?: return@runCatching null
             val plans = getSubscriptionPlans()
             val planName = plans.firstOrNull { it.id == active.plan_id.toString() }?.name ?: "Plan #${active.plan_id}"
             ActiveSubscription(
@@ -1064,7 +1128,23 @@ object SupabaseData {
         @SerialName("their_stars") val their_stars: Float? = null,
         @SerialName("started_at") val started_at: String? = null,
         @SerialName("completed_at") val completed_at: String? = null,
+        @SerialName("i_am_client") val i_am_client: Boolean = false,
+        @SerialName("location_extra") val location_extra: JsonObject? = null,
+        @SerialName("arrived_at") val arrived_at: String? = null,
+        @SerialName("work_started_at") val work_started_at: String? = null,
+        @SerialName("site_photo_path") val site_photo_path: String? = null,
+        @SerialName("service_id") val service_id: Int? = null,
+        @SerialName("safety_checkins_required") val safety_checkins_required: Boolean? = null,
+        @SerialName("safety_checkin_interval_min") val safety_checkin_interval_min: Int? = null,
     )
+
+    private fun formatLocationExtraDisplay(extra: JsonObject?): String {
+        if (extra == null || extra.isEmpty()) return ""
+        return extra.entries.joinToString("\n") { e ->
+            val vs = (e.value as? JsonPrimitive)?.content ?: e.value.toString()
+            "${e.key}: $vs"
+        }
+    }
 
     private fun JobRpcRow.toJob(): Job {
         val mySubmitted = my_review_submitted ?: rated
@@ -1084,6 +1164,14 @@ object SupabaseData {
             their_stars = their_stars ?: 0f,
             started_at = started_at,
             completed_at = completed_at,
+            i_am_client = i_am_client,
+            location_detail_display = formatLocationExtraDisplay(location_extra),
+            arrived_at = arrived_at,
+            work_started_at = work_started_at,
+            site_photo_path = site_photo_path,
+            service_id = service_id,
+            safety_checkins_required = safety_checkins_required ?: false,
+            safety_checkin_interval_min = safety_checkin_interval_min ?: 60,
         )
     }
 
@@ -1131,6 +1219,90 @@ object SupabaseData {
         }.getOrElse { e ->
             Log.e("SupabaseData", "completeJob failed", e)
             false
+        }
+    }
+
+    @Serializable
+    private data class OkErrRpcRow(val ok: Boolean = false, val err: String? = null)
+
+    /** Uploads arrival/site image to private bucket; path must be `{jobId}/{firebaseUid}/{file}`. */
+    suspend fun uploadJobSitePhoto(jobId: Int, fileBytes: ByteArray, fileName: String): String? {
+        if (!isConfigured() || !SupabaseClientProvider.ensureSupabaseSession()) return null
+        val uid = FirebaseAuth.getInstance().currentUser?.uid?.trim().orEmpty().ifBlank { return null }
+        val safe = fileName.trim().ifBlank { "arrival.jpg" }.replace(Regex("[^a-zA-Z0-9._-]"), "_")
+        val path = "$jobId/$uid/${System.currentTimeMillis()}_$safe"
+        val bucket = SupabaseClientProvider.client.storage.from(JOB_SITE_PHOTOS_BUCKET)
+        runCatching {
+            bucket.upload(path, fileBytes) { upsert = true }
+        }.onFailure { e ->
+            Log.e("SupabaseData", "uploadJobSitePhoto failed", e)
+            return null
+        }
+        return path
+    }
+
+    suspend fun providerRecordJobArrival(jobId: Int, storagePath: String): String? {
+        if (!isConfigured() || !SupabaseClientProvider.ensureSupabaseSession()) return "auth"
+        return runCatching {
+            val rows = SupabaseClientProvider.client.postgrest.rpc(
+                "provider_record_job_arrival",
+                buildJsonObject {
+                    put("p_job_id", jobId)
+                    put("p_site_photo_path", storagePath)
+                },
+            ).decodeList<OkErrRpcRow>()
+            val row = rows.firstOrNull()
+            when {
+                row?.ok == true -> null
+                row?.err.isNullOrBlank() -> "unknown"
+                else -> row?.err
+            }
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "providerRecordJobArrival failed", e)
+            "network"
+        }
+    }
+
+    suspend fun providerStartJobWork(jobId: Int): String? {
+        if (!isConfigured() || !SupabaseClientProvider.ensureSupabaseSession()) return "auth"
+        return runCatching {
+            val rows = SupabaseClientProvider.client.postgrest.rpc(
+                "provider_start_job_work",
+                buildJsonObject { put("p_job_id", jobId) },
+            ).decodeList<OkErrRpcRow>()
+            val row = rows.firstOrNull()
+            when {
+                row?.ok == true -> null
+                row?.err.isNullOrBlank() -> "unknown"
+                else -> row?.err
+            }
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "providerStartJobWork failed", e)
+            "network"
+        }
+    }
+
+    suspend fun providerSubmitJobCheckin(jobId: Int, hourIndex: Int, lat: Double? = null, lng: Double? = null): String? {
+        if (!isConfigured() || !SupabaseClientProvider.ensureSupabaseSession()) return "auth"
+        return runCatching {
+            val rows = SupabaseClientProvider.client.postgrest.rpc(
+                "provider_submit_job_checkin",
+                buildJsonObject {
+                    put("p_job_id", jobId)
+                    put("p_hour_index", hourIndex)
+                    lat?.let { put("p_lat", it) }
+                    lng?.let { put("p_lng", it) }
+                },
+            ).decodeList<OkErrRpcRow>()
+            val row = rows.firstOrNull()
+            when {
+                row?.ok == true -> null
+                row?.err.isNullOrBlank() -> "unknown"
+                else -> row?.err
+            }
+        }.getOrElse { e ->
+            Log.e("SupabaseData", "providerSubmitJobCheckin failed", e)
+            "network"
         }
     }
 
@@ -1206,7 +1378,6 @@ object SupabaseData {
         serviceId: String,
         seekerLat: Double? = null,
         seekerLng: Double? = null,
-        radiusMeters: Double = 10_000.0,
         excludeCurrentUser: Boolean = true,
     ): List<User> {
         if (!isConfigured()) return emptyList()
@@ -1221,7 +1392,6 @@ object SupabaseData {
                         put("p_service_id", sid)
                         put("p_lat", seekerLat!!)
                         put("p_lng", seekerLng!!)
-                        put("p_radius_meters", radiusMeters)
                     },
                 ).decodeList<ProviderRpcRow>()
             } else {
@@ -1380,6 +1550,33 @@ object SupabaseData {
                 isRead = false
             )
         }
+    }
+
+    /**
+     * Some UI surfaces historically pass a `chat_id` that might be either:
+     * - the stable `chats.chat_code` (preferred), or
+     * - the numeric `chats.id` as a string.
+     *
+     * This normalizes to a `chat_code` so message fetches don't "disappear" when reopened.
+     */
+    suspend fun resolveChatCode(chatCodeOrId: String): String {
+        val raw = chatCodeOrId.trim()
+        if (raw.isBlank()) return ""
+        if (!SupabaseClientProvider.ensureSupabaseSession()) return raw
+        val client = SupabaseClientProvider.client
+
+        // First: treat as chat_code.
+        val asCode = runCatching {
+            client.from("chats").select() { filter { eq("chat_code", raw) } }.decodeList<DbChat>()
+        }.getOrNull()
+        if (!asCode.isNullOrEmpty()) return raw
+
+        // Second: treat as numeric id.
+        val id = raw.toIntOrNull() ?: return raw
+        val asId = runCatching {
+            client.from("chats").select() { filter { eq("id", id) } }.decodeList<DbChat>()
+        }.getOrNull()
+        return asId?.firstOrNull()?.chat_code?.trim().orEmpty().ifBlank { raw }
     }
 
     @Serializable

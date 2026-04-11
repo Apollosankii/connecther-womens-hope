@@ -73,7 +73,7 @@ Deno.serve(async (req: Request) => {
   try {
     const webpush = await import("npm:web-push@3.6.7");
     webpush.default.setVapidDetails(
-      "mailto:support@connecther.com",
+      "mailto:connecther05@gmail.com",
       publicKey,
       privateKey
     );

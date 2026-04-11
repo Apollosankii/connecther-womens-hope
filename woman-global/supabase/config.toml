@@ -11,3 +11,15 @@ verify_jwt = false
 
 [functions.auth-bridge]
 verify_jwt = false
+
+# Verifies Firebase ID token inside the function (same pattern as auth-bridge).
+[functions.phone-verify]
+verify_jwt = false
+
+# Firebase ID token verified in-function; Twilio Messaging for subscribed panic SMS.
+[functions.panic-sms]
+verify_jwt = false
+
+# Database triggers call this via pg_net without a JWT; default verify_jwt would return 401.
+[functions.notify-app-user]
+verify_jwt = false
