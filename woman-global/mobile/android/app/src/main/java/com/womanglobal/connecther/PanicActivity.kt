@@ -135,6 +135,10 @@ class PanicActivity : AppCompatActivity() {
                             Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_notified_connecther, Toast.LENGTH_LONG).show()
                         }.onFailure { e ->
                             val code = (e as? PanicSmsClient.PanicSmsException)?.code
+                            if (code == "TWILIO_DISABLED") {
+                                routeDeviceGbvSms(location)
+                                return@onFailure
+                            }
                             val msgRes = when (code) {
                                 "RATE_LIMIT" -> R.string.panic_gbv_connecther_sms_rate_limit
                                 else -> R.string.panic_gbv_connecther_sms_failed
@@ -144,24 +148,29 @@ class PanicActivity : AppCompatActivity() {
                     }
                 } else {
                     withContext(Dispatchers.Main) {
-                        when {
-                            ContextCompat.checkSelfPermission(
-                                this@PanicActivity,
-                                Manifest.permission.SEND_SMS,
-                            ) == PackageManager.PERMISSION_GRANTED -> {
-                                sendGbvSmsAndNotify(location)
-                            }
-                            else -> {
-                                pendingGbvSmsLocation = location
-                                ActivityCompat.requestPermissions(
-                                    this@PanicActivity,
-                                    arrayOf(Manifest.permission.SEND_SMS),
-                                    REQUEST_SMS_GBV,
-                                )
-                            }
-                        }
+                        routeDeviceGbvSms(location)
                     }
                 }
+            }
+        }
+    }
+
+    /** Same path as non-subscribers: SMS sent from the user’s device (after permission if needed). */
+    private fun routeDeviceGbvSms(location: Location?) {
+        when {
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.SEND_SMS,
+            ) == PackageManager.PERMISSION_GRANTED -> {
+                sendGbvSmsAndNotify(location)
+            }
+            else -> {
+                pendingGbvSmsLocation = location
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.SEND_SMS),
+                    REQUEST_SMS_GBV,
+                )
             }
         }
     }

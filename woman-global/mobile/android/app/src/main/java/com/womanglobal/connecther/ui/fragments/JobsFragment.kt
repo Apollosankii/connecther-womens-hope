@@ -30,6 +30,7 @@ import com.womanglobal.connecther.utils.NetworkStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Locale
 
 class JobsFragment : Fragment() {
     private var _binding: FragmentJobsBinding? = null
@@ -179,25 +180,61 @@ class JobsFragment : Fragment() {
         requireContext().getSharedPreferences("user_session", Context.MODE_PRIVATE)
             .getBoolean("isProvider", false)
 
+    /**
+     * Order: **Active** (in-progress jobs, then pending/accepted requests) → **Canceled** (terminal requests)
+     * → **Completed** jobs. Section headers use a divider (except the first block).
+     */
     private fun buildBookingsItems(
         jobs: List<Job>,
         completedJobs: List<Job>,
-        requests: List<SupabaseData.MyBookingRequest>,
+        activeRequests: List<SupabaseData.MyBookingRequest>,
+        canceledRequests: List<SupabaseData.MyBookingRequest>,
     ): List<BookingsListItem> {
         val out = ArrayList<BookingsListItem>()
-        if (jobs.isNotEmpty()) {
-            out.add(BookingsListItem.Section(R.string.jobs_section_active_jobs))
+        var firstSection = true
+        fun addSection(id: String, titleRes: Int) {
+            out.add(
+                BookingsListItem.Section(
+                    id = id,
+                    titleRes = titleRes,
+                    showDividerAbove = !firstSection,
+                ),
+            )
+            firstSection = false
+        }
+
+        val hasActive = jobs.isNotEmpty() || activeRequests.isNotEmpty()
+        if (hasActive) {
+            addSection("bookings_sec_active", R.string.jobs_section_active)
             jobs.forEach { out.add(BookingsListItem.JobCard(it)) }
+            activeRequests.forEach { out.add(BookingsListItem.RequestCard(it)) }
+        }
+        if (canceledRequests.isNotEmpty()) {
+            addSection("bookings_sec_canceled", R.string.jobs_section_canceled)
+            canceledRequests.forEach { out.add(BookingsListItem.RequestCard(it)) }
         }
         if (completedJobs.isNotEmpty()) {
-            out.add(BookingsListItem.Section(R.string.jobs_section_completed_jobs))
+            addSection("bookings_sec_completed", R.string.jobs_section_completed)
             completedJobs.forEach { out.add(BookingsListItem.JobCard(it)) }
         }
-        if (requests.isNotEmpty()) {
-            out.add(BookingsListItem.Section(R.string.jobs_section_booking_requests))
-            requests.forEach { out.add(BookingsListItem.RequestCard(it)) }
-        }
         return out
+    }
+
+    private fun partitionBookingRequests(requests: List<SupabaseData.MyBookingRequest>): Pair<List<SupabaseData.MyBookingRequest>, List<SupabaseData.MyBookingRequest>> {
+        fun normStatus(s: String) = s.trim().lowercase(Locale.US)
+        val active = requests.filter {
+            when (normStatus(it.status)) {
+                "pending", "accepted" -> true
+                else -> false
+            }
+        }
+        val canceled = requests.filter {
+            when (normStatus(it.status)) {
+                "pending", "accepted" -> false
+                else -> true
+            }
+        }.sortedWith(compareByDescending<SupabaseData.MyBookingRequest> { it.id })
+        return active to canceled
     }
 
     private fun loadJobs() {
@@ -277,7 +314,8 @@ class JobsFragment : Fragment() {
                 }
             }
 
-            val items = buildBookingsItems(newJobs, completed, displayRequests)
+            val (activeRequests, canceledRequests) = partitionBookingRequests(displayRequests)
+            val items = buildBookingsItems(newJobs, completed, activeRequests, canceledRequests)
             val wasEmpty = bookingsAdapter.currentList.isEmpty()
 
             showEmptyState(items.isEmpty())

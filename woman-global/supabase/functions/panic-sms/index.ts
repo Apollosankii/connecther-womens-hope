@@ -139,35 +139,9 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")?.trim();
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")?.trim();
-  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
-  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
-  const messagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID")?.trim() || null;
-  const fromNumber = Deno.env.get("TWILIO_PANIC_FROM_NUMBER")?.trim() || null;
 
   if (!supabaseUrl || !serviceKey) {
     return corsJson({ code: "SERVER_MISCONFIG", error: "Supabase URL or service role missing" }, 500);
-  }
-  if (!accountSid || !authToken) {
-    console.error("panic-sms: TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN missing");
-    return corsJson(
-      {
-        code: "SERVER_MISCONFIG",
-        error: "Twilio not configured",
-        detail: "Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.",
-      },
-      500,
-    );
-  }
-  if (!messagingServiceSid && !fromNumber) {
-    console.error("panic-sms: set TWILIO_MESSAGING_SERVICE_SID (MG…) or TWILIO_PANIC_FROM_NUMBER (E.164)");
-    return corsJson(
-      {
-        code: "SERVER_MISCONFIG",
-        error: "Twilio Messaging not configured",
-        detail: "Set TWILIO_MESSAGING_SERVICE_SID or TWILIO_PANIC_FROM_NUMBER for outbound SMS.",
-      },
-      500,
-    );
   }
 
   const idToken = firebaseIdTokenFromRequest(req);
@@ -255,7 +229,7 @@ Deno.serve(async (req) => {
     admin
       .from("platform_settings")
       .select(
-        "panic_sms_max_dispatches_per_24h, panic_sms_min_seconds_between, panic_sms_max_global_per_hour",
+        "panic_sms_max_dispatches_per_24h, panic_sms_min_seconds_between, panic_sms_max_global_per_hour, panic_sms_twilio_enabled",
       )
       .eq("id", 1)
       .maybeSingle(),
@@ -284,6 +258,9 @@ Deno.serve(async (req) => {
   if (lastErr) console.warn("panic-sms last dispatch", lastErr);
 
   const s = settingsRow as Record<string, unknown> | null;
+  /** Admin can turn off Twilio; subscribers then use device SMS (client handles TWILIO_DISABLED). */
+  const twilioEnabled = s?.panic_sms_twilio_enabled !== false;
+
   const maxPerUser24h = Math.max(
     1,
     Math.min(
@@ -379,6 +356,44 @@ Deno.serve(async (req) => {
   }
   if (!subRows?.length) {
     return corsJson({ code: "NOT_SUBSCRIBED", error: "Active subscription required for ConnectHer SMS" }, 403);
+  }
+
+  if (!twilioEnabled) {
+    return corsJson(
+      {
+        code: "TWILIO_DISABLED",
+        error: "ConnectHer automated panic SMS is turned off. Use SMS from your device.",
+      },
+      403,
+    );
+  }
+
+  const accountSid = Deno.env.get("TWILIO_ACCOUNT_SID")?.trim();
+  const authToken = Deno.env.get("TWILIO_AUTH_TOKEN")?.trim();
+  const messagingServiceSid = Deno.env.get("TWILIO_MESSAGING_SERVICE_SID")?.trim() || null;
+  const fromNumber = Deno.env.get("TWILIO_PANIC_FROM_NUMBER")?.trim() || null;
+
+  if (!accountSid || !authToken) {
+    console.error("panic-sms: TWILIO_ACCOUNT_SID or TWILIO_AUTH_TOKEN missing");
+    return corsJson(
+      {
+        code: "SERVER_MISCONFIG",
+        error: "Twilio not configured",
+        detail: "Set TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN.",
+      },
+      500,
+    );
+  }
+  if (!messagingServiceSid && !fromNumber) {
+    console.error("panic-sms: set TWILIO_MESSAGING_SERVICE_SID (MG…) or TWILIO_PANIC_FROM_NUMBER (E.164)");
+    return corsJson(
+      {
+        code: "SERVER_MISCONFIG",
+        error: "Twilio Messaging not configured",
+        detail: "Set TWILIO_MESSAGING_SERVICE_SID or TWILIO_PANIC_FROM_NUMBER for outbound SMS.",
+      },
+      500,
+    );
   }
 
   const fn = (userRow.first_name as string | null)?.trim() ?? "";

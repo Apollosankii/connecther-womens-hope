@@ -32,7 +32,12 @@ import kotlinx.coroutines.withContext
 import java.util.Locale
 
 sealed class BookingsListItem {
-    data class Section(@StringRes val titleRes: Int) : BookingsListItem()
+    data class Section(
+        val id: String,
+        @StringRes val titleRes: Int,
+        val showDividerAbove: Boolean,
+    ) : BookingsListItem()
+
     data class JobCard(val job: Job) : BookingsListItem()
     data class RequestCard(val req: SupabaseData.MyBookingRequest) : BookingsListItem()
 }
@@ -40,7 +45,7 @@ sealed class BookingsListItem {
 private object BookingsListDiff : DiffUtil.ItemCallback<BookingsListItem>() {
     override fun areItemsTheSame(a: BookingsListItem, b: BookingsListItem): Boolean {
         return when {
-            a is BookingsListItem.Section && b is BookingsListItem.Section -> a.titleRes == b.titleRes
+            a is BookingsListItem.Section && b is BookingsListItem.Section -> a.id == b.id
             a is BookingsListItem.JobCard && b is BookingsListItem.JobCard -> a.job.job_id == b.job.job_id
             a is BookingsListItem.RequestCard && b is BookingsListItem.RequestCard -> a.req.id == b.req.id
             else -> false
@@ -73,17 +78,7 @@ class BookingsListAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
-            VT_SECTION -> {
-                val tv = TextView(parent.context).apply {
-                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 15f)
-                    setTypeface(null, android.graphics.Typeface.BOLD)
-                    setTextColor(ContextCompat.getColor(context, R.color.on_background))
-                    val h = (20 * resources.displayMetrics.density).toInt()
-                    val v = (12 * resources.displayMetrics.density).toInt()
-                    setPadding(h, v, h, v)
-                }
-                SectionVH(tv)
-            }
+            VT_SECTION -> SectionVH(inflater.inflate(R.layout.item_bookings_section, parent, false))
             VT_JOB -> JobVH(inflater.inflate(R.layout.item_job, parent, false))
             VT_REQUEST -> RequestVH(inflater.inflate(R.layout.item_booking_request_action_row, parent, false))
             else -> error("Unknown view type $viewType")
@@ -92,15 +87,19 @@ class BookingsListAdapter(
 
     override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         when (val item = getItem(position)) {
-            is BookingsListItem.Section -> (holder as SectionVH).bind(item.titleRes)
+            is BookingsListItem.Section -> (holder as SectionVH).bind(item.titleRes, item.showDividerAbove)
             is BookingsListItem.JobCard -> (holder as JobVH).bind(item.job)
             is BookingsListItem.RequestCard -> (holder as RequestVH).bind(item.req)
         }
     }
 
-    private inner class SectionVH(private val text: TextView) : RecyclerView.ViewHolder(text) {
-        fun bind(@StringRes titleRes: Int) {
-            text.setText(titleRes)
+    private inner class SectionVH(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        private val divider: View = itemView.findViewById(R.id.sectionDivider)
+        private val title: TextView = itemView.findViewById(R.id.sectionTitle)
+
+        fun bind(@StringRes titleRes: Int, showDividerAbove: Boolean) {
+            title.setText(titleRes)
+            divider.visibility = if (showDividerAbove) View.VISIBLE else View.GONE
         }
     }
 

@@ -171,10 +171,10 @@
     <string name="rating_already_submitted">You already submitted a review for this job.</string>
 
     <string name="jobs_screen_title">Bookings</string>
-    <string name="jobs_screen_subtitle">Your requests and active jobs in one place.</string>
-    <string name="jobs_section_active_jobs">Active jobs — mark complete when the visit is done</string>
-    <string name="jobs_section_completed_jobs">Completed jobs</string>
-    <string name="jobs_section_booking_requests">Booking requests</string>
+    <string name="jobs_screen_subtitle">Active items first, then canceled requests, then completed jobs.</string>
+    <string name="jobs_section_active">Active</string>
+    <string name="jobs_section_canceled">Canceled &amp; declined</string>
+    <string name="jobs_section_completed">Completed</string>
     <string name="jobs_rate_provider_title">Rate your provider?</string>
     <string name="jobs_rate_provider_message">Optional — share a quick star rating and short feedback. You can also do this later from History.</string>
     <string name="jobs_rate_client_title">Rate your client?</string>
@@ -182,7 +182,7 @@
     <string name="jobs_rate_now">Rate now</string>
     <string name="jobs_rate_not_now">Not now</string>
     <string name="jobs_empty_title">Nothing here yet</string>
-    <string name="jobs_empty_message">When you send or receive a booking request—or have an active job—it will appear here.</string>
+    <string name="jobs_empty_message">When you send or receive a booking request—or have an active job—it will appear under Active, Canceled, or Completed.</string>
     <string name="jobs_open_maps">Directions</string>
     <string name="jobs_action_accept">Accept</string>
     <string name="jobs_action_decline">Decline</string>

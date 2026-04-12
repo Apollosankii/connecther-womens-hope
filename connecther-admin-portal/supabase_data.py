@@ -935,8 +935,16 @@ def get_platform_settings(session):
             'panic_sms_max_dispatches_per_24h': 6,
             'panic_sms_min_seconds_between': 180,
             'panic_sms_max_global_per_hour': 200,
+            'panic_sms_twilio_enabled': True,
         }
     r = data[0]
+    pte = r.get('panic_sms_twilio_enabled')
+    if pte is None:
+        pte_bool = True
+    elif isinstance(pte, bool):
+        pte_bool = pte
+    else:
+        pte_bool = str(pte).lower() in ('true', '1', 't', 'yes')
     return {
         'id': r.get('id'),
         'free_tier_connects': int(r.get('free_tier_connects') or 0),
@@ -944,10 +952,18 @@ def get_platform_settings(session):
         'panic_sms_max_dispatches_per_24h': int(r.get('panic_sms_max_dispatches_per_24h') or 6),
         'panic_sms_min_seconds_between': int(r.get('panic_sms_min_seconds_between') or 180),
         'panic_sms_max_global_per_hour': int(r.get('panic_sms_max_global_per_hour') or 200),
+        'panic_sms_twilio_enabled': pte_bool,
     }
 
 
-def update_platform_settings(session, free_tier_connects, panic_max=None, panic_min=None, panic_global=None):
+def update_platform_settings(
+    session,
+    free_tier_connects,
+    panic_max=None,
+    panic_min=None,
+    panic_global=None,
+    panic_twilio_enabled=None,
+):
     """Update free-tier default and optional subscribed panic SMS limits (same row id=1)."""
     try:
         v = int(free_tier_connects)
@@ -962,6 +978,8 @@ def update_platform_settings(session, free_tier_connects, panic_max=None, panic_
         body['panic_sms_min_seconds_between'] = int(panic_min)
     if panic_global is not None:
         body['panic_sms_max_global_per_hour'] = int(panic_global)
+    if panic_twilio_enabled is not None:
+        body['panic_sms_twilio_enabled'] = bool(panic_twilio_enabled)
     res = _req_write(session, 'PATCH', '/platform_settings?id=eq.1', json_data=body)
     return _patch_ok(res)
 

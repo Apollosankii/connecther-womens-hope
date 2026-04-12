@@ -691,12 +691,17 @@ def update_service(service_id):
         return redir
     from werkzeug.utils import secure_filename
     import supabase_data
+    name = (request.form.get('name') or '').strip()
+    if not name:
+        flash('Please enter a service name.', 'error')
+        return redirect(url_for('service', service_id=service_id))
     try:
         price_val = float(request.form.get('min_price') or 0)
     except (TypeError, ValueError):
         flash('Minimum price must be a number.', 'error')
         return redirect(url_for('service', service_id=service_id))
     payload = {
+        'name': name,
         'description': (request.form.get('description') or '').strip() or None,
         'min_price': price_val,
     }
@@ -1299,6 +1304,7 @@ def subscription_platform_settings():
             pmax = int(request.form.get('panic_sms_max_dispatches_per_24h', '6'))
             pmin = int(request.form.get('panic_sms_min_seconds_between', '180'))
             pglob = int(request.form.get('panic_sms_max_global_per_hour', '200'))
+            ptwilio = request.form.get('panic_sms_twilio_enabled') == '1'
         except (ValueError, TypeError):
             flash('Invalid number in form.')
             return redirect(url_for('subscription_platform_settings'))
@@ -1311,7 +1317,7 @@ def subscription_platform_settings():
         if not (10 <= pglob <= 100000):
             flash('Panic SMS: global cap per hour must be between 10 and 100000.')
             return redirect(url_for('subscription_platform_settings'))
-        if supabase_data.update_platform_settings(session, v, pmax, pmin, pglob):
+        if supabase_data.update_platform_settings(session, v, pmax, pmin, pglob, ptwilio):
             flash('Platform settings saved (free connects and subscribed panic SMS limits).')
         else:
             flash('Failed to update platform settings.')
@@ -1326,6 +1332,7 @@ def subscription_platform_settings():
             'panic_sms_max_dispatches_per_24h': 6,
             'panic_sms_min_seconds_between': 180,
             'panic_sms_max_global_per_hour': 200,
+            'panic_sms_twilio_enabled': True,
         }
     since_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     since_1h = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()

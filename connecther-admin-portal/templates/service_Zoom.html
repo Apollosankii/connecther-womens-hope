@@ -3,8 +3,8 @@
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
     <div class="ch-page-header">
         <div>
-            <h2 class="ch-page-title">Edit: {{ service.name }}</h2>
-            <p class="ch-page-subtitle">Update price, description, or replace the listing photo.</p>
+            <h2 class="ch-page-title">Edit service #{{ service.service_id }}</h2>
+            <p class="ch-page-subtitle">Change the name, price, description, discovery radius, safety options, or replace the listing photo.</p>
         </div>
         <a href="{{url_for('services')}}" class="ch-btn-sm">&larr; Back to catalog</a>
     </div>
@@ -28,9 +28,12 @@
             <div class="row">
                 <div class="col-md-6">
                     <div class="ch-field">
-                        <label class="ch-field-label">Service name</label>
-                        <div class="ch-field-value">{{ service.name }}</div>
-                        <small class="text-muted">To rename a service, contact a developer or add a new catalog entry and retire the old one.</small>
+                        <label class="ch-field-label" for="service_name">Service name</label>
+                        <input type="text" class="form-control" id="service_name" name="name" required maxlength="200"
+                            value="{{ service.name or '' }}"
+                            placeholder="e.g. Home cleaning"
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
+                        <small class="text-muted">Shown in the mobile app wherever this service is listed.</small>
                     </div>
                 </div>
                 <div class="col-md-6">

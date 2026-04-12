@@ -21,6 +21,7 @@ Sends GBV panic alert SMS via **Twilio Programmable Messaging** for users with a
 
 - `200` — `{ "ok": true, "sent_count": N }`
 - `403` — `{ "code": "NOT_SUBSCRIBED", ... }` (no user row or no active subscription window)
+- `403` — `{ "code": "TWILIO_DISABLED", ... }` when **`platform_settings.panic_sms_twilio_enabled`** is false (admin portal); the app should fall back to on-device SMS for subscribers.
 - `429` — `{ "code": "RATE_LIMIT", ... }` (max dispatches per Firebase UID per 24h)
 - `502` — `{ "code": "TWILIO_ERROR", ... }`
 
@@ -31,10 +32,10 @@ Sends GBV panic alert SMS via **Twilio Programmable Messaging** for users with a
 | `SUPABASE_URL` | yes | Auto |
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | Auto |
 | `FIREBASE_PROJECT_ID` | yes | Same as `phone-verify` |
-| `TWILIO_ACCOUNT_SID` | yes | Same account as Verify |
-| `TWILIO_AUTH_TOKEN` | yes | |
-| `TWILIO_MESSAGING_SERVICE_SID` | one of two | Preferred: Messaging Service SID (`MG…`) |
-| `TWILIO_PANIC_FROM_NUMBER` | one of two | E.164 sender if not using a Messaging Service |
+| `TWILIO_ACCOUNT_SID` | when Twilio on | Required only if `panic_sms_twilio_enabled` is true (default). |
+| `TWILIO_AUTH_TOKEN` | when Twilio on | |
+| `TWILIO_MESSAGING_SERVICE_SID` | one of two when Twilio on | Preferred: Messaging Service SID (`MG…`) |
+| `TWILIO_PANIC_FROM_NUMBER` | one of two when Twilio on | E.164 sender if not using a Messaging Service |
 
 **Do not** use `TWILIO_VERIFY_SERVICE_SID` (`VA…`) here — Verify is for OTP only.
 
@@ -47,8 +48,9 @@ Limits are read from **`platform_settings`** (singleton `id = 1`), editable in t
 | `panic_sms_max_dispatches_per_24h` | Max successful **batches** per Firebase user per rolling 24h (each batch can text up to 5 numbers). |
 | `panic_sms_min_seconds_between` | Minimum seconds between two successful batches for the same user (`0` = no cooldown). |
 | `panic_sms_max_global_per_hour` | Max successful batches **platform-wide** per rolling hour (abuse fuse). |
+| `panic_sms_twilio_enabled` | When **false**, the function returns **`TWILIO_DISABLED`** (after subscription checks); no Twilio send and no `panic_sms_dispatch` row. Subscribers use device SMS in the app. |
 
-If settings are missing, defaults are **6 / 180s / 200**. Responses: `429` with `RATE_LIMIT`, `RATE_LIMIT_COOLDOWN`, or `RATE_LIMIT_GLOBAL`.
+If settings are missing, defaults are **6 / 180s / 200**, and Twilio remains **enabled**. Responses: `429` with `RATE_LIMIT`, `RATE_LIMIT_COOLDOWN`, or `RATE_LIMIT_GLOBAL`.
 
 Each dispatch row stores **`request_ip`** (first `x-forwarded-for` hop when present) for audit.
 

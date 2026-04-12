@@ -64,8 +64,8 @@ android {
         minSdk = 24
         // Align with compileSdk and Google Play target API requirements for app updates.
         targetSdk = 35
-        versionCode = 12
-        versionName = "1.12"
+        versionCode = 13
+        versionName = "1.13"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

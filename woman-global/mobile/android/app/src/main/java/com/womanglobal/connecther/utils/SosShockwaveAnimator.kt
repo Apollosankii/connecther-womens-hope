@@ -24,13 +24,18 @@ object SosShockwaveAnimator {
         }
 
         val host = scaleOrigin.parent as? View ?: outer
-        host.doOnLayout {
-            alignPivotToCenterOf(outer, scaleOrigin)
-            alignPivotToCenterOf(middle, scaleOrigin)
-            resetRingVisual(outer)
-            resetRingVisual(middle)
-            outerAnim.start()
-            middleAnim.start()
+        // Defer past the current frame. After returning from another Activity, `doOnLayout` alone
+        // can register while a layout is "requested" and then never get a callback for this host,
+        // so the animators are created but never started (rings stay frozen).
+        host.post {
+            host.doOnLayout {
+                alignPivotToCenterOf(outer, scaleOrigin)
+                alignPivotToCenterOf(middle, scaleOrigin)
+                resetRingVisual(outer)
+                resetRingVisual(middle)
+                outerAnim.start()
+                middleAnim.start()
+            }
         }
 
         return outerAnim to middleAnim
