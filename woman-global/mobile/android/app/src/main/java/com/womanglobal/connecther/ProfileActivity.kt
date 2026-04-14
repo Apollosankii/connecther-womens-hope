@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
 import com.google.android.material.button.MaterialButton
@@ -49,6 +50,8 @@ class ProfileActivity : AppCompatActivity() {
     private var profileUserForBookability: User? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Avoid header (back, name) drawing under status bar on SDK 35+ edge-to-edge.
+        WindowCompat.setDecorFitsSystemWindows(window, true)
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_profile)
 

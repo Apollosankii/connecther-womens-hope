@@ -2,13 +2,14 @@
 ConnectHer Admin Portal – Flask app with direct Supabase connection.
 No FastAPI required. Run supabase_rls_admin.sql in Supabase before use.
 """
-from flask import Flask, url_for, redirect, render_template, request, session, make_response, jsonify, flash, send_from_directory, abort
+from flask import Flask, url_for, redirect, render_template, request, session, make_response, jsonify, flash, send_from_directory, abort, Response
 import json
 import logging
 import mimetypes
 import os
 import uuid
 import base64
+from urllib.parse import urlparse
 from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
@@ -619,6 +620,90 @@ def legacy_service_local_image(filename):
     return send_from_directory(pic_dir, safe, max_age=86400)
 
 
+def _is_allowed_storage_url(u: str) -> bool:
+    """
+    Prevent the portal from proxying arbitrary URLs.
+    Only allow same-project Supabase Storage URLs (including signed URLs) that point to /storage/v1/object.
+    """
+    if not u or not isinstance(u, str):
+        return False
+    u = u.strip()
+    if not (u.startswith('http://') or u.startswith('https://')):
+        return False
+    try:
+        parsed = urlparse(u)
+    except Exception:
+        return False
+    if not parsed.netloc:
+        return False
+    # Must match the configured SUPABASE_URL host
+    if not SUPABASE_URL:
+        return False
+    try:
+        supa_host = urlparse(SUPABASE_URL).netloc
+    except Exception:
+        return False
+    if parsed.netloc.lower() != supa_host.lower():
+        return False
+    path = (parsed.path or '').lower()
+    return '/storage/v1/object/' in path
+
+
+@app.route('/documents/<int:doc_id>/content', methods=['GET'])
+def document_content(doc_id: int):
+    """
+    Same-origin proxy for provider verification documents so admins can view inline without redirects.
+    Only streams files from this project's Supabase Storage.
+    """
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    doc = supabase_data.get_document_by_id(session, doc_id)
+    if not doc:
+        abort(404)
+    raw_url = (doc.get('name') or '').strip()
+    if not raw_url or not (raw_url.startswith('http://') or raw_url.startswith('https://')):
+        abort(404)
+    # Resolve to signed URL when possible (private bucket), otherwise use raw.
+    dl_url = supabase_data.resolve_storage_download_url(raw_url)
+    if not dl_url or not _is_allowed_storage_url(dl_url):
+        abort(403)
+
+    import requests as req
+    try:
+        r = req.get(dl_url, stream=True, timeout=30)
+    except Exception:
+        abort(502)
+    if r.status_code != 200:
+        abort(404)
+
+    ct = (r.headers.get('Content-Type') or '').split(';', 1)[0].strip() or None
+    if not ct:
+        guess = mimetypes.guess_type(urlparse(raw_url).path or '')[0]
+        ct = guess or 'application/octet-stream'
+
+    def _iter():
+        try:
+            for chunk in r.iter_content(chunk_size=1024 * 256):
+                if chunk:
+                    yield chunk
+        finally:
+            try:
+                r.close()
+            except Exception:
+                pass
+
+    resp = Response(_iter(), mimetype=ct)
+    # Download behavior (optional)
+    if request.args.get('download') == '1':
+        fn = os.path.basename(urlparse(raw_url).path or '') or f'document_{doc_id}'
+        resp.headers['Content-Disposition'] = f'attachment; filename="{fn}"'
+    for k, v in _NO_CACHE_HEADERS.items():
+        resp.headers[k] = v
+    return resp
+
+
 @app.route('/add/service/', methods=['GET', 'POST'])
 def add_service():
     redir = _require_auth()
@@ -684,7 +769,7 @@ def add_service_page():
     return render_template('add_Service.html', user=user)
 
 
-@app.route('/service/update/<service_id>', methods=['GET', 'POST'])
+@app.route('/service/update/<service_id>', methods=['POST'])
 def update_service(service_id):
     redir = _require_auth()
     if redir:

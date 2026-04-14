@@ -127,6 +127,48 @@ def _sign_storage_download_url(raw_url: str):
         return None
 
 
+def resolve_storage_download_url(raw_url: str) -> str | None:
+    """
+    Resolve a Storage object URL into a browser-downloadable URL.
+
+    - If SUPABASE_SERVICE_ROLE_KEY is configured and the object is private, returns a signed URL.
+    - Otherwise returns the original URL if it looks like a valid http(s) URL.
+    """
+    if not raw_url or not isinstance(raw_url, str):
+        return None
+    u = raw_url.strip()
+    if not (u.startswith('http://') or u.startswith('https://')):
+        return None
+    signed = _sign_storage_download_url(u)
+    return signed or u
+
+
+def get_document_by_id(session, doc_id: int):
+    """
+    Fetch one documents row by id.
+    Returns dict {id, name, doc_type_id} or None.
+    """
+    try:
+        did = int(doc_id)
+    except (TypeError, ValueError):
+        return None
+    data = _req(session, 'GET', '/documents', params={
+        'id': f'eq.{did}',
+        'select': 'id,name,doc_type_id',
+        'limit': '1',
+    })
+    if not data or not isinstance(data, list) or len(data) == 0:
+        return None
+    r = data[0]
+    if not isinstance(r, dict):
+        return None
+    return {
+        'id': r.get('id'),
+        'name': r.get('name') or '',
+        'doc_type_id': r.get('doc_type_id'),
+    }
+
+
 def _get_bearer(session):
     """Extract Bearer token from Flask session."""
     tok = session.get('token')
@@ -161,7 +203,11 @@ def _req(session, method, path, params=None, json_data=None, timeout=10):
             headers=headers,
             timeout=timeout,
         )
-        if r.status_code in (200, 201, 204):
+        # PostgREST often returns 204 + empty body for successful PATCH/PUT/DELETE with return=minimal.
+        # Older _req treated that as [] so _patch_ok() was false and the portal reported failure while DB updated.
+        if r.status_code == 204:
+            return [{'__ok': True}]
+        if r.status_code in (200, 201):
             if not r.text:
                 return []
             try:
@@ -431,14 +477,12 @@ def list_user_verification_documents(session, internal_user_id):
                 continue
             url = r.get('name') or ''
             view_url = url
-            if isinstance(url, str) and url.startswith('http'):
-                signed = _sign_storage_download_url(url)
-                if signed:
-                    view_url = signed
             dt = r.get('document_type') or {}
             dt_name = dt.get('name') if isinstance(dt, dict) else None
             out.append({
                 'id': r.get('id'),
+                # Keep the original URL in DB (usually a Storage URL). The portal will proxy it
+                # through a same-origin endpoint so admins can view inline without redirects.
                 'name': view_url,
                 'doc_type_name': dt_name or '',
                 'doc_type_id': r.get('doc_type_id'),
@@ -587,6 +631,10 @@ def _service_to_dict(row):
         'search_radius_meters': row.get('search_radius_meters') if row.get('search_radius_meters') is not None else 10000,
         'require_location_detail': bool(row.get('require_location_detail')),
         'location_detail_schema': schema_txt,
+        'safety_checkins_required': bool(row.get('safety_checkins_required')),
+        'safety_checkin_interval_min': row.get('safety_checkin_interval_min')
+        if row.get('safety_checkin_interval_min') is not None
+        else 60,
     }
 
 
@@ -612,9 +660,54 @@ def add_service(session, payload):
     return res is not None and (isinstance(res, list) or isinstance(res, dict))
 
 
+def _patch_services_row_via_service_role(service_id: int, payload: dict):
+    """
+    PATCH public.services by id using the service role (bypasses RLS).
+    Returns True if at least one row was updated, False on HTTP/logical failure,
+    or None if SUPABASE_SERVICE_ROLE_KEY is not set (caller should use JWT path).
+    """
+    base = _supabase_url().rstrip('/')
+    sk = _supabase_service_role_key()
+    if not base or not sk:
+        return None
+    url = f"{base}/rest/v1/services?id=eq.{int(service_id)}"
+    headers = {
+        'apikey': sk,
+        'Authorization': f'Bearer {sk}',
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+    }
+    try:
+        r = requests.patch(url, headers=headers, json=payload, timeout=25)
+        if r.status_code == 204:
+            return True
+        if r.status_code not in (200, 201):
+            return False
+        txt = (r.text or '').strip()
+        if not txt:
+            return False
+        try:
+            body = r.json()
+        except Exception:
+            return False
+        if isinstance(body, list):
+            return len(body) > 0
+        return isinstance(body, dict)
+    except Exception:
+        return False
+
+
 def update_service(session, service_id, payload):
-    """Update service."""
-    res = _req_write(session, 'PATCH', f'/services?id=eq.{service_id}', json_data=payload)
+    """
+    Update a catalog row. When SUPABASE_SERVICE_ROLE_KEY is set (portal .env), PATCH uses the
+    service role so the row always updates (RLS / JWT claims cannot block admins). Otherwise
+    uses the signed-in admin JWT + RLS (requires is_admin()).
+    """
+    sid = int(service_id)
+    via_role = _patch_services_row_via_service_role(sid, payload)
+    if via_role is not None:
+        return bool(via_role)
+    res = _req_write(session, 'PATCH', f'/services?id=eq.{sid}', json_data=payload)
     return _patch_ok(res)
 
 

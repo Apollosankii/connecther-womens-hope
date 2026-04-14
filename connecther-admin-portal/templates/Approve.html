@@ -129,7 +129,8 @@
                         <thead>
                             <tr>
                                 <th>Type</th>
-                                <th>File</th>
+                                <th>Preview</th>
+                                <th class="text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -137,10 +138,27 @@
                             <tr>
                                 <td>{{ doc.doc_type_name or 'Document' }}</td>
                                 <td>
-                                    {% if doc.name and (doc.name.startswith('http://') or doc.name.startswith('https://')) %}
-                                    <a href="{{ doc.name }}" target="_blank" rel="noopener noreferrer" class="ch-btn-sm" style="display:inline-block;">Open / download</a>
+                                    {% set doc_url = url_for('document_content', doc_id=doc.id) %}
+                                    {% set raw = (doc.name or '') %}
+                                    {% set lower = raw.lower() %}
+                                    {% if raw and (raw.startswith('http://') or raw.startswith('https://')) and (lower.endswith('.png') or lower.endswith('.jpg') or lower.endswith('.jpeg') or lower.endswith('.webp') or lower.endswith('.gif')) %}
+                                        <a href="{{ doc_url }}" target="_blank" rel="noopener" style="display:inline-block;">
+                                            <img src="{{ doc_url }}" alt="{{ doc.doc_type_name or 'Document' }}" style="max-height:90px;max-width:240px;border-radius:10px;border:1px solid var(--ch-border);background:var(--ch-bg-card);object-fit:cover;">
+                                        </a>
+                                    {% elif raw and (raw.startswith('http://') or raw.startswith('https://')) and (lower.endswith('.pdf')) %}
+                                        <span class="text-muted small">PDF document</span>
+                                    {% elif raw and (raw.startswith('http://') or raw.startswith('https://')) %}
+                                        <span class="text-muted small">File attached</span>
                                     {% else %}
-                                    <span class="text-muted small">{{ doc.name }}</span>
+                                        <span class="text-muted small">{{ doc.name }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-right">
+                                    {% if raw and (raw.startswith('http://') or raw.startswith('https://')) %}
+                                        <a href="{{ doc_url }}" target="_blank" rel="noopener" class="ch-btn-sm" style="display:inline-block;">Open</a>
+                                        <a href="{{ doc_url }}?download=1" class="ch-btn-sm" style="display:inline-block;">Download</a>
+                                    {% else %}
+                                        —
                                     {% endif %}
                                 </td>
                             </tr>

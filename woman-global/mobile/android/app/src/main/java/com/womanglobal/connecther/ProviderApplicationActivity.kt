@@ -158,11 +158,16 @@ class ProviderApplicationActivity : AppCompatActivity() {
                                 Toast.LENGTH_LONG,
                             ).show()
                         } else {
-                            runCatching {
-                                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(u)))
-                            }.onFailure {
-                                Toast.makeText(this@ProviderApplicationActivity, "No app available to open this file.", Toast.LENGTH_SHORT).show()
-                            }
+                            // In-app viewer (PDF via embedded viewer, images in WebView). ACTION_VIEW often fails for PDFs / signed URLs.
+                            startActivity(
+                                Intent(this@ProviderApplicationActivity, SecureProviderDocumentActivity::class.java).apply {
+                                    putExtra(SecureProviderDocumentActivity.EXTRA_URL, u)
+                                    putExtra(
+                                        SecureProviderDocumentActivity.EXTRA_TITLE,
+                                        doc.docTypeName.ifBlank { getString(R.string.secure_document_title) },
+                                    )
+                                },
+                            )
                         }
                     }
                 }

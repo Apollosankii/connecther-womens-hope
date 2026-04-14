@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/secureDocRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background"
@@ -13,6 +15,15 @@
         app:navigationIcon="@drawable/ic_arrow_back_24"
         app:navigationIconTint="?attr/colorControlNormal"
         app:title="@string/secure_document_title" />
+
+    <ProgressBar
+        android:id="@+id/secureDocProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:indeterminate="true"
+        android:visibility="visible"
+        tools:visibility="visible" />
 
     <WebView
         android:id="@+id/secureDocWebView"

@@ -152,6 +152,7 @@
     <string name="profile_documents_verified">Verified</string>
     <string name="secure_document_title">Credential</string>
     <string name="secure_document_download_blocked">Saving or exporting this credential isn’t allowed. You can view it here only.</string>
+    <string name="secure_document_load_failed">Couldn’t load this file. Check your connection and try again.</string>
 
     <string name="history_label_client">Client: %1$s</string>
     <string name="history_label_provider">Provider: %1$s</string>
