@@ -1,5 +1,5 @@
 /**
- * Checklist: Kotlin `woman-global/mobile/android` vs Expo `expo-app`.
+ * Feature parity checklist (legacy Kotlin app removed; Expo is the mobile client).
  * Update as features are ported. See plan "Expo parity with Kotlin Android".
  */
 export const KOTLIN_EXPO_PARITY_ROWS = [

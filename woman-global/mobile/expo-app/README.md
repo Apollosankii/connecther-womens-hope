@@ -1,6 +1,6 @@
 # ConnectHer (Expo) — Frontend rebuild
 
-This is a **new Expo (React Native) app** intended to rebuild the existing Android frontend as a **cross-platform** app (iOS-first) while **leaving the existing Android codebase untouched** under `woman-global/mobile/android/`.
+This is the **ConnectHer cross-platform mobile app** (Expo / React Native) for Android and iOS. The legacy Kotlin Android project has been removed from the repo; use this app and EAS/dev builds only.
 
 ## Requirements / scope
 

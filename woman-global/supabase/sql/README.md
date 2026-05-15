@@ -40,4 +40,4 @@ Run these in the **Supabase SQL Editor** in order:
 - Ensure **`messages`** has a default for your timestamp column (e.g. `time` or `created_at` defaults to `now()`), or inserts from the app will fail.
 - **Optional (lower latency):** Supabase Dashboard → **Database** → **Publications** → enable **`supabase_realtime`** for table **`messages`** (the app currently refreshes the thread every ~1.5s; you can later wire `selectAsFlow` + Realtime).
 
-**If registration or provider application fails:** Run **supabase_rls_clerk_fix.sql** to ensure schema and RLS are correct. See `mobile/android/TROUBLESHOOTING_CLERK_SUPABASE.md`.
+**If registration or provider application fails:** Run **supabase_rls_clerk_fix.sql** to ensure schema and RLS are correct. See `woman-global/mobile/expo-app/README.md` for auth-bridge setup.

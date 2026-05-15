@@ -9,7 +9,7 @@ function parseAndroidVersionCode(raw: string | undefined): number {
 /**
  * NOTE:
  * - This app is intentionally a new Expo project.
- * - The existing Android app under woman-global/mobile/android is not modified.
+ * - Native Android builds use expo-app/ (prebuild); google-services.json lives in this project.
  * - Environment variables used at runtime must be prefixed with EXPO_PUBLIC_.
  * - Registration (Kotlin parity): enable Firebase **Anonymous** sign-in so phone-verify + Google linking works.
  * - `phone-verify` Edge Function uses the same `EXPO_PUBLIC_SUPABASE_URL` / anon key as the Supabase client.

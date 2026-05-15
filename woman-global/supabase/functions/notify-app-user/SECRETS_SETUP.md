@@ -15,7 +15,7 @@ Set these in **Supabase Dashboard → Edge Functions → notify-app-user → Sec
 We use **Option B**: the Android app is switched to Firebase project **connecther-d6e1a** so the same project’s service account can send FCM.
 
 - Set **FIREBASE_PROJECT_ID** = `connecther-d6e1a`.
-- The app’s **google-services.json** must be the one downloaded from project **connecther-d6e1a** (see `mobile/android/FCM_SETUP.md`). Replace `app/google-services.json` with that file.
+- The app’s **google-services.json** must be from project **connecther-d6e1a** (`woman-global/mobile/expo-app/google-services.json`).
 
 ## Optional
 
