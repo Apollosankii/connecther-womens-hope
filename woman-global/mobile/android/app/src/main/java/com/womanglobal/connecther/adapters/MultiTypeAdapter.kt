@@ -12,7 +12,7 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.womanglobal.connecther.AboutUsActivity
 import com.womanglobal.connecther.AllServicesActivity
-import com.womanglobal.connecther.CategoryUsersActivity
+import com.womanglobal.connecther.ServiceMenuActivity
 import com.womanglobal.connecther.R
 import com.womanglobal.connecther.SearchActivity
 import com.womanglobal.connecther.data.Category
@@ -125,9 +125,9 @@ class MultiTypeAdapter(
             binding.categoryTitle.visibility = if (title.isBlank()) View.GONE else View.VISIBLE
             binding.workerRecyclerView.layoutManager = GridLayoutManager(context, 2)
             binding.workerRecyclerView.adapter = GenericGridAdapter(services.take(3)) { service ->
-                val intent = Intent(context, CategoryUsersActivity::class.java).apply {
-                    putExtra("categoryName", service.name)
+                val intent = Intent(context, ServiceMenuActivity::class.java).apply {
                     putExtra("service_id", service.service_id)
+                    putExtra("service_name", service.name)
                 }
                 context.startActivity(intent)
             }

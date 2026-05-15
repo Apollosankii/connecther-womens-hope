@@ -3,7 +3,6 @@ package com.womanglobal.connecther
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.content.res.ColorStateList
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
@@ -14,54 +13,34 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.util.Patterns
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.womanglobal.connecther.databinding.ActivityRegisterBinding
 import com.womanglobal.connecther.supabase.AuthBridgeClient
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.supabase.SupabaseTokenStore
-import com.womanglobal.connecther.supabase.TwilioVerifyClient
-import com.womanglobal.connecther.utils.ConnectHerPhoneAuth
 import com.womanglobal.connecther.utils.PushRegistration
 import com.womanglobal.connecther.utils.UserFriendlyMessages
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
 
 class RegisterActivity : AppCompatActivity() {
-
-    private fun messageForPhoneVerifyException(e: Exception): String {
-        val fe = e as? FirebaseAuthException
-        if (fe != null) {
-            return UserFriendlyMessages.firebaseAuth(this, fe)
-        }
-        return getString(R.string.auth_phone_verify_failed) + ": " + (e.message ?: e.javaClass.simpleName)
-    }
 
     private lateinit var binding: ActivityRegisterBinding
     private lateinit var sharedPreferences: SharedPreferences
     private val auth: FirebaseAuth by lazy { FirebaseAuth.getInstance() }
     private var pendingPasswordToSet: String? = null
-    /** E.164 after successful Twilio Verify `check` (registration-with-Google flow). */
-    private var pendingTwilioVerifiedE164: String? = null
 
     private val isGoogleProfileCompletion: Boolean by lazy {
         intent.getBooleanExtra(EXTRA_GOOGLE_PROFILE_COMPLETION, false)
@@ -75,6 +54,9 @@ class RegisterActivity : AppCompatActivity() {
 
     private val googleLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (isGoogleProfileCompletion || isEmailLinkProfileCompletion || isPhoneProfileCompletion) {
+                return@registerForActivityResult
+            }
             val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
             runCatching { task.getResult(ApiException::class.java) }
                 .onFailure { e ->
@@ -90,7 +72,7 @@ class RegisterActivity : AppCompatActivity() {
                         Toast.makeText(this, R.string.auth_google_failed, Toast.LENGTH_LONG).show()
                         return@onSuccess
                     }
-                    completeGoogleAfterPhoneVerified(idToken, account.email.orEmpty())
+                    completeGoogleSignup(idToken, account.email.orEmpty())
                 }
         }
 
@@ -113,10 +95,7 @@ class RegisterActivity : AppCompatActivity() {
                 isPhoneProfileCompletion -> applyPhoneCompletionUi()
             }
         } else {
-            // No OAuth: fill form + password, verify phone by OTP, then continue with Google.
-            binding.emailInputLayout.visibility = View.GONE
-            binding.registerButton.text = getString(R.string.register_button_verify_phone)
-            binding.continueWithGoogleButton.isEnabled = false
+            applyDefaultRegistrationUi()
         }
 
         val titles = arrayOf("Mr", "Mrs", "Miss", "Sir")
@@ -131,7 +110,7 @@ class RegisterActivity : AppCompatActivity() {
                 isGoogleProfileCompletion -> submitGoogleProfileCompletion()
                 isEmailLinkProfileCompletion -> submitEmailLinkProfileCompletion()
                 isPhoneProfileCompletion -> submitPhoneProfileCompletion()
-                else -> startPhoneOtpForRegistration()
+                else -> submitEmailPasswordRegistration()
             }
         }
 
@@ -175,6 +154,10 @@ class RegisterActivity : AppCompatActivity() {
         binding.signInText.visibility = View.GONE
         binding.registerButton.text = getString(R.string.register_google_button)
 
+        binding.emailInputLayout.visibility = View.VISIBLE
+        binding.phoneInputLayout.visibility = View.GONE
+        binding.continueWithGoogleButton.visibility = View.GONE
+
         binding.emailInput.setText(user.email.orEmpty())
         binding.emailInput.isFocusable = false
         binding.emailInput.isClickable = false
@@ -215,6 +198,10 @@ class RegisterActivity : AppCompatActivity() {
         binding.signInText.visibility = View.GONE
         binding.registerButton.text = getString(R.string.register_google_button)
 
+        binding.emailInputLayout.visibility = View.VISIBLE
+        binding.phoneInputLayout.visibility = View.GONE
+        binding.continueWithGoogleButton.visibility = View.GONE
+
         val email = sharedPreferences.getString(PREF_PENDING_REG_EMAIL, "")?.trim().orEmpty()
         val first = sharedPreferences.getString(PREF_PENDING_REG_FIRST, "")?.trim().orEmpty()
         val last = sharedPreferences.getString(PREF_PENDING_REG_LAST, "")?.trim().orEmpty()
@@ -247,6 +234,8 @@ class RegisterActivity : AppCompatActivity() {
         binding.signInText.visibility = View.GONE
         binding.registerButton.text = getString(R.string.register_google_button)
 
+        binding.continueWithGoogleButton.visibility = View.GONE
+
         val phone = user.phoneNumber?.trim().orEmpty()
         if (phone.isNotBlank()) {
             binding.phonNumInput.setText(phone)
@@ -260,11 +249,21 @@ class RegisterActivity : AppCompatActivity() {
         }
     }
 
-    private fun startPhoneOtpForRegistration() {
+    private fun applyDefaultRegistrationUi() {
+        binding.emailInputLayout.visibility = View.VISIBLE
+        binding.phoneInputLayout.visibility = View.GONE
+        binding.newPasswordInputLayout.visibility = View.VISIBLE
+        binding.confirmPasswordInputLayout.visibility = View.VISIBLE
+        binding.registerButton.text = getString(R.string.register_button_label)
+        binding.registerButton.setIcon(null)
+        binding.continueWithGoogleButton.isEnabled = true
+    }
+
+    private fun submitEmailPasswordRegistration() {
         clearFieldErrors()
         val fistName = binding.firstNameInput.text.toString().trim()
         val lastName = binding.lastNameInput.text.toString().trim()
-        val phone = binding.phonNumInput.text.toString().trim()
+        val email = binding.emailInput.text.toString().trim()
         val title = binding.titleInput.text.toString().trim()
         val password = binding.newPasswordInput.text?.toString().orEmpty()
         val confirmPassword = binding.confirmPasswordInput.text?.toString().orEmpty()
@@ -277,15 +276,14 @@ class RegisterActivity : AppCompatActivity() {
             binding.lastNameInputLayout.error = getString(R.string.register_error_last_name)
             return
         }
-        if (phone.isEmpty()) {
-            binding.phoneInputLayout.error = getString(R.string.register_error_phone)
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            binding.emailInputLayout.error = getString(R.string.login_error_email)
             return
         }
         if (title.isEmpty()) {
             binding.titleInputLayout.error = getString(R.string.register_error_title)
             return
         }
-
         if (password.length < 6) {
             Toast.makeText(this, R.string.register_error_password_too_short, Toast.LENGTH_SHORT).show()
             return
@@ -295,123 +293,64 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        val e164 = ConnectHerPhoneAuth.normalizeKenyaE164(phone)
-        if (e164 == null) {
-            ConnectHerPhoneAuth.toastInvalidPhone(this)
+        if (auth.currentUser != null) {
+            Toast.makeText(this, R.string.auth_phone_verify_sign_out_first, Toast.LENGTH_LONG).show()
             return
         }
-
-        pendingPasswordToSet = password
-        pendingTwilioVerifiedE164 = null
 
         setLoading(true)
-        lifecycleScope.launch {
-            try {
-                when {
-                    auth.currentUser == null -> auth.signInAnonymously().await()
-                    auth.currentUser != null && auth.currentUser?.isAnonymous != true -> {
-                        setLoading(false)
-                        Toast.makeText(
-                            this@RegisterActivity,
-                            R.string.auth_phone_verify_sign_out_first,
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        return@launch
-                    }
-                }
-                val user = auth.currentUser ?: run {
-                    setLoading(false)
-                    Toast.makeText(this@RegisterActivity, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val token = user.getIdToken(true).await().token?.trim().orEmpty()
-                if (token.isEmpty()) {
-                    setLoading(false)
-                    Toast.makeText(this@RegisterActivity, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val startRes = withContext(Dispatchers.IO) { TwilioVerifyClient.start(token, e164) }
-                if (startRes.isFailure) {
-                    setLoading(false)
-                    Toast.makeText(
-                        this@RegisterActivity,
-                        getString(R.string.auth_phone_verify_failed) + ": " +
-                            (startRes.exceptionOrNull()?.message ?: ""),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
+        auth.createUserWithEmailAndPassword(email, password).addOnCompleteListener { task ->
+            if (!task.isSuccessful) {
                 setLoading(false)
-                Toast.makeText(this@RegisterActivity, R.string.auth_otp_sent, Toast.LENGTH_SHORT).show()
-                showTwilioOtpDialog(phoneE164 = e164, cancelSignsOutFirebaseUser = false) {
-                    pendingTwilioVerifiedE164 = e164
-                    binding.continueWithGoogleButton.isEnabled = true
-                    binding.phonNumInput.isEnabled = false
-                    applyRegistrationPhoneVerifiedUi()
-                    showPhoneVerifiedSuccessDialog()
-                }
-            } catch (e: Exception) {
-                setLoading(false)
-                Toast.makeText(this@RegisterActivity, messageForPhoneVerifyException(e), Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    this,
+                    UserFriendlyMessages.firebaseAuth(this, task.exception as? Exception ?: Exception(task.exception)),
+                    Toast.LENGTH_LONG,
+                ).show()
+                return@addOnCompleteListener
             }
+            val user = task.result?.user ?: run {
+                setLoading(false)
+                Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
+                return@addOnCompleteListener
+            }
+            runPostRegisterBridge(user, fistName, lastName, "", title, email)
         }
     }
 
-    /** Default registration flow: after Twilio OTP success, show green tick and success prompt before Google. */
-    private fun applyRegistrationPhoneVerifiedUi() {
-        if (isGoogleProfileCompletion || isEmailLinkProfileCompletion || isPhoneProfileCompletion) return
-        binding.registerButton.setIconResource(R.drawable.check_circle_24px)
-        binding.registerButton.iconTint =
-            ColorStateList.valueOf(ContextCompat.getColor(this, R.color.profile_verified))
-        binding.registerButton.iconGravity = MaterialButton.ICON_GRAVITY_TEXT_START
-        val pad = (10 * resources.displayMetrics.density).toInt()
-        binding.registerButton.iconPadding = pad
-        binding.registerButton.text = getString(R.string.register_button_phone_verified)
-        binding.registerButton.isEnabled = false
-    }
-
-    private fun showPhoneVerifiedSuccessDialog() {
-        if (isGoogleProfileCompletion || isEmailLinkProfileCompletion || isPhoneProfileCompletion) return
-        MaterialAlertDialogBuilder(this)
-            .setTitle(R.string.auth_phone_verified_success_title)
-            .setMessage(R.string.auth_phone_verified_success_message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-    }
-
-    private fun completeGoogleAfterPhoneVerified(idToken: String, googleEmail: String) {
-        val phoneRaw = binding.phonNumInput.text.toString().trim()
-        val e164 = ConnectHerPhoneAuth.normalizeKenyaE164(phoneRaw)
-        if (e164.isNullOrBlank() || e164 != pendingTwilioVerifiedE164) {
-            Toast.makeText(this, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG).show()
-            return
-        }
+    private fun completeGoogleSignup(idToken: String, googleEmail: String) {
         if (!Patterns.EMAIL_ADDRESS.matcher(googleEmail).matches()) {
             Toast.makeText(this, R.string.auth_google_failed, Toast.LENGTH_LONG).show()
             return
         }
-
         val fistName = binding.firstNameInput.text.toString().trim()
         val lastName = binding.lastNameInput.text.toString().trim()
-        val phone = phoneRaw
         val title = binding.titleInput.text.toString().trim()
-        val password = pendingPasswordToSet.orEmpty()
+        val password = binding.newPasswordInput.text?.toString().orEmpty()
+        val confirmPassword = binding.confirmPasswordInput.text?.toString().orEmpty()
 
-        if (fistName.isBlank() || lastName.isBlank() || phone.isBlank() || title.isBlank() || password.length < 6) {
+        if (fistName.isBlank() || lastName.isBlank() || title.isBlank()) {
             Toast.makeText(this, R.string.auth_register_no_user, Toast.LENGTH_LONG).show()
             return
         }
+        if (password.length < 6) {
+            Toast.makeText(this, R.string.register_error_password_too_short, Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (password != confirmPassword) {
+            Toast.makeText(this, R.string.register_error_password_mismatch, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        if (auth.currentUser != null && auth.currentUser?.isAnonymous != true) {
+            Toast.makeText(this, R.string.auth_phone_verify_sign_out_first, Toast.LENGTH_LONG).show()
+            return
+        }
+        auth.currentUser?.takeIf { it.isAnonymous }?.let { auth.signOut() }
 
         setLoading(true)
         val googleCred = GoogleAuthProvider.getCredential(idToken, null)
-        val current = auth.currentUser
-        val wasAnonymous = current?.isAnonymous == true
-        val task = if (wasAnonymous && current != null) {
-            current.linkWithCredential(googleCred)
-        } else {
-            auth.signInWithCredential(googleCred)
-        }
-        task.addOnCompleteListener { task ->
+        auth.signInWithCredential(googleCred).addOnCompleteListener { task ->
             if (!task.isSuccessful) {
                 setLoading(false)
                 Toast.makeText(
@@ -432,7 +371,7 @@ class RegisterActivity : AppCompatActivity() {
                 Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
                 return@addOnCompleteListener
             }
-            if (!wasAnonymous && !isNewUser) {
+            if (!isNewUser) {
                 setLoading(false)
                 Toast.makeText(this, R.string.auth_error_email_in_use, Toast.LENGTH_LONG).show()
                 auth.signOut()
@@ -450,13 +389,12 @@ class RegisterActivity : AppCompatActivity() {
                     auth.signOut()
                     return@ensurePasswordForFutureLogin
                 }
-                runPostRegisterBridge(user, fistName, lastName, phone, title, email)
+                runPostRegisterBridge(user, fistName, lastName, "", title, email)
             }
         }
     }
 
     private fun submitEmailLinkProfileCompletion() {
-        // Signed in via email link already; now verify phone via OTP and complete profile setup.
         clearFieldErrors()
         val user = auth.currentUser ?: run {
             Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
@@ -466,7 +404,6 @@ class RegisterActivity : AppCompatActivity() {
 
         val fistName = binding.firstNameInput.text.toString().trim()
         val lastName = binding.lastNameInput.text.toString().trim()
-        val phone = binding.phonNumInput.text.toString().trim()
         val email = user.email?.trim().orEmpty().ifBlank { binding.emailInput.text.toString().trim() }
         val title = binding.titleInput.text.toString().trim()
 
@@ -476,10 +413,6 @@ class RegisterActivity : AppCompatActivity() {
         }
         if (lastName.isEmpty()) {
             binding.lastNameInputLayout.error = getString(R.string.register_error_last_name)
-            return
-        }
-        if (phone.isEmpty()) {
-            binding.phoneInputLayout.error = getString(R.string.register_error_phone)
             return
         }
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
@@ -503,40 +436,10 @@ class RegisterActivity : AppCompatActivity() {
         }
         pendingPasswordToSet = password
 
-        val e164 = ConnectHerPhoneAuth.normalizeKenyaE164(phone)
-        if (e164 == null) {
-            ConnectHerPhoneAuth.toastInvalidPhone(this)
-            return
-        }
-
         setLoading(true)
-        lifecycleScope.launch {
-            try {
-                val token = user.getIdToken(true).await().token?.trim().orEmpty()
-                if (token.isEmpty()) {
-                    setLoading(false)
-                    Toast.makeText(this@RegisterActivity, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val startRes = withContext(Dispatchers.IO) { TwilioVerifyClient.start(token, e164) }
-                if (startRes.isFailure) {
-                    setLoading(false)
-                    Toast.makeText(
-                        this@RegisterActivity,
-                        getString(R.string.auth_phone_verify_failed) + ": " +
-                            (startRes.exceptionOrNull()?.message ?: ""),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                setLoading(false)
-                showTwilioOtpDialog(phoneE164 = e164, cancelSignsOutFirebaseUser = false) {
-                    completeProfileAfterTwilioVerified(user, fistName, lastName, phone, title, email)
-                }
-            } catch (e: Exception) {
-                setLoading(false)
-                Toast.makeText(this@RegisterActivity, messageForPhoneVerifyException(e), Toast.LENGTH_LONG).show()
-            }
+        ensurePasswordForFutureLogin(user, email, password) { ok ->
+            if (!ok) return@ensurePasswordForFutureLogin
+            runPostRegisterBridge(user, fistName, lastName, "", title, email)
         }
     }
 
@@ -586,15 +489,12 @@ class RegisterActivity : AppCompatActivity() {
         }
         pendingPasswordToSet = password
 
-        // Legacy path after Firebase phone sign-in (disabled); set password then complete profile and bridge.
         setLoading(true)
         ensurePasswordForFutureLogin(user, email, password) { ok ->
             if (!ok) return@ensurePasswordForFutureLogin
             runPostRegisterBridge(user, fistName, lastName, phone, title, email)
         }
     }
-
-    // NOTE: Legacy email+password registration removed in favor of email link + phone OTP.
 
     private fun submitGoogleProfileCompletion() {
         clearFieldErrors()
@@ -621,11 +521,6 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        if (phone.isEmpty()) {
-            binding.phoneInputLayout.error = getString(R.string.register_error_phone)
-            return
-        }
-
         if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
             binding.emailInputLayout.error = getString(R.string.login_error_email)
             return
@@ -648,128 +543,10 @@ class RegisterActivity : AppCompatActivity() {
         }
         pendingPasswordToSet = password
 
-        val e164 = ConnectHerPhoneAuth.normalizeKenyaE164(phone)
-        if (e164 == null) {
-            ConnectHerPhoneAuth.toastInvalidPhone(this)
-            return
-        }
-
         setLoading(true)
-        lifecycleScope.launch {
-            try {
-                val token = user.getIdToken(true).await().token?.trim().orEmpty()
-                if (token.isEmpty()) {
-                    setLoading(false)
-                    Toast.makeText(this@RegisterActivity, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG).show()
-                    return@launch
-                }
-                val startRes = withContext(Dispatchers.IO) { TwilioVerifyClient.start(token, e164) }
-                if (startRes.isFailure) {
-                    setLoading(false)
-                    Toast.makeText(
-                        this@RegisterActivity,
-                        getString(R.string.auth_phone_verify_failed) + ": " +
-                            (startRes.exceptionOrNull()?.message ?: ""),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                    return@launch
-                }
-                setLoading(false)
-                showTwilioOtpDialog(phoneE164 = e164, cancelSignsOutFirebaseUser = false) {
-                    completeProfileAfterTwilioVerified(user, fistName, lastName, phone, title, email)
-                }
-            } catch (e: Exception) {
-                setLoading(false)
-                Toast.makeText(this@RegisterActivity, messageForPhoneVerifyException(e), Toast.LENGTH_LONG).show()
-            }
-        }
-    }
-
-    private fun showTwilioOtpDialog(
-        phoneE164: String,
-        cancelSignsOutFirebaseUser: Boolean,
-        onVerified: () -> Unit,
-    ) {
-        val otpInput = EditText(this).apply {
-            hint = getString(R.string.auth_otp_hint)
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER
-            setPadding(48, 32, 48, 32)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.register_phone_link_title)
-            .setMessage(R.string.register_phone_link_body)
-            .setView(otpInput)
-            .setPositiveButton(R.string.auth_verify) { _, _ ->
-                val code = otpInput.text?.toString()?.trim().orEmpty()
-                if (code.length < 4) {
-                    Toast.makeText(this, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
-                }
-                val user = auth.currentUser ?: run {
-                    Toast.makeText(this, R.string.auth_login_no_user, Toast.LENGTH_LONG).show()
-                    return@setPositiveButton
-                }
-                setLoading(true)
-                lifecycleScope.launch {
-                    try {
-                        val token = user.getIdToken(true).await().token?.trim().orEmpty()
-                        if (token.isEmpty()) {
-                            setLoading(false)
-                            Toast.makeText(this@RegisterActivity, R.string.auth_phone_verify_failed, Toast.LENGTH_LONG)
-                                .show()
-                            return@launch
-                        }
-                        val res = withContext(Dispatchers.IO) {
-                            TwilioVerifyClient.check(token, phoneE164, code)
-                        }
-                        if (res.isFailure) {
-                            setLoading(false)
-                            Toast.makeText(
-                                this@RegisterActivity,
-                                getString(R.string.auth_phone_verify_failed) + ": " +
-                                    (res.exceptionOrNull()?.message ?: ""),
-                                Toast.LENGTH_LONG,
-                            ).show()
-                            return@launch
-                        }
-                        setLoading(false)
-                        onVerified()
-                    } catch (e: Exception) {
-                        setLoading(false)
-                        Toast.makeText(this@RegisterActivity, messageForPhoneVerifyException(e), Toast.LENGTH_LONG)
-                            .show()
-                    }
-                }
-            }
-            .apply {
-                if (cancelSignsOutFirebaseUser) {
-                    setOnCancelListener { auth.signOut() }
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
-    private fun completeProfileAfterTwilioVerified(
-        user: FirebaseUser,
-        fistName: String,
-        lastName: String,
-        phone: String,
-        title: String,
-        email: String,
-    ) {
-        setLoading(true)
-        val pass = pendingPasswordToSet
-        if (pass.isNullOrBlank()) {
+        ensurePasswordForFutureLogin(user, email, password) { ok ->
+            if (!ok) return@ensurePasswordForFutureLogin
             runPostRegisterBridge(user, fistName, lastName, phone, title, email)
-        } else {
-            ensurePasswordForFutureLogin(user, email, pass) { ok ->
-                if (!ok) {
-                    setLoading(false)
-                    return@ensurePasswordForFutureLogin
-                }
-                runPostRegisterBridge(user, fistName, lastName, phone, title, email)
-            }
         }
     }
 
@@ -906,6 +683,7 @@ class RegisterActivity : AppCompatActivity() {
     private fun setLoading(loading: Boolean) {
         binding.progressBar.visibility = if (loading) View.VISIBLE else View.GONE
         binding.registerButton.isEnabled = !loading
+        binding.continueWithGoogleButton.isEnabled = !loading
     }
 
     companion object {

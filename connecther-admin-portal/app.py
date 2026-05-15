@@ -70,6 +70,34 @@ def _service_form_extras(form):
     }
 
 
+def _task_menu_update_from_form(form):
+    """
+    Returns ('clear', None), ('skip', None), ('set', dict), or ('error', message str).
+    """
+    if (form.get('clear_task_menu') or '').lower() in ('on', 'true', '1', 'yes'):
+        return 'clear', None
+    raw = (form.get('task_menu_json') or '').strip()
+    if not raw:
+        return 'skip', None
+    from task_menu_schema import parse_and_validate_task_menu
+    data, err = parse_and_validate_task_menu(raw)
+    if err:
+        return 'error', err
+    return 'set', data
+
+
+def _task_menu_add_from_form(form):
+    """Returns ('skip', None), ('set', dict), or ('error', message str)."""
+    raw = (form.get('task_menu_json') or '').strip()
+    if not raw:
+        return 'skip', None
+    from task_menu_schema import parse_and_validate_task_menu
+    data, err = parse_and_validate_task_menu(raw)
+    if err:
+        return 'error', err
+    return 'set', data
+
+
 app = Flask(__name__,
     template_folder=os.path.join(_ROOT, 'templates'),
     static_folder=os.path.join(_ROOT, 'static'))
@@ -83,6 +111,55 @@ if os.environ.get('FLASK_DEBUG') == '1':
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['SESSION_COOKIE_HTTPONLY'] = True
+
+
+def _init_flask_server_session(app_):
+    """
+    Clerk ``getToken({ template: 'supabase' })`` JWTs are often too large for Flask's default
+    signed cookie session; the token is dropped and uploads fail with 'no JWT' errors.
+
+    Uses filesystem sessions when:
+    - ``FLASK_SESSION_FILE_DIR`` is set to a writable directory, or
+    - ``connecther-admin-portal/.flask_session`` can be created (unless ``FLASK_COOKIE_SESSION_ONLY=1``).
+    """
+    explicit = (os.environ.get('FLASK_SESSION_FILE_DIR') or '').strip()
+    auto_dir = os.path.join(_ROOT, '.flask_session')
+    cookie_only = os.environ.get('FLASK_COOKIE_SESSION_ONLY', '').lower() in ('1', 'true', 'yes')
+    sess_dir = explicit
+    if not sess_dir and not cookie_only:
+        try:
+            os.makedirs(auto_dir, exist_ok=True)
+            probe = os.path.join(auto_dir, '.write_probe')
+            with open(probe, 'w', encoding='ascii') as f:
+                f.write('ok')
+            os.remove(probe)
+            sess_dir = auto_dir
+        except OSError as e:
+            logger.debug('Auto session dir not usable (%s): %s', auto_dir, e)
+            sess_dir = ''
+    if not sess_dir:
+        return
+    try:
+        os.makedirs(sess_dir, exist_ok=True)
+    except OSError as e:
+        logger.warning('Could not create session directory %s: %s', sess_dir, e)
+        return
+    try:
+        from flask_session import Session
+    except ImportError:
+        logger.warning(
+            'Large JWT / missing session token: pip install Flask-Session (see requirements.txt).'
+        )
+        return
+    app_.config['SESSION_TYPE'] = 'filesystem'
+    app_.config['SESSION_FILE_DIR'] = sess_dir
+    app_.config['SESSION_PERMANENT'] = False
+    app_.config['SESSION_USE_SIGNER'] = True
+    Session(app_)
+    logger.info('Flask filesystem sessions enabled (dir=%s)', sess_dir)
+
+
+_init_flask_server_session(app)
 
 
 @app.template_filter('ch_service_image_url')
@@ -121,10 +198,8 @@ if os.environ.get('FLASK_DEBUG') == '1':
 
 
 def _auth_headers():
-    tok = session.get('token')
-    if tok and isinstance(tok, dict) and tok.get('Authorization'):
-        return tok
-    return None
+    import supabase_data
+    return supabase_data._get_bearer(session) or None
 
 
 def _require_auth():
@@ -227,6 +302,7 @@ def auth_supabase_callback():
             return redirect(url_for('login'))
         token = str(token).strip()
         session.clear()
+        session['sb_access_token'] = token
         session['token'] = {'Authorization': 'Bearer ' + token}
         session.modified = True
         if want_json:
@@ -342,6 +418,7 @@ def auth_clerk_callback():
         return redirect(url_for('login'))
     try:
         session.clear()
+        session['sb_access_token'] = token
         session['token'] = {'Authorization': 'Bearer ' + token}
         session.modified = True
         return redirect(url_for('dash'))
@@ -353,6 +430,7 @@ def auth_clerk_callback():
 @app.route('/logout')
 def logout():
     session.pop('token', None)
+    session.pop('sb_access_token', None)
     return redirect(url_for('login'))
 
 
@@ -670,13 +748,26 @@ def document_content(doc_id: int):
     if not dl_url or not _is_allowed_storage_url(dl_url):
         abort(403)
 
+    stream_headers = {}
+    low = dl_url.lower()
+    # Signed URLs carry token in query; unauthenticated GET is enough.
+    if '/object/sign/' not in low and 'token=' not in low:
+        stream_headers = supabase_data.storage_stream_headers(session)
+
     import requests as req
     try:
-        r = req.get(dl_url, stream=True, timeout=30)
+        r = req.get(dl_url, stream=True, timeout=60, headers=stream_headers or None)
     except Exception:
         abort(502)
     if r.status_code != 200:
-        abort(404)
+        logger.warning(
+            'document_content: upstream storage status=%s doc_id=%s',
+            r.status_code,
+            doc_id,
+        )
+        if r.status_code in (401, 403):
+            abort(r.status_code)
+        abort(502)
 
     ct = (r.headers.get('Content-Type') or '').split(';', 1)[0].strip() or None
     if not ct:
@@ -725,6 +816,12 @@ def add_service():
             return redirect(url_for('add_service_page'))
         payload = {'description': description or None, 'min_price': price_val, 'name': name}
         payload.update(_service_form_extras(request.form))
+        action, tm_data = _task_menu_add_from_form(request.form)
+        if action == 'error':
+            flash(tm_data, 'error')
+            return redirect(url_for('add_service_page'))
+        if action == 'set':
+            payload['task_menu'] = tm_data
         service_pic = request.files.get('service_pic')
         if service_pic and service_pic.filename:
             raw = service_pic.read()
@@ -733,7 +830,7 @@ def add_service():
                 return redirect(url_for('add_service_page'))
             fn = secure_filename(str(uuid.uuid4()) + '_' + service_pic.filename)
             ct = service_pic.content_type or mimetypes.guess_type(fn)[0] or 'application/octet-stream'
-            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct)
+            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct, session)
             if pic_url:
                 payload['service_pic'] = pic_url
             else:
@@ -743,9 +840,9 @@ def add_service():
                 with open(os.path.join(pic_dir, fn), 'wb') as out:
                     out.write(raw)
                 flash(
-                    'Image saved on the portal only. For the mobile app to show it, set '
-                    'SUPABASE_SERVICE_ROLE_KEY in .env and ensure the service_catalog bucket exists '
-                    f'({err or "upload failed"}).',
+                    'Image saved on the portal only. Storage upload failed: '
+                    + (err or 'unknown error')
+                    + ' (check administrators / JWT session; see README).',
                     'warning',
                 )
         try:
@@ -791,13 +888,21 @@ def update_service(service_id):
         'min_price': price_val,
     }
     payload.update(_service_form_extras(request.form))
+    action, tm_data = _task_menu_update_from_form(request.form)
+    if action == 'error':
+        flash(tm_data, 'error')
+        return redirect(url_for('service', service_id=service_id))
+    if action == 'clear':
+        payload['task_menu'] = None
+    elif action == 'set':
+        payload['task_menu'] = tm_data
     service_pic = request.files.get('service_pic')
     if service_pic and service_pic.filename:
         raw = service_pic.read()
         if raw:
             fn = secure_filename(str(uuid.uuid4()) + '_' + service_pic.filename)
             ct = service_pic.content_type or mimetypes.guess_type(fn)[0] or 'application/octet-stream'
-            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct)
+            pic_url, err = supabase_data.upload_service_catalog_public_url(raw, fn, ct, session)
             if pic_url:
                 payload['service_pic'] = pic_url
                 flash('Photo updated — new image is live for the app.', 'success')
@@ -808,8 +913,9 @@ def update_service(service_id):
                 with open(os.path.join(pic_dir, fn), 'wb') as out:
                     out.write(raw)
                 flash(
-                    'Image saved on the portal only. Set SUPABASE_SERVICE_ROLE_KEY for app-visible URLs. '
-                    + (err or ''),
+                    'Image saved on the portal only. Storage upload failed: '
+                    + (err or 'unknown error')
+                    + ' (check administrators / JWT session; see README).',
                     'warning',
                 )
     try:
@@ -822,6 +928,31 @@ def update_service(service_id):
         logger.exception('update_service')
         flash(f'Update failed: {ex}', 'error')
     return redirect(url_for('service', service_id=service_id))
+
+
+@app.route('/service/<int:service_id>/task-menu-upload', methods=['POST'])
+def task_menu_asset_upload(service_id):
+    """XHR: upload banner or line-item image to service_catalog; returns JSON { ok, url }."""
+    if not _auth_headers():
+        return jsonify({'ok': False, 'error': 'Not signed in.'}), 401
+    from werkzeug.utils import secure_filename
+    import supabase_data
+    f = request.files.get('file')
+    if not f or not f.filename:
+        return jsonify({'ok': False, 'error': 'No file.'}), 400
+    raw = f.read()
+    if not raw:
+        return jsonify({'ok': False, 'error': 'Empty file.'}), 400
+    base_fn = secure_filename(f.filename) or 'image'
+    ext = base_fn.rsplit('.', 1)[-1].lower() if '.' in base_fn else ''
+    if ext not in ('jpg', 'jpeg', 'png', 'webp', 'gif'):
+        return jsonify({'ok': False, 'error': 'Use JPG, PNG, WEBP, or GIF.'}), 400
+    object_name = f'tasks/{int(service_id)}/{uuid.uuid4().hex}.{ext}'
+    ct = f.content_type or mimetypes.guess_type(f.filename)[0] or 'application/octet-stream'
+    url, err = supabase_data.upload_service_catalog_public_url(raw, object_name, ct, session)
+    if not url:
+        return jsonify({'ok': False, 'error': err or 'Upload failed.'}), 502
+    return jsonify({'ok': True, 'url': url})
 
 
 @app.route('/service/delete/<service_id>', methods=['POST'])
@@ -1258,8 +1389,12 @@ def _notify_provider_approved(internal_user_id):
         return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
 
     try:
-        tok = session.get('token', {})
-        auth_header = tok.get('Authorization', f'Bearer {anon_key}')
+        import supabase_data as _sd
+        bearer = _sd._get_bearer(session)
+        if not bearer:
+            logger.warning("Notify skipped: no admin JWT in session for devices lookup")
+            return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+        auth_header = f'Bearer {bearer}'
         r = req.get(
             f"{supa_url}/rest/v1/devices",
             params={'user_id': f'eq.{internal_user_id}', 'select': 'reg_token'},

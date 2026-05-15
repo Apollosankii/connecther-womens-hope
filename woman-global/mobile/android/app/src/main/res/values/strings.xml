@@ -107,6 +107,28 @@
     <string name="home_book_provider_title">Book a provider</string>
     <string name="home_see_all">See all</string>
 
+    <string name="service_menu_title">Choose services</string>
+    <string name="service_menu_book_now">Book now</string>
+    <string name="service_menu_not_configured">Add-on tasks for this service are not set up yet. Tap below to find a provider; you can enter price and details on the next steps.</string>
+    <string name="service_menu_find_provider">Find a provider</string>
+    <string name="service_menu_total_kes">Total: KES %1$.0f</string>
+    <string name="service_menu_line_price">KES %1$.0f</string>
+    <string name="service_menu_pick_items">Select at least one item or a quantity greater than zero.</string>
+    <string name="service_menu_missing_params">Booking could not start — this service is missing or invalid.</string>
+    <string name="service_menu_banner_overlay">%1$s Services</string>
+
+    <string name="recommendation_screen_title">Suggested provider</string>
+    <string name="recommendation_subtitle">We\'ll match you with an available provider for this service.</string>
+    <string name="recommendation_subtitle_with_service">Next available for: %1$s</string>
+    <string name="recommendation_no_providers">No providers are available for this service right now.</string>
+    <string name="recommendation_exhausted">You\'ve skipped every provider we could suggest. Browse the full list or try again later.</string>
+    <string name="recommendation_no_more_providers">No more providers to suggest. You can browse the full list or try again later.</string>
+    <string name="recommendation_browse_all">Browse all providers</string>
+    <string name="recommendation_reject">Book another provider</string>
+    <string name="recommendation_accept">Continue to booking</string>
+    <string name="recommendation_view_profile">View provider profile</string>
+    <string name="recommendation_distance_km">About %1$.1f km away</string>
+
     <string name="marketplace_title">Marketplace</string>
     <string name="marketplace_subtitle">Find and book trusted service providers</string>
     <string name="marketplace_search_hint">Search services…</string>
@@ -170,6 +192,40 @@
     <string name="rating_failed">Couldn\'t submit review. Try again.</string>
     <string name="rating_pick_stars">Choose at least one star.</string>
     <string name="rating_already_submitted">You already submitted a review for this job.</string>
+    <string name="rating_screen_title">Ratings</string>
+    <string name="rating_submit_review">Submit review</string>
+    <string name="rating_how_was_service">How was your Service?</string>
+    <string name="rating_feedback_hint">Your feedback will help improve our services</string>
+    <string name="rating_comments_hint">Additional comments.</string>
+    <string name="rating_role_caregiver">Caregiver</string>
+    <string name="rating_role_client">Client</string>
+
+    <string name="connection_success_headline">You have been connected with %1$s</string>
+    <string name="connection_success_post_booking_headline">Your booking request was sent. Say hello to %1$s</string>
+    <string name="connection_success_send_message">Send message</string>
+    <string name="connection_success_continue_booking">Continue to booking details</string>
+    <string name="connection_success_service_line">Service: %1$s</string>
+    <string name="booking_checkout_title">Order process</string>
+    <string name="booking_checkout_subtitle">Confirm your price, location, and optional note. Payment is handled outside the app.</string>
+    <string name="booking_checkout_pending_copy">The provider has 30 minutes to accept. You can cancel while it is pending.</string>
+    <string name="booking_submit_request">Make request</string>
+    <string name="booking_order_details_title">Order details</string>
+    <string name="booking_use_current_gps_caption">Use current GPS location</string>
+    <string name="booking_payment_outside_copy">Payment is handled outside the app.</string>
+    <string name="booking_order_subtitle_format">%1$s · %2$s</string>
+    <string name="booking_total_format">Total: KES %1$.0f</string>
+    <string name="booking_total_placeholder">Total: KES —</string>
+    <string name="booking_proposed_price_hint">Proposed price (KES)</string>
+    <string name="booking_field_location_hint">Location / address notes</string>
+    <string name="booking_field_message_hint">Note to provider (optional)</string>
+    <string name="booking_location_section_body">Use your GPS for coordinates, describe the address above, and open Google Maps anytime to double-check.</string>
+    <string name="booking_location_captured">Location captured</string>
+    <string name="booking_location_failed">Could not get GPS location</string>
+    <string name="chat_composer_placeholder">TYPE MESSAGE..</string>
+    <string name="chat_action_mic">Voice message</string>
+    <string name="chat_action_camera">Attach photo</string>
+    <string name="chat_action_more">More options</string>
+    <string name="chat_action_send">Send</string>
 
     <string name="jobs_screen_title">Bookings</string>
     <string name="jobs_screen_subtitle">Active items first, then canceled requests, then completed jobs.</string>
@@ -304,6 +360,7 @@
     <string name="auth_error_account_exists_different">An account already exists with this email using a different sign‑in method.</string>
     <string name="auth_error_generic">Something went wrong signing you in. Please try again.</string>
     <string name="auth_google_cancelled">Google sign‑in was cancelled.</string>
+    <string name="auth_google_developer_error">Google sign‑in isn’t set up for this build yet. Open Firebase Console → Project settings → your Android app, add both SHA‑1 fingerprints (release and debug — run `./gradlew signingReport` under `mobile/android`). Then replace `google-services.json` with the freshly downloaded copy and rebuild.</string>
     <string name="auth_google_failed">Couldn’t sign in with Google. Try again or use email.</string>
     <string name="auth_login_no_user">Couldn’t finish sign‑in. Please try again.</string>
     <string name="auth_register_no_user">Couldn’t finish registration. Please try again.</string>

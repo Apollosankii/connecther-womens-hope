@@ -1,5 +1,6 @@
 # Environment and secrets
 .env
+.flask_session/
 *.pem
 firebase_service_account.json
 

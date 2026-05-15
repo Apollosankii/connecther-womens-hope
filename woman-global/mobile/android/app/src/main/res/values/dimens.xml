@@ -15,4 +15,11 @@
     <!-- Small lift only; system nav/gesture inset added in code -->
     <dimen name="bottom_nav_island_margin_bottom">4dp</dimen>
     <dimen name="bottom_nav_island_corner_radius">26dp</dimen>
+
+    <!-- Figma service menu / corporate list rows -->
+    <dimen name="figma_menu_card_corner">22dp</dimen>
+    <dimen name="figma_menu_thumb_size">62dp</dimen>
+    <dimen name="figma_menu_thumb_corner">16dp</dimen>
+    <dimen name="figma_menu_row_margin_horizontal">15dp</dimen>
+    <dimen name="figma_menu_row_margin_top">12dp</dimen>
 </resources>

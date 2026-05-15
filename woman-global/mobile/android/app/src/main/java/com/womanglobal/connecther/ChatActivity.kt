@@ -15,7 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.signature.ObjectKey
-import com.google.android.material.button.MaterialButton
+import android.widget.ImageButton
 import com.womanglobal.connecther.adapters.ChatAdapter
 import com.womanglobal.connecther.data.local.AppOfflineCache
 import com.womanglobal.connecther.services.ChatMessage
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 
 class ChatActivity : AppCompatActivity() {
     private lateinit var backButton: ImageView
-    private lateinit var sendButton: MaterialButton
+    private lateinit var sendButton: ImageButton
     private lateinit var messageInput: EditText
     private lateinit var chatRecyclerView: RecyclerView
     private lateinit var userNameTextView: TextView
@@ -71,6 +71,9 @@ class ChatActivity : AppCompatActivity() {
 
         backButton.setOnClickListener { goToConversations() }
         sendButton.setOnClickListener { sendMessage() }
+        findViewById<ImageButton>(R.id.buttonChatMic).setOnClickListener { }
+        findViewById<ImageButton>(R.id.buttonChatCamera).setOnClickListener { }
+        findViewById<ImageButton>(R.id.buttonChatMore).setOnClickListener { }
 
         lifecycleScope.launch {
             currentUserId = SupabaseData.getMyUserId().orEmpty()

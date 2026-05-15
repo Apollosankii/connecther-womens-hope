@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
   Pressable,
@@ -11,8 +11,9 @@ import PagerView from 'react-native-pager-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/ui/AppButton';
-import { Colors } from '@/theme/colors';
+import { useTheme } from '@/providers/ThemeProvider';
 import { Spacing } from '@/theme/spacing';
+import type { ThemeColors } from '@/theme/types';
 import { ONBOARDING_SLIDES, type OnboardingSlide } from '@/screens/onboarding/onboardingContent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -25,6 +26,8 @@ const ICON_BY_SLIDE: Record<OnboardingSlide['icon'], keyof typeof MaterialCommun
 };
 
 export function OnboardingScreen({ onDone }: { onDone: () => void }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const pagerRef = useRef<PagerView>(null);
   const [page, setPage] = useState(0);
@@ -54,7 +57,7 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
       >
         {ONBOARDING_SLIDES.map((slide, index) => (
           <View key={index} style={styles.page} collapsable={false}>
-            <SlideContent slide={slide} />
+            <SlideContent slide={slide} colors={colors} />
           </View>
         ))}
       </PagerView>
@@ -71,12 +74,13 @@ export function OnboardingScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
-function SlideContent({ slide }: { slide: OnboardingSlide }) {
+function SlideContent({ slide, colors }: { slide: OnboardingSlide; colors: ThemeColors }) {
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const iconName = ICON_BY_SLIDE[slide.icon];
   return (
     <View style={styles.slideInner}>
       <View style={styles.iconWrap}>
-        <MaterialCommunityIcons name={iconName} size={72} color={Colors.primary} />
+        <MaterialCommunityIcons name={iconName} size={72} color={colors.primary} />
       </View>
       <Text style={styles.title}>{slide.title}</Text>
       <Text style={styles.body}>{slide.body}</Text>
@@ -84,77 +88,79 @@ function SlideContent({ slide }: { slide: OnboardingSlide }) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-  header: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.sm,
-    alignItems: 'flex-end',
-  },
-  skip: {
-    color: Colors.accent,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  pager: {
-    flex: 1,
-  },
-  page: {
-    width: SCREEN_WIDTH,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  slideInner: {
-    flex: 1,
-    paddingHorizontal: Spacing.xl,
-    justifyContent: 'center',
-    gap: Spacing.md,
-  },
-  iconWrap: {
-    alignSelf: 'center',
-    marginBottom: Spacing.lg,
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.outline,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '800',
-    color: Colors.onBackground,
-    textAlign: 'center',
-  },
-  body: {
-    fontSize: 15,
-    color: Colors.onSurfaceVariant,
-    lineHeight: 22,
-    textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.md,
-    gap: Spacing.lg,
-  },
-  dots: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.outline,
-  },
-  dotActive: {
-    backgroundColor: Colors.primary,
-    width: 22,
-  },
-});
+function makeStyles(colors: ThemeColors) {
+  return StyleSheet.create({
+    root: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.sm,
+      alignItems: 'flex-end',
+    },
+    skip: {
+      color: colors.accent,
+      fontSize: 16,
+      fontWeight: '600',
+    },
+    pager: {
+      flex: 1,
+    },
+    page: {
+      width: SCREEN_WIDTH,
+      flex: 1,
+      justifyContent: 'center',
+    },
+    slideInner: {
+      flex: 1,
+      paddingHorizontal: Spacing.xl,
+      justifyContent: 'center',
+      gap: Spacing.md,
+    },
+    iconWrap: {
+      alignSelf: 'center',
+      marginBottom: Spacing.lg,
+      width: 120,
+      height: 120,
+      borderRadius: 60,
+      backgroundColor: colors.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 1,
+      borderColor: colors.outline,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: '800',
+      color: colors.onBackground,
+      textAlign: 'center',
+    },
+    body: {
+      fontSize: 15,
+      color: colors.onSurfaceVariant,
+      lineHeight: 22,
+      textAlign: 'center',
+    },
+    footer: {
+      paddingHorizontal: Spacing.lg,
+      paddingBottom: Spacing.md,
+      gap: Spacing.lg,
+    },
+    dots: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    dot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      backgroundColor: colors.outline,
+    },
+    dotActive: {
+      backgroundColor: colors.primary,
+      width: 22,
+    },
+  });
+}

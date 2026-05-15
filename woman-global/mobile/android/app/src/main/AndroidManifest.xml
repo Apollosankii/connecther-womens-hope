@@ -120,6 +120,14 @@
         </activity>
         <activity android:name=".SearchActivity" />
         <activity android:name=".AboutUsActivity" />
+        <activity android:name=".ServiceMenuActivity" />
+        <activity android:name=".ProviderRecommendationActivity" />
+        <activity
+            android:name=".ConnectionSuccessActivity"
+            android:exported="false" />
+        <activity
+            android:name=".RatingActivity"
+            android:exported="false" />
         <activity android:name=".RequestBookingActivity" />
         <activity
             android:name=".HomeActivity"

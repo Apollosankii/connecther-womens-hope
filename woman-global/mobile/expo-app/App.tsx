@@ -1,16 +1,16 @@
-import 'react-native-gesture-handler';
-
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer, type Theme as NavTheme } from '@react-navigation/native';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { navigationRef } from '@/navigation/navigationRef';
 import { RootNavigator } from '@/navigation/RootNavigator';
-import { AuthProvider } from '@/providers/AuthProvider';
+import { configurePushNotifications } from '@/services/push/pushNotifications';
 
-WebBrowser.maybeCompleteAuthSession();
+configurePushNotifications();
+import { AuthProvider } from '@/providers/AuthProvider';
+import { ThemeProvider, useTheme } from '@/providers/ThemeProvider';
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -20,13 +20,37 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <NavigationContainer>
-            <RootNavigator />
-          </NavigationContainer>
-          <StatusBar style="auto" />
-        </AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
+            <ThemedNav />
+          </AuthProvider>
+        </ThemeProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
+  );
+}
+
+function ThemedNav() {
+  const { effectiveMode, colors } = useTheme();
+  const navTheme: NavTheme = {
+    ...DefaultTheme,
+    dark: effectiveMode === 'dark',
+    colors: {
+      ...DefaultTheme.colors,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.onSurface,
+      border: colors.outlineSoft,
+      primary: colors.primary,
+      notification: colors.accent,
+    },
+  };
+  return (
+    <>
+      <NavigationContainer ref={navigationRef} theme={navTheme}>
+        <RootNavigator />
+      </NavigationContainer>
+      <StatusBar style={effectiveMode === 'dark' ? 'light' : 'dark'} />
+    </>
   );
 }

@@ -11,6 +11,11 @@ data class Service(
     val require_location_detail: Boolean = false,
     /** JSON array string of { "key", "label" } hints for booking UI; may be "[]". */
     val location_detail_schema_json: String = "[]",
+    /**
+     * Optional JSON object: `{ "banner_image_url", "rows": [...] }` for task menu (see migration comment).
+     * Empty or "{}" means no menu — booking screen uses manual price.
+     */
+    val task_menu_json: String = "{}",
     val isFullSpan: Boolean = false, // Optional, use this to determine if it should span full width (like GBV Hotline)
     var fallbackImageResId: Int? = null // Optional fallback image resource ID
 )

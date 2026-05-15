@@ -4,8 +4,10 @@ This is a **new Expo (React Native) app** intended to rebuild the existing Andro
 
 ## Requirements / scope
 
-- **Included**: Firebase Authentication (**email/password** + **Google**), auth-bridge exchange, Supabase-backed API layer (PostgREST/RPC/Storage), subscriptions **status**, **splash screen**, **onboarding** (aligned with Android copy).
-- **Excluded**: **Paystack** (no keys, no checkout, no `/functions/v1/paystack-*` calls), App Store deployment setup.
+- **Included**: Firebase Authentication (**email/password** + **Google** + **Apple on iOS**), auth-bridge exchange, Supabase-backed API layer (PostgREST/RPC/Storage), **subscriptions** (Android: Paystack; iOS: App Store via RevenueCat), **splash screen**, **onboarding** (aligned with Android copy), and **EAS build profiles** (see below) for when you are ready to ship.
+- **Payments**: Android uses Paystack (`paystack-checkout` edge function). iOS uses **Apple auto-renewable subscriptions** via **RevenueCat** (`react-native-purchases`) — no Paystack or external payment links on iOS (App Store compliance). Connect grants use the same Supabase `user_plan_subscriptions` tables as Kotlin.
+- Use a **development build** (not Expo Go) for Paystack WebView, RevenueCat, and native sign-in.
+- Apple/Google store listing and review are still your responsibility outside this repo.
 
 ## Setup
 
@@ -28,52 +30,70 @@ Fill in:
 - `EXPO_PUBLIC_SUPABASE_URL`
 - `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 - `EXPO_PUBLIC_FIREBASE_*` (Firebase Web SDK config)
-- Optional: `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (same as Android `R.string.default_web_client_id`; a default is baked in if omitted)
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (Web application client ID from Firebase / Google Cloud — same idea as Android `default_web_client_id`; used by `@react-native-google-signin/google-signin` as `webClientId` for the ID token Firebase expects)
+- Optional: `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` (iOS OAuth client in Google Cloud; passed to `GoogleSignin.configure` when set and different from the Web ID)
 
 These values are read from `app.config.ts` via Expo `extra`.
 
-### Google Sign-In (Expo)
+### Google Sign-In (native, development build)
 
-Uses `expo-auth-session` **ID token** flow, then Firebase `GoogleAuthProvider` (same idea as Android `LoginActivity`).
+Google sign-in uses **`@react-native-google-signin/google-signin`** (native account picker / Play Services on Android), then the same Firebase path as the Kotlin app: **Google ID token → `GoogleAuthProvider.credential` → `runAuthBridge`**.
 
-`expo-auth-session` requires **`androidClientId` on Android** and **`iosClientId` on iOS**. This app sets both to your **Web client ID** by default (same value as Android `default_web_client_id`) so Expo Go can start the flow without extra env vars. For **production / Play Store builds**, create **Android** and **iOS** OAuth clients in [Google Cloud Console](https://console.cloud.google.com/) (package name + signing SHA-256 for Android; bundle ID for iOS) and set `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` / `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+**Expo Go cannot load this native module.** Use a **development build** (`expo-dev-client` is included in this project):
 
-On the **Web client**, under **Authorized redirect URIs**, add the **HTTPS** proxy URL Expo uses — **not** `exp://192.168.x.x:8082` (Google will reject that for a Web client).
+1. After changing native config (e.g. Google plugin), run **`npx expo prebuild`** (or EAS Build) so iOS/Android projects pick up the config plugin.
+2. **`iosUrlScheme`** in [`app.config.ts`](app.config.ts) must match your **reversed iOS client ID** (`com.googleusercontent.apps.<…>` from Google Cloud / `REVERSED_CLIENT_ID`).
+3. **Android:** Register your **debug and release SHA-1/SHA-256** fingerprints in [Google Cloud Console](https://console.cloud.google.com/) for package `com.womanglobal.connecther` (Android OAuth client). Without this, sign-in can fail on device.
+4. Start Metro for the dev client: **`npm run start:dev`** (or `npx expo start --dev-client`), then open the dev build app (not Expo Go).
 
-1. Run `npx expo config --type public` and note `originalFullName`, or set `EXPO_PUBLIC_EXPO_OWNER` in `.env` so it becomes `@<owner>/connecther`.
-2. Add exactly: `https://auth.expo.io/<originalFullName>`  
-   Example: `https://auth.expo.io/@jane/connecther`  
-   If you are not logged into Expo, you may see `@anonymous/connecther-…` — add that exact URL to Google Console, or run `npx expo login` and set `EXPO_PUBLIC_EXPO_OWNER` for a stable URL.
+On **web**, the “Continue with Google” action shows a short message that native Google sign-in is only available in the mobile app.
 
-If you get “no ID token” or redirect errors, fix these redirect URIs first.
+### Apple Sign-In (iOS, development build)
 
-#### Why does this use a “web” redirect instead of native Google Sign-In?
+**Sign in with Apple** uses `expo-apple-authentication` on **iOS only** (Login and Register), then Firebase `OAuthProvider('apple.com')` and `runAuthBridge`. Enable the **Sign in with Apple** capability for `com.womanglobal.connecther` in Apple Developer and EAS credentials. Not available in Expo Go or on Android.
 
-Your **Kotlin Android app** uses **Google Play Services** (`GoogleSignIn` + `requestIdToken(webClientId)`). That is a **native SDK** flow: no OAuth redirect page in a browser in the same way.
+### Subscriptions and payments
 
-This **Expo** build uses **`expo-auth-session`**, which is built on **OAuth 2.0 in the system browser** (Chrome Custom Tabs on Android, etc.). Google returns tokens by **redirecting** to a registered **redirect URI** (for Expo Go this is often a hosted proxy such as `https://auth.expo.io/...`; for a **standalone/dev build** it can be a custom scheme like `com.womanglobal.connecther:/oauthredirect`). That is normal for **managed Expo** and **Expo Go**, because the native Google Sign-In module is not part of Expo Go.
+| Platform | Provider | Client path |
+|----------|----------|-------------|
+| **Android** | Paystack | `src/services/payments/paystackService.ts` → `paystack-checkout` edge → WebView checkout |
+| **iOS** | Apple IAP (RevenueCat) | `src/services/payments/iapService*.ts` + `hooks/useIAP.ts` |
 
-To get the **same style of native Google Sign-In** as your Android app, you typically:
+**Environment (client):**
 
-1. Create a **development build** (`expo-dev-client` + `expo prebuild` / EAS Build), and  
-2. Add **`@react-native-google-signin/google-signin`**, with an **Android OAuth client** in Google Cloud (package name + **release/debug SHA-1/256**), then pass the ID token to Firebase as you do today.
+- `EXPO_PUBLIC_REVENUECAT_IOS_API_KEY` — RevenueCat public iOS SDK key
 
-Until then, expect a **browser-based OAuth** step; it is still a legitimate way to obtain a Google **ID token** for Firebase.
+**Supabase secrets (server):**
 
-#### “Access blocked” / “does not comply with OAuth2 policy” / redirect errors
+- `REVENUECAT_WEBHOOK_SECRET` — verify webhook calls to `functions/v1/revenuecat-webhook`
 
-Common causes:
+**RevenueCat setup (iOS):**
 
-1. **Redirect URI mismatch** — The exact URI Google shows in the error must be added under the OAuth client you are using (**Web** client for Expo’s proxy flow) → **Authorized redirect URIs**. Even a trailing slash or `http` vs `https` mismatch will fail.
-2. **Wrong OAuth client type** — Using only a **Web** client while Google expects a **native** Android client for your redirect/scheme can cause policy or configuration errors. For **production Android**, create an **Android** OAuth client (type *Android application*) with package `com.womanglobal.connecther` and your keystore SHA-256, set `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`, and use a **dev build** with native Google Sign-In or ensure Expo’s redirect URIs match the **Web** client you use.
-3. **OAuth consent screen** — If the project is in **Testing**, only **test users** you add in Google Cloud can sign in. Everyone else sees “access blocked” style messages. Either add testers or **publish** the app (and complete verification if Google requests it for your scopes).
-4. **Using the Web client ID as `androidClientId`** — Convenient for quick Expo Go tests, but **not** what Google recommends for shipped Android apps; it often breaks or triggers policy messaging once you leave simple dev setups.
+1. Create a RevenueCat project and add the iOS app (`com.womanglobal.connecther`).
+2. In App Store Connect, create an **auto-renewable subscription group** and products (e.g. `connecther_basic_monthly`, `connecther_premium_monthly`, `connecther_yearly`).
+3. Map products in RevenueCat offerings; set `subscription_plans.apple_product_id` in Supabase to match App Store product IDs (see migration `20260620120000_store_subscriptions_iap.sql`).
+4. Configure webhook URL: `https://<project-ref>.supabase.co/functions/v1/revenuecat-webhook`
+5. Set RevenueCat **app user id** to Supabase `users.id` (the app calls `Purchases.logIn(userId)` after auth-bridge).
+6. Build with EAS / dev client and test in **Sandbox** Apple ID.
 
-If you paste the **exact** `redirect_uri=` value from Google’s error page, you can add that URI verbatim to the correct client in Google Cloud Console.
+**Deploy edge functions:**
+
+```bash
+supabase functions deploy paystack-checkout
+supabase functions deploy revenuecat-webhook
+supabase functions deploy iap-sync
+```
+
+Apply migration `woman-global/supabase/migrations/20260620120000_store_subscriptions_iap.sql` before using iOS IAP.
+
+#### “Access blocked” / OAuth consent / Play Services
+
+- **OAuth consent screen** — If the Google Cloud project is in **Testing**, only listed **test users** can sign in until you publish the consent screen.
+- **Play Services** — On Android devices without Google Play services, sign-in may fail; the app surfaces a dedicated message when Play Services are missing or outdated.
 
 ### Splash screen
 
-Native splash is configured in `app.config.ts` (`expo-splash-screen` plugin, white background + `assets/splash-icon.png`). The app calls `SplashScreen.preventAutoHideAsync()` until auth + first-launch prefs are ready, then hides — similar to Android `MainActivity` + `installSplashScreen()`.
+Native splash is configured in `app.config.ts` (`expo-splash-screen` plugin, white background + `assets/connecther-mark.png`). The app calls `SplashScreen.preventAutoHideAsync()` until auth + first-launch prefs are ready, then hides — similar to Android `MainActivity` + `installSplashScreen()`.
 
 ## How authentication works (important)
 
@@ -109,8 +129,85 @@ npx expo start
 
 ### Expo Go vs Dev Client
 
-- This project is designed to work in **Expo Go** for development.
-- If you later add native-only modules that Expo Go can’t load, switch to a **dev client** (`expo-dev-client`) and use `npx expo run:ios` on macOS.
+- **Google sign-in** requires a **development build** (native module). After `npx expo prebuild`, use `npx expo run:android` / `npx expo run:ios` once to install the dev client, then **`npm run start:dev`** when developing.
+- Other flows may still be tried in **Expo Go** where no native-only modules are required.
+
+## Signed builds (EAS) — Android APK/AAB + iOS TestFlight
+
+This repo includes [`eas.json`](eas.json) with two profiles:
+
+- **preview**: internal distribution, **Android APK**
+- **production**: store distribution, **Android AAB** + iOS store build
+
+### Prereqs
+
+- Install EAS CLI:
+
+```bash
+npm i -g eas-cli
+```
+
+- Authenticate:
+
+```bash
+eas login
+```
+
+- Initialize EAS project (writes the EAS project ID that builds require):
+
+```bash
+eas init
+```
+
+If you prefer env vars, set `EAS_PROJECT_ID` (or `EXPO_PUBLIC_EAS_PROJECT_ID`) to the project UUID and keep `app.config.ts` as-is.
+
+### Versioning / build numbers
+
+`app.config.ts` reads:
+
+- `ANDROID_VERSION_CODE` (default `1`)
+- `IOS_BUILD_NUMBER` (default `"1"`)
+
+Increment these for each store build.
+
+### Build Android (signed)
+
+- **Signed internal APK**:
+
+```bash
+eas build -p android --profile preview
+```
+
+- **Signed Play Store AAB**:
+
+```bash
+eas build -p android --profile production
+```
+
+### Build iOS + submit to TestFlight
+
+On iOS you must have Apple Developer access configured in EAS.
+
+- Build:
+
+```bash
+eas build -p ios --profile production
+```
+
+- Submit to TestFlight:
+
+```bash
+eas submit -p ios --profile production
+```
+
+### Android native build (JDK / `JAVA_HOME`)
+
+`npx expo run:android` runs **Gradle**, which needs a **JDK** and an **Android SDK**. This repo’s config plugin (see `./plugins/withGradleJavaHome.js`) runs at **prebuild** and:
+
+- writes **`org.gradle.java.home`** into `android/gradle.properties` when it finds a valid JDK (Android Studio **JBR**, a good `JAVA_HOME`, or **`EXPO_ANDROID_JAVA_HOME`**), and  
+- writes **`sdk.dir`** into `android/local.properties` when it finds an SDK (`ANDROID_HOME`, **`EXPO_ANDROID_SDK_ROOT`**, or the default per-OS path).
+
+Re-run **`npx expo prebuild --platform android`** after changing those env vars so the generated files update. If **`prebuild --clean`** fails with `EBUSY` on Windows, close anything locking the `android` folder (Explorer, antivirus, Gradle daemon) and retry.
 
 ## Project structure
 

@@ -1,24 +1,41 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { Colors } from '@/theme/colors';
+import { AppText } from '@/components/ui/AppText';
+import { Spacing } from '@/theme/spacing';
 
-export function ListEmpty({ title = 'Nothing here yet.' }: { title?: string }) {
+type Props = {
+  title?: string;
+  body?: string;
+};
+
+export function ListEmpty({ title = 'Nothing here yet', body }: Props) {
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>{title}</Text>
+      <AppText variant="sectionTitle" style={styles.title}>
+        {title}
+      </AppText>
+      {body ? (
+        <AppText variant="body" style={styles.body}>
+          {body}
+        </AppText>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 24,
+    paddingVertical: 32,
+    paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.sm,
   },
-  text: {
-    color: Colors.onSurfaceVariant,
-    fontSize: 14,
+  title: {
+    textAlign: 'center',
+  },
+  body: {
+    textAlign: 'center',
   },
 });
 

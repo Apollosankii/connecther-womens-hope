@@ -14,7 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.womanglobal.connecther.R
-import com.womanglobal.connecther.RatingDialogFragment
+import com.womanglobal.connecther.RatingActivity
 import com.womanglobal.connecther.data.Job
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.utils.JobDateUtils
@@ -110,9 +110,7 @@ class JobAdapter(
                 .setMessage(context.getString(message))
                 .setPositiveButton(R.string.jobs_rate_now) { d, _ ->
                     d.dismiss()
-                    RatingDialogFragment(job, isProvider = !job.i_am_client) {
-                        onJobCompleted()
-                    }.show(fragment.childFragmentManager, "RatingDialog")
+                    fragment.requireContext().startActivity(RatingActivity.createIntent(fragment.requireContext(), job))
                 }
                 .setNegativeButton(R.string.jobs_rate_not_now) { _, _ ->
                     onJobCompleted()

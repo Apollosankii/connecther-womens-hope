@@ -1,6 +1,9 @@
 package com.womanglobal.connecther.utils
 
 import android.content.Context
+import com.google.android.gms.auth.api.signin.GoogleSignInStatusCodes
+import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.CommonStatusCodes
 import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
@@ -44,6 +47,13 @@ object UserFriendlyMessages {
     }
 
     fun firebaseGoogle(context: Context, e: Exception): String {
+        var x: Throwable? = e
+        while (x != null) {
+            if (x is ApiException) {
+                return googleApiException(context, x)
+            }
+            x = x.cause
+        }
         val msg = e.message?.lowercase().orEmpty()
         return when {
             msg.contains("network") || msg.contains("unable to resolve") ->
@@ -53,6 +63,21 @@ object UserFriendlyMessages {
             else -> context.getString(R.string.auth_google_failed)
         }
     }
+
+    private fun googleApiException(context: Context, api: ApiException): String =
+        when (api.statusCode) {
+            GoogleSignInStatusCodes.SIGN_IN_CANCELLED,
+            CommonStatusCodes.CANCELED,
+            -> context.getString(R.string.auth_google_cancelled)
+            CommonStatusCodes.DEVELOPER_ERROR ->
+                context.getString(R.string.auth_google_developer_error)
+            CommonStatusCodes.NETWORK_ERROR ->
+                context.getString(R.string.auth_error_network)
+            CommonStatusCodes.INTERNAL_ERROR ->
+                context.getString(R.string.auth_google_failed)
+            else ->
+                "${context.getString(R.string.auth_google_failed)} (${api.statusCode})"
+        }
 
     /** [FirebaseAuth.sendPasswordResetEmail] failures (success is handled separately in UI). */
     fun firebasePasswordReset(context: Context, e: Exception): String {

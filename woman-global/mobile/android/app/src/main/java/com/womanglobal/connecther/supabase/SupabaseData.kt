@@ -180,6 +180,7 @@ object SupabaseData {
             "provider_not_found" -> "Provider is unavailable. Please choose another provider."
             "provider_not_subscribed_to_service" -> "This provider is not subscribed to this service."
             "provider_busy" -> "Provider is currently unavailable for booking."
+            "provider_offline" -> "You are offline. Turn on Online in Provider profile to accept bookings."
             "duplicate_booking_same_provider" ->
                 context.getString(R.string.booking_error_duplicate_same_provider)
             "cannot_book_self" -> "You cannot book yourself."
@@ -211,6 +212,7 @@ object SupabaseData {
                 msg.contains("provider_not_found") -> return "provider_not_found"
                 msg.contains("duplicate_booking_same_provider") -> return "duplicate_booking_same_provider"
                 msg.contains("cannot_book_self") -> return "cannot_book_self"
+                msg.contains("provider_offline") -> return "provider_offline"
                 msg.contains("provider_busy") || msg.contains("available_for_booking") -> return "provider_busy"
                 msg.contains("free_tier_exhausted") -> return "free_tier_exhausted"
                 msg.contains("connects_exhausted") -> return "connects_exhausted"
@@ -296,6 +298,8 @@ object SupabaseData {
         @SerialName("search_radius_meters") val search_radius_meters: Int? = null,
         @SerialName("require_location_detail") val require_location_detail: Boolean? = null,
         @SerialName("location_detail_schema") val location_detail_schema: JsonElement? = null,
+        /** Optional task menu JSON; null if column unset or not migrated yet. */
+        @SerialName("task_menu") val task_menu: JsonElement? = null,
     )
 
     @Serializable
@@ -396,6 +400,7 @@ object SupabaseData {
         if (rows.isNotEmpty()) {
             return rows.map { s ->
                 val schemaJson = s.location_detail_schema?.toString().orEmpty().ifBlank { "[]" }
+                val taskMenuJson = s.task_menu?.toString().orEmpty().ifBlank { "{}" }
                 Service(
                     service_id = s.id.toString(),
                     name = s.name,
@@ -405,6 +410,7 @@ object SupabaseData {
                     search_radius_meters = s.search_radius_meters ?: 10_000,
                     require_location_detail = s.require_location_detail == true,
                     location_detail_schema_json = schemaJson,
+                    task_menu_json = taskMenuJson,
                 )
             }
         }
@@ -424,6 +430,7 @@ object SupabaseData {
             Log.w("SupabaseData", "getServiceById failed: ${e.message}")
         }.getOrNull() ?: return null
         val schemaJson = row.location_detail_schema?.toString().orEmpty().ifBlank { "[]" }
+        val taskMenuJson = row.task_menu?.toString().orEmpty().ifBlank { "{}" }
         return Service(
             service_id = row.id.toString(),
             name = row.name,
@@ -433,6 +440,7 @@ object SupabaseData {
             search_radius_meters = row.search_radius_meters ?: 10_000,
             require_location_detail = row.require_location_detail == true,
             location_detail_schema_json = schemaJson,
+            task_menu_json = taskMenuJson,
         )
     }
 
@@ -1904,6 +1912,8 @@ object SupabaseData {
             isServiceProvider = true,
             professionalTitle = p.title,
             workingHours = p.working_hours,
+            latitude = p.latitude,
+            longitude = p.longitude,
         )
     }
 

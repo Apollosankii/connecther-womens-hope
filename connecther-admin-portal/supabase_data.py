@@ -37,30 +37,74 @@ def _supabase_service_role_key() -> str:
     return (os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or '').strip()
 
 
-def upload_service_catalog_public_url(file_bytes: bytes, object_name: str, content_type: str = 'application/octet-stream'):
+def upload_service_catalog_public_url(
+    file_bytes: bytes,
+    object_name: str,
+    content_type: str = 'application/octet-stream',
+    session=None,
+):
     """
-    Upload a service listing image to Storage bucket service_catalog.
-    Returns (public_https_url, error_message). public_https_url is suitable for services.service_pic (mobile app).
-    Requires SUPABASE_SERVICE_ROLE_KEY and migration service_catalog_storage_bucket.
+    Upload a service listing or task-menu image to Storage bucket service_catalog.
+
+    Prefer ``SUPABASE_SERVICE_ROLE_KEY`` when set (bypasses RLS, useful for scripts).
+
+    Otherwise uses the admin JWT from ``session`` (Flask session with Clerk/Supabase token).
+    That path relies on RLS policy ``service_catalog_admin_all`` (see migration
+    ``20260430140000_service_catalog_storage_bucket.sql``): authenticated + is_admin().
+
+    Returns (public_https_url, error_message).
     """
     base = _supabase_url().rstrip('/')
-    sk = _supabase_service_role_key()
-    if not base or not sk:
-        return None, 'Set SUPABASE_SERVICE_ROLE_KEY in connecther-admin-portal/.env (Dashboard → Settings → API).'
+    anon = _supabase_anon_key()
+    if not base or not anon:
+        return None, 'Set SUPABASE_URL and SUPABASE_ANON_KEY in .env.'
     path = object_name.lstrip('/').replace('..', '')
     if not path:
         return None, 'Invalid file name.'
     url = f"{base}/storage/v1/object/service_catalog/{path}"
-    headers = {
-        'apikey': sk,
-        'Authorization': f'Bearer {sk}',
-        'Content-Type': content_type or 'application/octet-stream',
-        'x-upsert': 'true',
-    }
+    sk = _supabase_service_role_key()
+    if sk:
+        headers = {
+            'apikey': sk,
+            'Authorization': f'Bearer {sk}',
+            'Content-Type': content_type or 'application/octet-stream',
+            'x-upsert': 'true',
+        }
+    else:
+        bearer = _get_bearer(session) if session is not None else ''
+        if not bearer:
+            return (
+                None,
+                'No admin JWT in this server session. Sign out and sign in again. '
+                'If you use Clerk, your token may be too large for a cookie: set FLASK_SESSION_FILE_DIR '
+                '(see .env.example) or FLASK_DEBUG=1 (enables local filesystem sessions). '
+                'Last resort: SUPABASE_SERVICE_ROLE_KEY in .env (Dashboard → Settings → API).',
+            )
+        headers = {
+            'apikey': anon,
+            'Authorization': f'Bearer {bearer}',
+            'Content-Type': content_type or 'application/octet-stream',
+            'x-upsert': 'true',
+        }
     try:
         r = requests.post(url, headers=headers, data=file_bytes, timeout=120)
         if r.status_code not in (200, 201):
             msg = (r.text or r.reason or '')[:500]
+            if r.status_code == 403:
+                return (
+                    None,
+                    'Storage denied the upload (403 / RLS). Ensure public.administrators has your '
+                    'clerk_user_id = JWT sub (or matching email) so is_admin() is true for bucket '
+                    'service_catalog. Optional: SUPABASE_SERVICE_ROLE_KEY bypasses RLS. '
+                    + msg,
+                )
+            if r.status_code == 401:
+                return (
+                    None,
+                    'Storage rejected the JWT (401). Sign out and sign in again (token may be expired '
+                    'or truncated if the session cookie is too large—use FLASK_SESSION_FILE_DIR). '
+                    + msg,
+                )
             return None, f'Storage upload failed ({r.status_code}). {msg}'.strip()
         pub = f"{base}/storage/v1/object/public/service_catalog/{path}"
         return pub, None
@@ -143,6 +187,24 @@ def resolve_storage_download_url(raw_url: str) -> str | None:
     return signed or u
 
 
+def storage_stream_headers(session) -> dict:
+    """
+    HTTP headers for GET/HEAD requests to this project's Supabase Storage API.
+    Private buckets need Authorization (admin JWT + anon apikey, or service role).
+    """
+    base = _supabase_url()
+    anon = _supabase_anon_key()
+    sk = _supabase_service_role_key()
+    if not base or not anon:
+        return {}
+    if sk:
+        return {'apikey': sk, 'Authorization': f'Bearer {sk}'}
+    bearer = _get_bearer(session) if session is not None else ''
+    if bearer:
+        return {'apikey': anon, 'Authorization': f'Bearer {bearer}'}
+    return {}
+
+
 def get_document_by_id(session, doc_id: int):
     """
     Fetch one documents row by id.
@@ -170,12 +232,43 @@ def get_document_by_id(session, doc_id: int):
 
 
 def _get_bearer(session):
-    """Extract Bearer token from Flask session."""
-    tok = session.get('token')
+    """Extract JWT from Flask session (compact ``sb_access_token`` or legacy ``token`` dict)."""
+    if session is None:
+        return ''
+    try:
+        raw = session.get('sb_access_token')
+    except (RuntimeError, TypeError, AttributeError):
+        return ''
+    if isinstance(raw, str):
+        raw = raw.strip()
+        if raw:
+            return raw
+    try:
+        tok = session.get('token')
+    except (RuntimeError, TypeError, AttributeError):
+        return ''
+    if isinstance(tok, str):
+        t = tok.strip()
+        if t.lower().startswith('bearer '):
+            t = t[7:].strip()
+        return t
     if tok and isinstance(tok, dict):
-        auth = tok.get('Authorization', '')
-        if auth.startswith('Bearer '):
-            return auth[7:].strip()
+        for key in ('Authorization', 'authorization'):
+            auth = tok.get(key)
+            if isinstance(auth, str) and auth.strip():
+                auth = auth.strip()
+                if auth.lower().startswith('bearer '):
+                    out = auth[7:].strip()
+                    if out:
+                        return out
+        for key in ('access_token', 'accessToken'):
+            auth = tok.get(key)
+            if isinstance(auth, str) and auth.strip():
+                t = auth.strip()
+                if t.lower().startswith('bearer '):
+                    t = t[7:].strip()
+                if t:
+                    return t
     return ''
 
 
@@ -622,6 +715,22 @@ def _service_to_dict(row):
         schema_txt = '[]'
     else:
         schema_txt = str(schema)
+    tm = row.get('task_menu')
+    task_menu_dict = None
+    task_menu_json = '{\n  "rows": []\n}'
+    if tm is not None:
+        if isinstance(tm, dict):
+            task_menu_dict = tm
+        elif isinstance(tm, str) and tm.strip():
+            try:
+                task_menu_dict = json.loads(tm)
+            except json.JSONDecodeError:
+                task_menu_dict = None
+        if task_menu_dict is not None:
+            try:
+                task_menu_json = json.dumps(task_menu_dict, indent=2, ensure_ascii=False)
+            except (TypeError, ValueError):
+                task_menu_json = '{\n  "rows": []\n}'
     return {
         'service_id': row.get('id'),
         'name': row.get('name'),
@@ -635,6 +744,8 @@ def _service_to_dict(row):
         'safety_checkin_interval_min': row.get('safety_checkin_interval_min')
         if row.get('safety_checkin_interval_min') is not None
         else 60,
+        'task_menu': task_menu_dict,
+        'task_menu_json': task_menu_json,
     }
 
 

@@ -57,9 +57,9 @@ class AllServicesActivity : AppCompatActivity() {
             if (filtered.size == 1) "" else "s"
         )
         binding.servicesRecyclerView.adapter = GenericGridAdapter(filtered) { service ->
-                val intent = Intent(this@AllServicesActivity, CategoryUsersActivity::class.java).apply {
-                    putExtra("categoryName", service.name)
+                val intent = Intent(this@AllServicesActivity, ServiceMenuActivity::class.java).apply {
                     putExtra("service_id", service.service_id)
+                    putExtra("service_name", service.name)
                 }
                 startActivity(intent)
             }

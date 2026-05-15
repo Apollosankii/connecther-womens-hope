@@ -1,11 +1,12 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { Colors } from '@/theme/colors';
+import { useTheme } from '@/providers/ThemeProvider';
 
 export function Spinner() {
+  const { colors } = useTheme();
   return (
     <View style={styles.container}>
-      <ActivityIndicator color={Colors.primary} />
+      <ActivityIndicator color={colors.primary} />
     </View>
   );
 }

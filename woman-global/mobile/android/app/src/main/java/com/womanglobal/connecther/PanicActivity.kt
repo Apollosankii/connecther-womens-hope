@@ -17,12 +17,14 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.firebase.auth.FirebaseAuth
+import com.womanglobal.connecther.data.EmergencyContact
 import com.womanglobal.connecther.supabase.PanicSmsClient
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.utils.ConnectHerPhoneAuth
 import com.womanglobal.connecther.utils.EmergencyHelper
 import com.womanglobal.connecther.utils.SosShockwaveAnimator
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
@@ -77,51 +79,52 @@ class PanicActivity : AppCompatActivity() {
     private fun triggerGbvPanic() {
         EmergencyHelper.getCurrentLocation(this) { location ->
             lifecycleScope.launch {
-                val reportOk = SupabaseData.reportGbvEmergency(
-                    latitude = location?.latitude,
-                    longitude = location?.longitude,
-                    locationText = if (location != null) "${location.latitude},${location.longitude}" else null,
-                )
-                withContext(Dispatchers.Main) {
-                    if (reportOk) {
-                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_sent, Toast.LENGTH_SHORT).show()
-                    } else {
-                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_failed, Toast.LENGTH_LONG).show()
-                    }
+                // PostgREST / subscription queries must not run on the main thread (UI freeze / ANR).
+                val reportOk = withContext(Dispatchers.IO) {
+                    SupabaseData.reportGbvEmergency(
+                        latitude = location?.latitude,
+                        longitude = location?.longitude,
+                        locationText = if (location != null) "${location.latitude},${location.longitude}" else null,
+                    )
+                }
+                if (!isActive) return@launch
+                if (reportOk) {
+                    Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_sent, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@PanicActivity, R.string.panic_gbv_report_failed, Toast.LENGTH_LONG).show()
                 }
 
-                val contacts = EmergencyHelper.getContacts(this@PanicActivity)
+                val contacts = withContext(Dispatchers.IO) {
+                    EmergencyHelper.getContacts(this@PanicActivity)
+                }
+                if (!isActive) return@launch
                 if (contacts.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_add_contacts_hint, Toast.LENGTH_LONG).show()
-                    }
+                    Toast.makeText(this@PanicActivity, R.string.panic_gbv_add_contacts_hint, Toast.LENGTH_LONG).show()
                     return@launch
                 }
 
-                val sub = SupabaseData.getActiveSubscription()
+                val sub = withContext(Dispatchers.IO) {
+                    SupabaseData.getActiveSubscription()
+                }
+                if (!isActive) return@launch
+
                 if (sub != null) {
                     val user = FirebaseAuth.getInstance().currentUser
                     if (user == null) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
-                        }
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
                         return@launch
                     }
                     val token = runCatching { user.getIdToken(false).await().token?.trim().orEmpty() }.getOrDefault("")
                     if (token.isEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
-                        }
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_connecther_sms_sign_in_required, Toast.LENGTH_LONG).show()
                         return@launch
                     }
                     val e164 = Regex("^\\+[1-9]\\d{6,14}$")
-                    val recipients = contacts.mapNotNull { c ->
+                    val recipients = contacts.mapNotNull { c: EmergencyContact ->
                         ConnectHerPhoneAuth.normalizeKenyaE164(c.phone)?.takeIf { e164.matches(it) }
                     }.distinct().take(5)
                     if (recipients.isEmpty()) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_phone_invalid, Toast.LENGTH_LONG).show()
-                        }
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_phone_invalid, Toast.LENGTH_LONG).show()
                         return@launch
                     }
                     val result = PanicSmsClient.send(
@@ -130,26 +133,23 @@ class PanicActivity : AppCompatActivity() {
                         location?.latitude,
                         location?.longitude,
                     )
-                    withContext(Dispatchers.Main) {
-                        result.onSuccess {
-                            Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_notified_connecther, Toast.LENGTH_LONG).show()
-                        }.onFailure { e ->
-                            val code = (e as? PanicSmsClient.PanicSmsException)?.code
-                            if (code == "TWILIO_DISABLED") {
-                                routeDeviceGbvSms(location)
-                                return@onFailure
-                            }
-                            val msgRes = when (code) {
-                                "RATE_LIMIT" -> R.string.panic_gbv_connecther_sms_rate_limit
-                                else -> R.string.panic_gbv_connecther_sms_failed
-                            }
-                            Toast.makeText(this@PanicActivity, msgRes, Toast.LENGTH_LONG).show()
+                    if (!isActive) return@launch
+                    result.onSuccess {
+                        Toast.makeText(this@PanicActivity, R.string.panic_gbv_contacts_notified_connecther, Toast.LENGTH_LONG).show()
+                    }.onFailure { e ->
+                        val code = (e as? PanicSmsClient.PanicSmsException)?.code
+                        if (code == "TWILIO_DISABLED") {
+                            routeDeviceGbvSms(location)
+                            return@onFailure
                         }
+                        val msgRes = when (code) {
+                            "RATE_LIMIT" -> R.string.panic_gbv_connecther_sms_rate_limit
+                            else -> R.string.panic_gbv_connecther_sms_failed
+                        }
+                        Toast.makeText(this@PanicActivity, msgRes, Toast.LENGTH_LONG).show()
                     }
                 } else {
-                    withContext(Dispatchers.Main) {
-                        routeDeviceGbvSms(location)
-                    }
+                    routeDeviceGbvSms(location)
                 }
             }
         }

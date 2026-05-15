@@ -1,7 +1,8 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, type ViewStyle } from 'react-native';
 
-import { Colors } from '@/theme/colors';
+import { useTheme } from '@/providers/ThemeProvider';
+import { Metrics } from '@/theme/metrics';
 
 type Variant = 'primary' | 'outline';
 
@@ -10,6 +11,8 @@ type Props = PropsWithChildren<{
   disabled?: boolean;
   loading?: boolean;
   variant?: Variant;
+  /** default: fixed height; content: minHeight + vertical padding for multi-line / icon rows */
+  size?: 'default' | 'content';
   style?: ViewStyle;
 }>;
 
@@ -19,8 +22,10 @@ export function AppButton({
   disabled,
   loading,
   variant = 'primary',
+  size = 'default',
   style,
 }: Props) {
+  const { colors } = useTheme();
   const isDisabled = Boolean(disabled || loading);
   return (
     <Pressable
@@ -28,7 +33,9 @@ export function AppButton({
       disabled={isDisabled}
       style={({ pressed }) => [
         styles.base,
-        variant === 'primary' ? styles.primary : styles.outline,
+        size === 'content' ? styles.contentSized : styles.fixedHeight,
+        size === 'content' && styles.contentAlign,
+        variant === 'primary' ? [styles.primary, { backgroundColor: colors.primary }] : [styles.outline, { borderColor: colors.primary }],
         pressed && !isDisabled && styles.pressed,
         isDisabled && styles.disabled,
         style,
@@ -36,9 +43,11 @@ export function AppButton({
       accessibilityRole="button"
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? Colors.onPrimary : Colors.primary} />
+        <ActivityIndicator color={variant === 'primary' ? colors.onPrimary : colors.primary} />
       ) : (
-        <ButtonLabel variant={variant}>{children}</ButtonLabel>
+        <ButtonLabel variant={variant} colors={colors}>
+          {children}
+        </ButtonLabel>
       )}
     </Pressable>
   );
@@ -46,19 +55,26 @@ export function AppButton({
 
 const styles = StyleSheet.create({
   base: {
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
+    borderRadius: Metrics.radiusSm,
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
+  fixedHeight: {
+    height: Metrics.buttonHeight,
+    alignItems: 'center',
+  },
+  contentSized: {
+    minHeight: Metrics.buttonHeight,
+    paddingVertical: 12,
+  },
+  contentAlign: {
+    alignItems: 'stretch',
+  },
   primary: {
-    backgroundColor: Colors.primary,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: Colors.primary,
   },
   pressed: {
     opacity: 0.9,
@@ -71,23 +87,28 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   textOnPrimary: {
-    color: Colors.onPrimary,
   },
   textPrimary: {
-    color: Colors.primary,
   },
 });
 
 function ButtonLabel({
   variant,
   children,
+  colors,
 }: {
   variant: Variant;
   children: ReactNode;
+  colors: { primary: string; onPrimary: string };
 }) {
   if (typeof children === 'string' || typeof children === 'number') {
     return (
-      <Text style={[styles.text, variant === 'primary' ? styles.textOnPrimary : styles.textPrimary]}>
+      <Text
+        style={[
+          styles.text,
+          variant === 'primary' ? { color: colors.onPrimary } : { color: colors.primary },
+        ]}
+      >
         {children}
       </Text>
     );

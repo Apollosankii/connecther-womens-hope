@@ -10,12 +10,16 @@ import androidx.core.view.doOnLayout
 /**
  * Expanding “shockwave” rings: scale up while alpha fades out, repeating.
  * Pivots are aligned to the center of [scaleOrigin] (e.g. the SOS button) so waves stay centered on it.
+ *
+ * Startup uses [View.post] + [doOnLayout] plus a delayed fallback. After returning from another
+ * activity, `doOnLayout` alone can fail to run if a layout pass is never scheduled, leaving rings frozen.
  */
 object SosShockwaveAnimator {
     private const val DURATION_MS = 1700L
     private const val SCALE_END = 1.52f
     private const val ALPHA_START = 0.58f
     private const val ALPHA_END = 0f
+    private const val FALLBACK_START_DELAY_MS = 320L
 
     fun start(outer: View, middle: View, scaleOrigin: View): Pair<ObjectAnimator, ObjectAnimator> {
         val outerAnim = waveAnimator(outer)
@@ -24,18 +28,21 @@ object SosShockwaveAnimator {
         }
 
         val host = scaleOrigin.parent as? View ?: outer
-        // Defer past the current frame. After returning from another Activity, `doOnLayout` alone
-        // can register while a layout is "requested" and then never get a callback for this host,
-        // so the animators are created but never started (rings stay frozen).
+
+        val startBoth = Runnable {
+            if (!outer.isAttachedToWindow || !middle.isAttachedToWindow) return@Runnable
+            if (outerAnim.isRunning) return@Runnable
+            alignPivotToCenterOf(outer, scaleOrigin)
+            alignPivotToCenterOf(middle, scaleOrigin)
+            resetRingVisual(outer)
+            resetRingVisual(middle)
+            outerAnim.start()
+            middleAnim.start()
+        }
+
         host.post {
-            host.doOnLayout {
-                alignPivotToCenterOf(outer, scaleOrigin)
-                alignPivotToCenterOf(middle, scaleOrigin)
-                resetRingVisual(outer)
-                resetRingVisual(middle)
-                outerAnim.start()
-                middleAnim.start()
-            }
+            outer.doOnLayout { startBoth.run() }
+            host.postDelayed(startBoth, FALLBACK_START_DELAY_MS)
         }
 
         return outerAnim to middleAnim

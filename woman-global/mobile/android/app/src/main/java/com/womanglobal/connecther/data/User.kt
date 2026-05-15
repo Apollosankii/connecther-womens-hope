@@ -28,5 +28,8 @@ data class User(
     val isProviderApplicationPending: Boolean? = null,
     val workingHours: String? = null,
     val availableForBooking: Boolean? = null,
-    val professionalTitle: String? = null
+    val professionalTitle: String? = null,
+    /** From provider RPC when available (live location); used for distance sort only. */
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 ) : Serializable

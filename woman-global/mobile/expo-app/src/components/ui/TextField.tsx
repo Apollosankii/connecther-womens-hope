@@ -1,23 +1,31 @@
 import type { ComponentProps } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { Colors } from '@/theme/colors';
+import { useTheme } from '@/providers/ThemeProvider';
+import { Metrics } from '@/theme/metrics';
 
 type Props = {
   label: string;
   errorText?: string;
 } & ComponentProps<typeof TextInput>;
 
-export function TextField({ label, errorText, style, ...rest }: Props) {
+export function TextField({ label, errorText, style, multiline, ...rest }: Props) {
+  const { colors } = useTheme();
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: colors.onSurface }]}>{label}</Text>
       <TextInput
-        style={[styles.input, style]}
-        placeholderTextColor={Colors.onSurfaceVariant}
+        style={[
+          styles.input,
+          multiline ? styles.inputMultiline : styles.inputSingleLine,
+          { borderColor: colors.outlineSoft, backgroundColor: colors.surface, color: colors.onSurface },
+          style,
+        ]}
+        placeholderTextColor={colors.onSurfaceVariant}
+        multiline={multiline}
         {...rest}
       />
-      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
+      {errorText ? <Text style={[styles.error, { color: colors.bookingStatus.declinedText }]}>{errorText}</Text> : null}
     </View>
   );
 }
@@ -28,20 +36,23 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: Colors.onSurface,
     fontWeight: '600',
   },
   input: {
-    height: 48,
-    borderRadius: 12,
+    borderRadius: Metrics.radiusSm,
     borderWidth: 1,
-    borderColor: Colors.outline,
     paddingHorizontal: 12,
-    backgroundColor: Colors.surface,
-    color: Colors.onSurface,
+  },
+  inputSingleLine: {
+    height: Metrics.inputHeight,
+  },
+  inputMultiline: {
+    minHeight: 96,
+    paddingTop: 12,
+    paddingBottom: 12,
+    textAlignVertical: 'top',
   },
   error: {
-    color: Colors.bookingStatus.declinedText,
     fontSize: 13,
   },
 });

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="389dp"
+    android:height="216dp"
+    android:viewportWidth="389"
+    android:viewportHeight="216">
+    <!-- Figma / design export: rounded rect clip (5 viewport-unit corner radius). Fill matches screen canvas while banner loads. -->
+    <path
+        android:pathData="M5,0H384C386.761,0,389,2.23858,389,5V211C389,213.761,386.761,216,384,216H5C2.23858,216,0,213.761,0,211V5C0,2.23858,2.23858,0,5,0Z"
+        android:fillColor="@color/chat_thread_background" />
+</vector>

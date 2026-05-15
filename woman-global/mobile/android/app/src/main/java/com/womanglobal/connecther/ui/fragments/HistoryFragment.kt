@@ -1,14 +1,16 @@
 package com.womanglobal.connecther.ui.fragments
 
+import android.app.Activity
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.womanglobal.connecther.RatingDialogFragment
+import com.womanglobal.connecther.RatingActivity
 import com.womanglobal.connecther.adapters.HistoryAdapter
 import com.womanglobal.connecther.data.Job
 import com.womanglobal.connecther.data.local.AppOfflineCache
@@ -25,6 +27,11 @@ class HistoryFragment : Fragment() {
 
     private lateinit var historyAdapter: HistoryAdapter
     private val completedJobs = mutableListOf<Job>()
+
+    private val ratingLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) loadCompletedJobs()
+        }
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -72,10 +79,7 @@ class HistoryFragment : Fragment() {
     }
 
     private fun showRatingDialog(job: Job) {
-        val dialog = RatingDialogFragment(job, isProvider = !job.i_am_client) {
-            loadCompletedJobs()
-        }
-        dialog.show(childFragmentManager, "RatingDialog")
+        ratingLauncher.launch(RatingActivity.createIntent(requireContext(), job))
     }
 
     override fun onResume() {

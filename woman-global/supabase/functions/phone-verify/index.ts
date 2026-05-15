@@ -74,6 +74,28 @@ function isValidE164(phone: string): boolean {
   return /^\+[1-9]\d{6,14}$/.test(p);
 }
 
+function normalizePhoneForTwilio(raw: string): string {
+  const s = raw.trim();
+  if (!s) return "";
+
+  // keep leading '+' if present; drop common separators
+  const hasPlus = s.startsWith("+");
+  const digits = s.replace(/[^\d]/g, "");
+  if (!digits) return "";
+
+  // If the caller already sent E.164 (maybe with spaces), honor it.
+  if (hasPlus) return `+${digits}`;
+
+  // Kenya-friendly normalization (matches Android behavior: allow 07.. / 7.. / 254..).
+  // This avoids Twilio rejections when users enter local formats.
+  if (digits.startsWith("254") && digits.length === 12) return `+${digits}`; // 2547XXXXXXXX
+  if (digits.startsWith("0") && digits.length === 10) return `+254${digits.slice(1)}`; // 07XXXXXXXX
+  if ((digits.startsWith("7") || digits.startsWith("1")) && digits.length === 9) return `+254${digits}`; // 7XXXXXXXX / 1XXXXXXXX
+
+  // Fall back: treat it as already having a country code (best-effort).
+  return `+${digits}`;
+}
+
 function twilioBasicAuth(accountSid: string, authToken: string): string {
   const raw = `${accountSid}:${authToken}`;
   return `Basic ${btoa(raw)}`;
@@ -211,9 +233,17 @@ Deno.serve(async (req) => {
   }
 
   const action = (body.action ?? "").trim().toLowerCase();
-  const phone = (body.phone ?? "").trim();
+  const phone = normalizePhoneForTwilio(body.phone ?? "");
   if (!isValidE164(phone)) {
-    return corsJson({ code: "INVALID_PHONE", error: "Phone must be E.164 (e.g. +254712345678)" }, 400);
+    return corsJson(
+      {
+        code: "INVALID_PHONE",
+        error: "Phone must be a valid number for Twilio (E.164 preferred)",
+        detail:
+          "Examples: +254712345678 (Kenya). We also accept common Kenya formats like 0712345678 or 254712345678 and normalize them.",
+      },
+      400,
+    );
   }
 
   const admin = createClient(supabaseUrl, serviceKey);

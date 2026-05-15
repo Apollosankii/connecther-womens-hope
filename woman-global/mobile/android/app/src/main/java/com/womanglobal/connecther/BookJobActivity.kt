@@ -25,15 +25,15 @@ class BookJobActivity : AppCompatActivity() {
 
         // Calendar selection doesn't include a specific provider, so we route into:
         // - service selection (AllServicesActivity) if service_id is missing
-        // - provider selection (CategoryUsersActivity) when service_id is present
+        // - task menu / auto-match when service_id is present
         if (serviceId.isBlank()) {
             startActivity(Intent(this, AllServicesActivity::class.java))
         } else {
             startActivity(
-                Intent(this, CategoryUsersActivity::class.java).apply {
-                    putExtra("categoryName", "Service Providers")
+                Intent(this, ServiceMenuActivity::class.java).apply {
                     putExtra("service_id", serviceId)
-                }
+                    putExtra("service_name", getString(R.string.home_book_provider_title))
+                },
             )
         }
         finish()

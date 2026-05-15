@@ -1,5 +1,6 @@
 package com.womanglobal.connecther
 
+import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -8,6 +9,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
@@ -19,6 +21,15 @@ import com.womanglobal.connecther.supabase.SupabaseData
 import kotlinx.coroutines.launch
 
 class ProfileActivity : AppCompatActivity() {
+
+    private val requestBookingLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) {
+                setResult(Activity.RESULT_OK)
+                finish()
+            }
+        }
+
     private lateinit var backButton: ImageView
     private lateinit var userName: TextView
     private lateinit var profileServiceSubtitle: TextView
@@ -48,6 +59,9 @@ class ProfileActivity : AppCompatActivity() {
     private lateinit var serviceId: String
     private var serviceNameFromIntent: String = ""
     private var profileUserForBookability: User? = null
+    private var fromProviderRecommendation: Boolean = false
+    private var prefillPriceReco: String? = null
+    private var quoteLinesReco: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Avoid header (back, name) drawing under status bar on SDK 35+ edge-to-edge.
@@ -88,6 +102,9 @@ class ProfileActivity : AppCompatActivity() {
 
         serviceId = intent.getStringExtra("service_id").orEmpty()
         serviceNameFromIntent = intent.getStringExtra("service_name").orEmpty()
+        fromProviderRecommendation = intent.getBooleanExtra(EXTRA_FROM_PROVIDER_RECOMMENDATION, false)
+        prefillPriceReco = intent.getStringExtra(RequestBookingActivity.EXTRA_PREFILL_PRICE)
+        quoteLinesReco = intent.getStringExtra(RequestBookingActivity.EXTRA_QUOTE_LINES_JSON)
 
         user?.let { bindUser(it) } ?: run {
             Toast.makeText(this, R.string.profile_provider_not_found, Toast.LENGTH_SHORT).show()
@@ -108,6 +125,10 @@ class ProfileActivity : AppCompatActivity() {
                 type = "text/plain"
             }
             startActivity(Intent.createChooser(sendIntent, null))
+        }
+
+        if (fromProviderRecommendation) {
+            applyRecommendationBookingActions()
         }
     }
 
@@ -302,6 +323,46 @@ class ProfileActivity : AppCompatActivity() {
         }
     }
 
+    private fun applyRecommendationBookingActions() {
+        buttonMessageProvider.visibility = View.GONE
+        recommendButton.text = getString(R.string.recommendation_reject)
+        engageButton.text = getString(R.string.recommendation_accept)
+        recommendButton.setOnClickListener {
+            setResult(RESULT_BOOK_ANOTHER_PROVIDER)
+            finish()
+        }
+        engageButton.setOnClickListener {
+            openRequestBookingFromRecommendation()
+        }
+    }
+
+    private fun openRequestBookingFromRecommendation() {
+        if (!engageButton.isEnabled) {
+            Toast.makeText(this, R.string.profile_engagement_blocked_busy, Toast.LENGTH_LONG).show()
+            return
+        }
+        if (providerRef.isBlank() || serviceId.isBlank()) {
+            Toast.makeText(this, "Provider/service details are missing", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val user = intent.getSerializableExtra("user") as? User ?: return
+        val booking = Intent(this, RequestBookingActivity::class.java).apply {
+            putExtra("provider_ref", providerRef)
+            putExtra("service_id", serviceId)
+            putExtra("provider_name", providerName)
+            putExtra("provider_pic", user.pic.orEmpty())
+            putExtra("service_name", serviceNameFromIntent)
+            putExtra(RequestBookingActivity.EXTRA_NOTIFY_PARENT_ON_BOOKING_SUCCESS, true)
+            prefillPriceReco?.takeIf { it.isNotBlank() }?.let {
+                putExtra(RequestBookingActivity.EXTRA_PREFILL_PRICE, it)
+            }
+            quoteLinesReco?.takeIf { it.isNotBlank() }?.let {
+                putExtra(RequestBookingActivity.EXTRA_QUOTE_LINES_JSON, it)
+            }
+        }
+        requestBookingLauncher.launch(booking)
+    }
+
     private fun openMessageWithProvider() {
         if (providerRef.isBlank()) {
             Toast.makeText(this, R.string.profile_provider_not_found, Toast.LENGTH_SHORT).show()
@@ -361,10 +422,14 @@ class ProfileActivity : AppCompatActivity() {
             Toast.makeText(this, "Provider/service details are missing", Toast.LENGTH_SHORT).show()
             return
         }
-        val intent = Intent(this, RequestBookingActivity::class.java).apply {
+        val intent = Intent(this, ServiceMenuActivity::class.java).apply {
             putExtra("provider_ref", providerRef)
             putExtra("service_id", serviceId)
             putExtra("provider_name", providerName)
+            putExtra(
+                "service_name",
+                serviceNameFromIntent.ifBlank { valueServiceCategory.text.toString() },
+            )
         }
         startActivity(intent)
     }
@@ -372,5 +437,11 @@ class ProfileActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         profileUserForBookability?.let { loadProviderBookability(it) }
+    }
+
+    companion object {
+        const val EXTRA_FROM_PROVIDER_RECOMMENDATION = "from_provider_recommendation"
+        /** Returned to [ProviderRecommendationActivity] when the seeker wants the next auto-match candidate. */
+        const val RESULT_BOOK_ANOTHER_PROVIDER = 2
     }
 }

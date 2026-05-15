@@ -19,7 +19,6 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.button.MaterialButton
 import com.womanglobal.connecther.R
-import com.womanglobal.connecther.RatingDialogFragment
 import com.womanglobal.connecther.data.Job
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.util.JobSafetyScheduler
@@ -67,6 +66,7 @@ class BookingsListAdapter(
     private val onCancel: (SupabaseData.MyBookingRequest) -> Unit,
     private val onOpenMaps: (SupabaseData.MyBookingRequest) -> Unit,
     private val onProviderPickArrivalPhoto: ((Job) -> Unit)? = null,
+    private val onLaunchRating: (Job) -> Unit,
 ) : ListAdapter<BookingsListItem, RecyclerView.ViewHolder>(BookingsListDiff) {
 
     override fun getItemViewType(position: Int): Int = when (getItem(position)) {
@@ -238,9 +238,7 @@ class BookingsListAdapter(
                 .setMessage(context.getString(message))
                 .setPositiveButton(R.string.jobs_rate_now) { d, _ ->
                     d.dismiss()
-                    RatingDialogFragment(job, isProvider = !job.i_am_client) {
-                        onJobsChanged()
-                    }.show(fragment.childFragmentManager, "RatingDialog")
+                    onLaunchRating(job)
                 }
                 .setNegativeButton(R.string.jobs_rate_not_now) { _, _ ->
                     onJobsChanged()
@@ -324,10 +322,10 @@ class BookingsListAdapter(
             maps.isVisible = showMaps
             actionsSecondary.isVisible = showCancel || showMaps
 
-            accept.setOnClickListener { onAccept?.invoke(req) }
-            decline.setOnClickListener { onDecline?.invoke(req) }
-            cancel.setOnClickListener { onCancel?.invoke(req) }
-            maps.setOnClickListener { onOpenMaps?.invoke(req) }
+            accept.setOnClickListener { onAccept(req) }
+            decline.setOnClickListener { onDecline(req) }
+            cancel.setOnClickListener { onCancel(req) }
+            maps.setOnClickListener { onOpenMaps(req) }
         }
     }
 

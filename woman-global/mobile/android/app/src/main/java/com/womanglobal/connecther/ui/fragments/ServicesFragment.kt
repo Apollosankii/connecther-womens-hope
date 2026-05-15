@@ -11,7 +11,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
-import com.womanglobal.connecther.CategoryUsersActivity
+import com.womanglobal.connecther.ServiceMenuActivity
 import com.womanglobal.connecther.R
 import com.womanglobal.connecther.adapters.GenericGridAdapter
 import com.womanglobal.connecther.data.Service
@@ -100,9 +100,9 @@ class ServicesFragment : Fragment() {
         binding.categoryRecyclerView.adapter = GenericGridAdapter(filtered) { service ->
             if (!isAdded) return@GenericGridAdapter
             val actx = context ?: return@GenericGridAdapter
-            startActivity(Intent(actx, CategoryUsersActivity::class.java).apply {
-                putExtra("categoryName", service.name)
+            startActivity(Intent(actx, ServiceMenuActivity::class.java).apply {
                 putExtra("service_id", service.service_id)
+                putExtra("service_name", service.name)
             })
         }
     }

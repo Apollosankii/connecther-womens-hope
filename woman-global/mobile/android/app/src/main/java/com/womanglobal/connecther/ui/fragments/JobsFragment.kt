@@ -1,5 +1,6 @@
 package com.womanglobal.connecther.ui.fragments
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.womanglobal.connecther.ChatActivity
 import com.womanglobal.connecther.HomeActivity
 import com.womanglobal.connecther.R
+import com.womanglobal.connecther.RatingActivity
 import com.womanglobal.connecther.adapters.BookingsListAdapter
 import com.womanglobal.connecther.adapters.BookingsListItem
 import com.womanglobal.connecther.data.Job
@@ -75,6 +77,11 @@ class JobsFragment : Fragment() {
                 }
                 loadJobs()
             }
+        }
+
+    private val ratingLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == Activity.RESULT_OK) loadJobs()
         }
 
     private val refreshHandler = Handler(Looper.getMainLooper())
@@ -166,6 +173,9 @@ class JobsFragment : Fragment() {
                     req.latitude,
                     req.longitude,
                 )
+            },
+            onLaunchRating = { job ->
+                ratingLauncher.launch(RatingActivity.createIntent(requireContext(), job))
             },
         )
 

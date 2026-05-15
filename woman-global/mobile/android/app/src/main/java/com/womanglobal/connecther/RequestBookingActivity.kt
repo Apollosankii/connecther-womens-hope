@@ -1,22 +1,28 @@
 package com.womanglobal.connecther
 
 import android.Manifest
+import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
+import android.text.Editable
+import android.text.TextWatcher
+import android.widget.ImageButton
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.widget.AppCompatButton
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
+import com.womanglobal.connecther.booking.BookingQuoteIntentHelper
+import com.womanglobal.connecther.booking.BookingQuoteAggregator
 import com.womanglobal.connecther.data.Service
 import com.womanglobal.connecther.supabase.SupabaseData
 import com.womanglobal.connecther.utils.EmergencyHelper
@@ -24,17 +30,54 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import java.util.Locale
 
 class RequestBookingActivity : AppCompatActivity() {
+
+    companion object {
+        /** Decimal string, e.g. from [ServiceMenuActivity]. */
+        const val EXTRA_PREFILL_PRICE = "prefill_proposed_price"
+        /** JSON array of `{ "label", "unitPrice", "quantity" }` for the Quote: block. */
+        const val EXTRA_QUOTE_LINES_JSON = "quote_lines_json"
+        /**
+         * When true, a successful submit calls [Activity.setResult] with [Activity.RESULT_OK] so a parent
+         * (e.g. [ProfileActivity] in the recommendation flow) can finish and collapse the back stack.
+         */
+        const val EXTRA_NOTIFY_PARENT_ON_BOOKING_SUCCESS = "notify_parent_on_booking_success"
+    }
+
     private var lat: Double? = null
     private var lon: Double? = null
     private var isSubmitting: Boolean = false
     private var bookingService: Service? = null
     private val extraFieldInputs = linkedMapOf<String, EditText>()
+    private var quoteLinesJsonFromIntent: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_request_booking)
+
+        quoteLinesJsonFromIntent = intent.getStringExtra(EXTRA_QUOTE_LINES_JSON)
+        val prefill = intent.getStringExtra(EXTRA_PREFILL_PRICE)?.toDoubleOrNull()
+        if (prefill != null && prefill > 0) {
+            findViewById<EditText>(R.id.inputPrice).setText(String.format(Locale.US, "%.0f", prefill))
+        }
+
+        bindOrderSubtitle()
+        refreshTotalLabel()
+
+        findViewById<ImageButton>(R.id.buttonBackRequestBooking).setOnClickListener { finish() }
+        findViewById<MaterialButton>(R.id.buttonUseCurrentGps).setOnClickListener { useGpsLocation() }
+
+        findViewById<EditText>(R.id.inputPrice).addTextChangedListener(
+            object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    refreshTotalLabel()
+                }
+            },
+        )
 
         val serviceIdStr =
             intent.getStringExtra("service_id") ?: intent.getStringExtra("serviceId").orEmpty()
@@ -49,16 +92,35 @@ class RequestBookingActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<MaterialButton>(R.id.buttonUseMyLocation).setOnClickListener { useGpsLocation() }
-        findViewById<MaterialButton>(R.id.buttonOpenGoogleMaps).setOnClickListener {
-            val uri = if (lat != null && lon != null) {
-                Uri.parse("https://maps.google.com/?q=$lat,$lon")
-            } else {
-                Uri.parse("https://maps.google.com")
-            }
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
+        findViewById<AppCompatButton>(R.id.buttonSubmitBooking).setOnClickListener { submitBooking() }
+    }
+
+    private fun bindOrderSubtitle() {
+        val serviceName = intent.getStringExtra("service_name").orEmpty().trim()
+        val providerName = intent.getStringExtra("provider_name").orEmpty().trim()
+        val serviceIdStr = (intent.getStringExtra("service_id") ?: intent.getStringExtra("serviceId")).orEmpty()
+        val svcLine = serviceName.ifBlank { getString(R.string.booking_detail_service, serviceIdStr.ifBlank { "—" }) }
+        val ref = (
+            intent.getStringExtra("provider_ref")
+                ?: intent.getStringExtra("provider_id")
+                ?: intent.getStringExtra("providerId")
+        ).orEmpty().trim()
+        val who = providerName.ifBlank {
+            ref.ifBlank { getString(R.string.booking_request_party_unknown) }
         }
-        findViewById<MaterialButton>(R.id.buttonSubmitBooking).setOnClickListener { submitBooking() }
+        findViewById<TextView>(R.id.textOrderSubtitle).text =
+            getString(R.string.booking_order_subtitle_format, svcLine, who)
+    }
+
+    private fun refreshTotalLabel() {
+        val price = findViewById<EditText>(R.id.inputPrice).text.toString().trim().toDoubleOrNull()
+        val tv = findViewById<TextView>(R.id.textTotalLabel)
+        tv.text =
+            if (price != null && price > 0) {
+                getString(R.string.booking_total_format, price)
+            } else {
+                getString(R.string.booking_total_placeholder)
+            }
     }
 
     private fun applyServiceLocationFields(svc: Service?) {
@@ -121,7 +183,27 @@ class RequestBookingActivity : AppCompatActivity() {
             runOnUiThread {
                 lat = location?.latitude
                 lon = location?.longitude
-                Toast.makeText(this, if (location != null) "Location captured" else "Could not get GPS location", Toast.LENGTH_SHORT).show()
+                val coords = findViewById<TextView>(R.id.textGpsCoords)
+                if (location != null) {
+                    coords.text = String.format(
+                        Locale.US,
+                        "GPS: %.5f, %.5f",
+                        location.latitude,
+                        location.longitude,
+                    )
+                    coords.visibility = View.VISIBLE
+                } else {
+                    coords.visibility = View.GONE
+                }
+                Toast.makeText(
+                    this,
+                    if (location != null) {
+                        getString(R.string.booking_location_captured)
+                    } else {
+                        getString(R.string.booking_location_failed)
+                    },
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
         }
     }
@@ -139,9 +221,15 @@ class RequestBookingActivity : AppCompatActivity() {
             ).orEmpty().toIntOrNull()
         val price = findViewById<EditText>(R.id.inputPrice).text.toString().trim().toDoubleOrNull()
         val locationText = findViewById<EditText>(R.id.inputLocationNotes).text.toString().trim()
-        val message = findViewById<EditText>(R.id.inputMessage).text.toString().trim()
+        val messageRaw = findViewById<EditText>(R.id.inputMessage).text.toString().trim()
+        val quoteLines = BookingQuoteIntentHelper.decodeLines(quoteLinesJsonFromIntent)
+        val message =
+            BookingQuoteAggregator.appendQuoteBreakdown(
+                messageRaw.ifBlank { null },
+                quoteLines,
+            )
         val progress = findViewById<ProgressBar>(R.id.progressBar)
-        val submitButton = findViewById<MaterialButton>(R.id.buttonSubmitBooking)
+        val submitButton = findViewById<AppCompatButton>(R.id.buttonSubmitBooking)
 
         if (providerRef.isBlank() || serviceId == null) {
             Toast.makeText(this, "Provider/service missing", Toast.LENGTH_SHORT).show()
@@ -171,11 +259,31 @@ class RequestBookingActivity : AppCompatActivity() {
                     locationText = locationText.ifBlank { null },
                     latitude = lat,
                     longitude = lon,
-                    message = message.ifBlank { null },
+                    message = message?.takeIf { it.isNotBlank() },
                     locationExtra = extra,
                 )
                 if (outcome.isSuccess) {
-                    Toast.makeText(this@RequestBookingActivity, "Booking request sent", Toast.LENGTH_LONG).show()
+                    val serviceIdStr = (
+                        intent.getStringExtra("service_id")
+                            ?: intent.getStringExtra("serviceId")
+                        ).orEmpty()
+                    val displayName = intent.getStringExtra("provider_name").orEmpty().trim()
+                        .ifBlank { providerRef }
+                    val pic = intent.getStringExtra("provider_pic").orEmpty()
+                    val serviceName = intent.getStringExtra("service_name").orEmpty()
+                    startActivity(
+                        Intent(this@RequestBookingActivity, ConnectionSuccessActivity::class.java).apply {
+                            putExtra(ConnectionSuccessActivity.EXTRA_PROVIDER_REF, providerRef)
+                            putExtra(ConnectionSuccessActivity.EXTRA_PROVIDER_DISPLAY_NAME, displayName)
+                            putExtra(ConnectionSuccessActivity.EXTRA_PROVIDER_PIC, pic)
+                            putExtra(ConnectionSuccessActivity.EXTRA_SERVICE_ID, serviceIdStr)
+                            putExtra(ConnectionSuccessActivity.EXTRA_SERVICE_NAME, serviceName)
+                            putExtra(ConnectionSuccessActivity.EXTRA_POST_BOOKING, true)
+                        },
+                    )
+                    if (intent.getBooleanExtra(EXTRA_NOTIFY_PARENT_ON_BOOKING_SUCCESS, false)) {
+                        setResult(Activity.RESULT_OK)
+                    }
                     finish()
                 } else {
                     showBookingFailure(outcome.errorCode)

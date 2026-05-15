@@ -138,25 +138,35 @@
                             <tr>
                                 <td>{{ doc.doc_type_name or 'Document' }}</td>
                                 <td>
+                                    {% if doc.id is none %}
+                                        <span class="text-muted small">Invalid document row (missing id)</span>
+                                    {% else %}
                                     {% set doc_url = url_for('document_content', doc_id=doc.id) %}
                                     {% set raw = (doc.name or '') %}
                                     {% set lower = raw.lower() %}
                                     {% if raw and (raw.startswith('http://') or raw.startswith('https://')) and (lower.endswith('.png') or lower.endswith('.jpg') or lower.endswith('.jpeg') or lower.endswith('.webp') or lower.endswith('.gif')) %}
-                                        <a href="{{ doc_url }}" target="_blank" rel="noopener" style="display:inline-block;">
-                                            <img src="{{ doc_url }}" alt="{{ doc.doc_type_name or 'Document' }}" style="max-height:90px;max-width:240px;border-radius:10px;border:1px solid var(--ch-border);background:var(--ch-bg-card);object-fit:cover;">
-                                        </a>
+                                        <button type="button" class="btn btn-link p-0 border-0 ch-doc-preview-trigger" data-doc-url="{{ doc_url|e }}" data-is-pdf="0" title="View full size" style="display:inline-block;">
+                                            <img src="{{ doc_url }}" alt="{{ doc.doc_type_name or 'Document' }}" loading="lazy" style="max-height:90px;max-width:240px;border-radius:10px;border:1px solid var(--ch-border);background:var(--ch-bg-card);object-fit:cover;cursor:pointer;">
+                                        </button>
                                     {% elif raw and (raw.startswith('http://') or raw.startswith('https://')) and (lower.endswith('.pdf')) %}
-                                        <span class="text-muted small">PDF document</span>
+                                        <button type="button" class="ch-btn-sm ch-doc-preview-trigger" data-doc-url="{{ doc_url|e }}" data-is-pdf="1">Preview PDF</button>
                                     {% elif raw and (raw.startswith('http://') or raw.startswith('https://')) %}
-                                        <span class="text-muted small">File attached</span>
+                                        <button type="button" class="ch-btn-sm ch-doc-preview-trigger" data-doc-url="{{ doc_url|e }}" data-is-pdf="0">Preview</button>
                                     {% else %}
                                         <span class="text-muted small">{{ doc.name }}</span>
                                     {% endif %}
+                                    {% endif %}
                                 </td>
                                 <td class="text-right">
+                                    {% if doc.id is not none %}
+                                    {% set doc_url = url_for('document_content', doc_id=doc.id) %}
+                                    {% set raw = (doc.name or '') %}
                                     {% if raw and (raw.startswith('http://') or raw.startswith('https://')) %}
-                                        <a href="{{ doc_url }}" target="_blank" rel="noopener" class="ch-btn-sm" style="display:inline-block;">Open</a>
+                                        <button type="button" class="ch-btn-sm ch-doc-preview-trigger" data-doc-url="{{ doc_url|e }}" data-is-pdf="{{ 1 if raw.lower().endswith('.pdf') else 0 }}">Open</button>
                                         <a href="{{ doc_url }}?download=1" class="ch-btn-sm" style="display:inline-block;">Download</a>
+                                    {% else %}
+                                        —
+                                    {% endif %}
                                     {% else %}
                                         —
                                     {% endif %}
@@ -176,5 +186,55 @@
         </div>
     </div>
     </form>
+
+    <div class="modal fade" id="ch-doc-preview-modal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document" style="max-width:min(960px,96vw);">
+            <div class="modal-content" style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);">
+                <div class="modal-header" style="border-color:var(--ch-border);">
+                    <h5 class="modal-title">Document preview</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                </div>
+                <div class="modal-body p-0 text-center" style="background:var(--ch-bg-muted);min-height:200px;">
+                    <img id="ch-doc-preview-img" class="d-none" alt="Document preview" style="max-width:100%;max-height:80vh;object-fit:contain;">
+                    <iframe id="ch-doc-preview-iframe" class="d-none" title="PDF preview" style="width:100%;min-height:75vh;border:0;background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+      function chOpenDocPreview(url, isPdf) {
+        var img = document.getElementById('ch-doc-preview-img');
+        var ifr = document.getElementById('ch-doc-preview-iframe');
+        if (!img || !ifr || !url) return;
+        if (isPdf) {
+          img.classList.add('d-none'); ifr.classList.remove('d-none');
+          ifr.src = url;
+        } else {
+          ifr.classList.add('d-none'); img.classList.remove('d-none');
+          img.src = url;
+        }
+        if (window.jQuery && jQuery.fn.modal) {
+          jQuery('#ch-doc-preview-modal').modal('show');
+        }
+      }
+      document.addEventListener('click', function (e) {
+        var t = e.target.closest('.ch-doc-preview-trigger');
+        if (!t) return;
+        var url = t.getAttribute('data-doc-url');
+        var pdf = t.getAttribute('data-is-pdf') === '1';
+        chOpenDocPreview(url, pdf);
+      });
+      window.addEventListener('load', function () {
+        if (!window.jQuery) return;
+        jQuery('#ch-doc-preview-modal').on('hidden.bs.modal', function () {
+          var img = document.getElementById('ch-doc-preview-img');
+          var ifr = document.getElementById('ch-doc-preview-iframe');
+          if (ifr) ifr.src = '';
+          if (img) img.src = '';
+        });
+      });
+    })();
+    </script>
 </div>
 {%endblock%}

@@ -14,6 +14,7 @@ type Extra = {
   /** Native OAuth client IDs (Google Cloud). If unset, Expo auth falls back to web client for dev (see README). */
   googleAndroidClientId?: string;
   googleIosClientId?: string;
+  revenueCatIosApiKey?: string;
 };
 
 function getExtra(): Extra {
@@ -47,6 +48,7 @@ export const AppConfig = {
     return v || AppConfig.googleWebClientId();
   },
   /** Expo requires `iosClientId` on iOS; default to web client until you add an iOS OAuth client. */
+  revenueCatIosApiKey: () => (getExtra().revenueCatIosApiKey ?? '').trim(),
   googleIosClientId: () => {
     const v = (getExtra().googleIosClientId ?? '').trim();
     return v || AppConfig.googleWebClientId();

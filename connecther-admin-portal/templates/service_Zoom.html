@@ -4,7 +4,7 @@
     <div class="ch-page-header">
         <div>
             <h2 class="ch-page-title">Edit service #{{ service.service_id }}</h2>
-            <p class="ch-page-subtitle">Change the name, price, description, discovery radius, safety options, or replace the listing photo.</p>
+            <p class="ch-page-subtitle">Service details, booking task menu (mobile line items), and listing photo.</p>
         </div>
         <a href="{{url_for('services')}}" class="ch-btn-sm">&larr; Back to catalog</a>
     </div>
@@ -19,8 +19,8 @@
     </div>
     {% endif %}
 
-    <form action="{{url_for('update_service',service_id=service.service_id)}}" method="POST" enctype="multipart/form-data">
-    <div class="ch-card">
+    <form action="{{url_for('update_service',service_id=service.service_id)}}" method="POST" enctype="multipart/form-data" id="service-edit-form">
+    <div class="ch-card mb-3">
         <div class="ch-card-header">
             <h5 class="ch-card-title">Service details</h5>
         </div>
@@ -105,11 +105,47 @@
                 </div>
             </div>
         </div>
-        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;gap:0.5rem;">
-            <a href="{{ url_for('services') }}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Save changes</button>
+    </div>
+
+    <div class="ch-card mb-3">
+        <div class="ch-card-header">
+            <h5 class="ch-card-title">Booking task menu (mobile)</h5>
         </div>
+        <div class="ch-card-body">
+            <p class="text-muted small">Defines line items for the Android <strong>Service menu</strong> before booking: sections, quantity rows (unit price × qty), and toggles. Must include at least one quantity or toggle. Same JSON as <code>woman-global/supabase/migrations/20260513180000_services_task_menu.sql</code>.</p>
+            <div class="ch-field mb-3">
+                <label class="ch-field-label d-flex align-items-center gap-2">
+                    <input type="checkbox" name="clear_task_menu" value="on">
+                    Clear task menu on save (remove all line items from this service)
+                </label>
+            </div>
+            <textarea name="task_menu_json" id="task_menu_json_hidden" class="d-none" aria-hidden="true">{{ service.task_menu_json }}</textarea>
+            <div id="task-menu-editor-root" class="mb-3"></div>
+            <details class="mb-2">
+                <summary class="ch-field-label" style="cursor:pointer">Raw JSON (advanced)</summary>
+                <textarea id="task_menu_raw_visible" class="form-control font-monospace small mt-2" rows="10"
+                    style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);">{{ service.task_menu_json }}</textarea>
+            </details>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mb-4 flex-wrap">
+        <a href="{{ url_for('services') }}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Save changes</button>
     </div>
     </form>
 </div>
+<script src="{{ url_for('static', filename='js/service_task_menu_editor.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (typeof CHInitTaskMenuEditor === 'function') {
+    CHInitTaskMenuEditor({
+      uploadUrl: {{ url_for('task_menu_asset_upload', service_id=service.service_id)|tojson }},
+      hiddenSelector: '#task_menu_json_hidden',
+      rawSelector: '#task_menu_raw_visible',
+      rootSelector: '#task-menu-editor-root'
+    });
+  }
+});
+</script>
 {%endblock%}

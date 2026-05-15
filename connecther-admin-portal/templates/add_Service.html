@@ -50,7 +50,7 @@
                         <label class="ch-field-label">Photo (optional)</label>
                         <input type="file" name="service_pic" accept=".png,.jpg,.jpeg,image/png,image/jpeg"
                             style="padding:0.5rem;background:var(--ch-bg-muted);border:1px solid var(--ch-border);border-radius:var(--ch-radius-sm);color:var(--ch-text);width:100%;">
-                        <small class="text-muted d-block mt-1">JPEG or PNG. Shown in the app when <strong>SUPABASE_SERVICE_ROLE_KEY</strong> is set in <code>.env</code> (uploads go to your Supabase project).</small>
+                        <small class="text-muted d-block mt-1">JPEG or PNG. When signed in as an admin, uploads go to Supabase Storage (<code>service_catalog</code>). Optional <code>SUPABASE_SERVICE_ROLE_KEY</code> in <code>.env</code> uses the service role instead of your session JWT.</small>
                     </div>
                 </div>
                 <div class="col-md-6">
@@ -93,6 +93,14 @@
                         <input type="number" class="form-control" name="safety_checkin_interval_min" value="60" min="15" max="240" step="5"
                             style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;">
                         <small class="text-muted">Default 60 minutes. Use 15–240 minutes.</small>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <div class="ch-field">
+                        <label class="ch-field-label">Optional booking task menu (JSON)</label>
+                        <textarea class="form-control font-monospace small" name="task_menu_json" rows="8" placeholder='{"rows":[{"type":"quantity","key":"u1","title":"Units","unit_label":"units","unit_price":500,"min":0,"max":99,"default_qty":0}]}'
+                            style="background:var(--ch-bg-card);border:1px solid var(--ch-border);color:var(--ch-text);border-radius:var(--ch-radius-sm);padding:0.625rem 0.875rem;"></textarea>
+                        <small class="text-muted">Leave empty to configure later on <strong>Edit service</strong>. Must validate against the same schema as the mobile app (at least one quantity or toggle). Invalid JSON will block create.</small>
                     </div>
                 </div>
                 <div class="col-md-6">

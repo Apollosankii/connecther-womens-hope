@@ -9,6 +9,15 @@ verify_jwt = false
 [functions.paystack-express]
 verify_jwt = false
 
+[functions.paystack-checkout]
+verify_jwt = false
+
+[functions.revenuecat-webhook]
+verify_jwt = false
+
+[functions.iap-sync]
+verify_jwt = false
+
 [functions.auth-bridge]
 verify_jwt = false
 

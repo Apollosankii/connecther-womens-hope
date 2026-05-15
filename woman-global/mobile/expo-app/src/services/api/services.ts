@@ -8,3 +8,10 @@ export async function listServices(): Promise<Service[]> {
   return (data ?? []) as Service[];
 }
 
+export async function getServiceById(id: number): Promise<Service | null> {
+  const supabase = getSupabasePublicClient();
+  const { data, error } = await supabase.from('services').select('*').eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data ?? null) as Service | null;
+}
+

@@ -9,7 +9,7 @@ import { useAuth } from '@/providers/AuthProvider';
 import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
 
 export function RootNavigator() {
-  const { user, initializing } = useAuth();
+  const { isLoggedIn, initializing } = useAuth();
   const { loading, isFirstLaunch, completeOnboarding } = useFirstLaunch();
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export function RootNavigator() {
 
   if (initializing || loading) return <Spinner />;
   if (isFirstLaunch) return <OnboardingScreen onDone={completeOnboarding} />;
-  if (!user) return <AuthStack />;
+  if (!isLoggedIn) return <AuthStack />;
   return <AppStack />;
 }
 
