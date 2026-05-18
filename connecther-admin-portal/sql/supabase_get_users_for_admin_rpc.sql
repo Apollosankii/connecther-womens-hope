@@ -11,7 +11,8 @@ RETURNS TABLE (
   phone text,
   nat_id text,
   wh_badge boolean,
-  service_provider boolean
+  service_provider boolean,
+  provider_suspended boolean
 )
 LANGUAGE sql
 STABLE
@@ -20,7 +21,8 @@ SET search_path = public
 AS $$
   SELECT u.id, u.user_id, u.first_name, u.last_name, u.email, u.phone, u.nat_id,
          COALESCE(u."WH_badge", false) AS wh_badge,
-         COALESCE(u.service_provider, false) AS service_provider
+         COALESCE(u.service_provider, false) AS service_provider,
+         COALESCE(u.provider_suspended, false) AS provider_suspended
   FROM users u
   WHERE is_admin();
 $$;

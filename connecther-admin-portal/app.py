@@ -1209,6 +1209,40 @@ def service_providers():
     return render_template('providers.html', user=user, providers=providers)
 
 
+@app.route('/providers/suspend/<user_id>', methods=['POST'])
+def suspend_provider(user_id):
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    ok, err = supabase_data.set_provider_suspended(session, user_id, True)
+    if ok:
+        internal_id = supabase_data.get_user_internal_id(session, user_id)
+        if internal_id is not None:
+            _notify_provider_suspended(internal_id)
+        flash('Provider suspended. Open bookings were cancelled and users were notified.')
+    else:
+        flash(f'Failed to suspend provider ({err or "unknown error"}).')
+    return redirect(request.referrer or url_for('service_providers'))
+
+
+@app.route('/providers/unsuspend/<user_id>', methods=['POST'])
+def unsuspend_provider(user_id):
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    ok, err = supabase_data.set_provider_suspended(session, user_id, False)
+    if ok:
+        internal_id = supabase_data.get_user_internal_id(session, user_id)
+        if internal_id is not None:
+            _notify_provider_unsuspended(internal_id)
+        flash('Provider unsuspended.')
+    else:
+        flash(f'Failed to unsuspend provider ({err or "unknown error"}).')
+    return redirect(request.referrer or url_for('service_providers'))
+
+
 def _normalize_approval(a):
     """Ensure approval is a dict with safe keys so the template never errors."""
     if not isinstance(a, dict):
@@ -1364,6 +1398,66 @@ def _notify_via_edge_function(internal_user_id, title, body, data=None):
     except Exception as e:
         logger.warning("Edge Function exception: %s", e)
         return 'error'
+
+
+def _notify_provider_account_status(internal_user_id, title, body, notify_type):
+    """Push to provider (direct FCM with Edge Function fallback)."""
+    fcm_data = {'type': notify_type}
+    supa_url = (os.environ.get('SUPABASE_URL') or '').strip().rstrip('/')
+    anon_key = (os.environ.get('SUPABASE_ANON_KEY') or '').strip()
+    if not supa_url or not anon_key:
+        return 'skipped'
+    access_token, project_id = _get_fcm_access_token()
+    if not access_token or not project_id:
+        return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+    try:
+        import supabase_data as _sd
+        bearer = _sd._get_bearer(session)
+        if not bearer:
+            return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+        import requests as req
+        r = req.get(
+            f"{supa_url}/rest/v1/devices",
+            params={'user_id': f'eq.{internal_user_id}', 'select': 'reg_token'},
+            headers={
+                'apikey': anon_key,
+                'Authorization': f'Bearer {bearer}',
+                'Content-Type': 'application/json',
+            },
+            timeout=10,
+        )
+        if r.status_code != 200:
+            return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+        tokens = [d['reg_token'] for d in r.json() if d.get('reg_token')]
+    except Exception:
+        return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+    if not tokens:
+        return 'no_devices'
+    sent_count = 0
+    for token in tokens:
+        if _send_fcm_message(access_token, project_id, token, title, body, data=fcm_data):
+            sent_count += 1
+    if sent_count > 0:
+        return 'sent'
+    return _notify_via_edge_function(internal_user_id, title, body, fcm_data)
+
+
+def _notify_provider_suspended(internal_user_id):
+    return _notify_provider_account_status(
+        internal_user_id,
+        'Account suspended',
+        'Your provider account has been suspended. Open the app for details or contact support.',
+        'provider_suspended',
+    )
+
+
+def _notify_provider_unsuspended(internal_user_id):
+    return _notify_provider_account_status(
+        internal_user_id,
+        'Account reactivated',
+        'Your provider account is active again. You can receive bookings when you are online.',
+        'provider_unsuspended',
+    )
 
 
 def _notify_provider_approved(internal_user_id):

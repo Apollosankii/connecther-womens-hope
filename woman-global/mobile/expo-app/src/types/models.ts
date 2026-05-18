@@ -66,6 +66,8 @@ export type UserProfile = {
   service_provider?: boolean | null;
   /** Postgres `users.provider_application_pending` — application submitted, awaiting admin. */
   provider_application_pending?: boolean | null;
+  /** When true, admin suspended the provider account. */
+  provider_suspended?: boolean | null;
 };
 
 export type Job = {
@@ -80,11 +82,19 @@ export type Job = {
   client?: string | null;
   provider?: string | null;
   my_review_submitted?: boolean | null;
+  arrived_at?: string | null;
+  work_started_at?: string | null;
+  site_photo_path?: string | null;
+  service_id?: number | null;
+  safety_checkins_required?: boolean | null;
+  safety_checkin_interval_min?: number | null;
+  location_extra?: Record<string, unknown> | null;
 };
 
 export type BookingRequest = {
   id: number;
   service_id: number;
+  service_name?: string | null;
   status: 'pending' | 'accepted' | 'declined' | 'expired' | 'cancelled' | string;
   proposed_price?: number | null;
   location_text?: string | null;
@@ -97,6 +107,8 @@ export type BookingRequest = {
   /** Derived from RPC `role` (`client` | `provider`) when present. */
   i_am_client?: boolean | null;
   role?: string | null;
+  job_id?: number | null;
+  quote_id?: number | null;
   maps_url?: string | null;
   latitude?: number | null;
   longitude?: number | null;

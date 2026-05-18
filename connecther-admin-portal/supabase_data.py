@@ -435,6 +435,7 @@ def _user_to_snippet(row):
         'phone': row.get('phone'),
         'nat_id': row.get('nat_id'),
         'user_id': row.get('user_id'),
+        'provider_suspended': bool(row.get('provider_suspended')),
     }
     if row.get('id') is not None:
         out['id'] = row['id']
@@ -459,7 +460,24 @@ def _user_to_profile(row):
         'county': row.get('county'),
         'emm_cont_1': row.get('emm_cont_1'),
         'emm_cont_2': row.get('emm_cont_2'),
+        'provider_suspended': bool(row.get('provider_suspended')),
     }
+
+
+def set_provider_suspended(session, user_id, suspended):
+    """Suspend or unsuspend a provider (cancels open bookings when suspending)."""
+    rpc = _req(
+        session,
+        'POST',
+        '/rpc/admin_set_provider_suspended',
+        json_data={'p_user_id': user_id, 'p_suspended': bool(suspended)},
+    )
+    if not rpc or not isinstance(rpc, list) or len(rpc) == 0:
+        return False, 'rpc_failed'
+    row = rpc[0]
+    if row.get('ok'):
+        return True, None
+    return False, row.get('err') or 'unknown'
 
 
 def _list_users_via_rpc(session):

@@ -12,6 +12,7 @@ Run these in the Supabase SQL Editor **in order** when setting up a fresh Supaba
 Other files (subscription_plans, provider_applications, etc.) as needed.
 
 - `supabase_platform_training_program_url.sql` – `platform_settings.training_program_url` and `get_app_platform_config()` for the mobile home screen training button.
+- `supabase_provider_suspended.sql` – `users.provider_suspended`, `admin_set_provider_suspended`, discovery filters (run before using **Suspend** in admin).
 
 ## Provider verification documents (approvals)
 

@@ -94,7 +94,20 @@
                 {%endfor%}
             </div>
         </div>
-        <div class="ch-card-footer" style="display:flex;justify-content:flex-end;">
+        <div class="ch-card-footer" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.75rem;">
+            <div>
+                {% if provider.provider_suspended %}
+                <form action="{{url_for('unsuspend_provider', user_id=provider.user_name)}}" method="POST" style="display:inline;">
+                    <button type="submit" class="btn-thm" style="background:var(--ch-success,#198754);border:none;cursor:pointer;padding:0.65rem 1.25rem;">Unsuspend provider</button>
+                </form>
+                <span class="text-muted small d-block mt-2">This account is suspended and hidden from the app.</span>
+                {% else %}
+                <form action="{{url_for('suspend_provider', user_id=provider.user_name)}}" method="POST" style="display:inline;"
+                    onsubmit="return confirm('Suspend this provider? All pending and accepted bookings will be cancelled.');">
+                    <button type="submit" class="btn btn-outline-danger" style="cursor:pointer;padding:0.65rem 1.25rem;">Suspend provider</button>
+                </form>
+                {% endif %}
+            </div>
             <button type="submit" class="btn-thm" style="border:none;cursor:pointer;padding:0.65rem 2rem;font-size:0.9375rem;">Save Changes</button>
         </div>
     </div>

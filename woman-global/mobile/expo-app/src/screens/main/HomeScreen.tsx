@@ -9,18 +9,20 @@ import { Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-n
 import { Screen } from '@/components/layout/Screen';
 import { AppCard } from '@/components/ui/AppCard';
 import { AppText } from '@/components/ui/AppText';
+import { BrandMark } from '@/components/ui/BrandMark';
 import { IconButton } from '@/components/ui/IconButton';
 import { SectionHeader } from '@/components/ui/SectionHeader';
 import { ShockwaveRings } from '@/components/ui/ShockwaveRings';
 import { useTheme } from '@/providers/ThemeProvider';
 import type { AppStackParamList, MainTabParamList } from '@/navigation/types';
+import { getAppPlatformConfig } from '@/services/api/platformConfig';
 import { getMyUserProfile } from '@/services/api/profile';
 import { Metrics } from '@/theme/metrics';
+import { openExternalUrl } from '@/utils/openExternalUrl';
 
-/** Home banner cards: 316×149dp max, centered, 8dp corner radius. */
-const HOME_BANNER_IMAGE_WIDTH = 316;
-const HOME_BANNER_IMAGE_HEIGHT = 149;
-const HOME_BANNER_BORDER_RADIUS = 8;
+/** Home banner cards: full content width, ~316:149 aspect ratio. */
+const HOME_BANNER_ASPECT = 149 / 316;
+const HOME_BANNER_BORDER_RADIUS = 16;
 
 type HomeNav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -33,23 +35,21 @@ export function HomeScreen() {
   const { width: windowWidth } = useWindowDimensions();
 
   const profileQ = useQuery({ queryKey: ['profile', 'me'], queryFn: getMyUserProfile });
+  const platformQ = useQuery({ queryKey: ['platform', 'config'], queryFn: getAppPlatformConfig });
   const isProvider = Boolean(profileQ.data?.service_provider);
   const isPendingApplication = Boolean(profileQ.data?.provider_application_pending);
+  const trainingProgramUrl = platformQ.data?.trainingProgramUrl ?? null;
 
   const bodyPadX = 12;
-  const bannerWidth = Math.min(HOME_BANNER_IMAGE_WIDTH, windowWidth - bodyPadX * 2);
-  const bannerLayout = { width: bannerWidth, height: HOME_BANNER_IMAGE_HEIGHT };
+  const bannerWidth = windowWidth - bodyPadX * 2;
+  const bannerHeight = Math.round(bannerWidth * HOME_BANNER_ASPECT);
+  const bannerLayout = { width: bannerWidth, height: bannerHeight };
 
   return (
     <Screen padded={false} scroll useFloatingTabBarInset>
       <View style={styles.root}>
         <View style={styles.appBar}>
-          <Image
-            source={require('../../../assets/connecther-mark.png')}
-            style={styles.logo}
-            resizeMode="contain"
-            accessibilityLabel="ConnectHer"
-          />
+          <BrandMark size={40} />
           <AppText variant="appTitle" style={[styles.appName, { color: colors.onBackground }]}>
             ConnectHer
           </AppText>
@@ -165,6 +165,19 @@ export function HomeScreen() {
                     : 'Starts the provider application'
               }
             />
+
+            <HomeImageButton
+              label="Join our training program"
+              imageSource={require('../../../assets/home-training-program.png')}
+              layout={bannerLayout}
+              onPress={() => {
+                void openExternalUrl(trainingProgramUrl ?? '', {
+                  missingMessage:
+                    'The training program link is not set up yet. Ask your admin to add it in Platform settings.',
+                });
+              }}
+              accessibilityHint="Opens the training program in your browser"
+            />
           </View>
         </View>
       </View>
@@ -183,10 +196,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 8,
     paddingBottom: 8,
-  },
-  logo: {
-    width: 36,
-    height: 36,
   },
   appName: {
     marginLeft: 10,
@@ -281,7 +290,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#EAF2FF',
   },
   homeBannerGroup: {
-    alignItems: 'center',
+    width: '100%',
     marginTop: 12,
     marginBottom: 24,
     gap: 12,
@@ -289,7 +298,7 @@ const styles = StyleSheet.create({
   homeBannerButton: {
     borderRadius: HOME_BANNER_BORDER_RADIUS,
     overflow: 'hidden',
-    alignSelf: 'center',
+    alignSelf: 'stretch',
     backgroundColor: '#F5F5F5',
     shadowColor: '#000',
     shadowOpacity: 0.1,

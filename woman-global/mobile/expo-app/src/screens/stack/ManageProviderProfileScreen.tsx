@@ -22,6 +22,7 @@ import { getMyUserProfile, updateMyProviderProfile } from '@/services/api/profil
 import { getProfilePicVersion } from '@/services/supabase/tokenStore';
 import { Spacing } from '@/theme/spacing';
 import type { ThemeColors } from '@/theme/types';
+import { getUserFriendlyError } from '@/utils/userFriendlyError';
 
 type Nav = NativeStackNavigationProp<AppStackParamList>;
 
@@ -82,7 +83,7 @@ export function ManageProviderProfileScreen() {
       }
     },
     onError: (e) => {
-      Alert.alert('Save failed', e instanceof Error ? e.message : 'Unknown error');
+      Alert.alert('Save failed', getUserFriendlyError(e, 'Could not save your provider profile.'));
     },
   });
 
@@ -102,6 +103,7 @@ export function ManageProviderProfileScreen() {
   }
 
   const hasActiveJob = busyQ.data === true;
+  const isSuspended = Boolean(me?.provider_suspended);
   const loading = profileQ.isLoading;
 
   return (
@@ -132,7 +134,22 @@ export function ManageProviderProfileScreen() {
           </View>
         ) : (
           <>
-            {hasActiveJob ? (
+            {isSuspended ? (
+              <AppCard
+                style={[styles.banner, { marginTop: Spacing.md, borderColor: '#C62828', borderWidth: 1 }]}
+                padding="md"
+              >
+                <View style={styles.bannerRow}>
+                  <MaterialCommunityIcons name="account-cancel-outline" size={22} color="#C62828" />
+                  <AppText variant="body" style={styles.bannerText}>
+                    Your provider account has been suspended. You cannot receive new bookings. Contact support if
+                    you believe this is a mistake.
+                  </AppText>
+                </View>
+              </AppCard>
+            ) : null}
+
+            {hasActiveJob && !isSuspended ? (
               <AppCard style={[styles.banner, { marginTop: Spacing.md }]} padding="md">
                 <View style={styles.bannerRow}>
                   <MaterialCommunityIcons name="briefcase-clock-outline" size={22} color={colors.primary} />
