@@ -1140,6 +1140,7 @@ def get_platform_settings(session):
             'panic_sms_min_seconds_between': 180,
             'panic_sms_max_global_per_hour': 200,
             'panic_sms_twilio_enabled': True,
+            'training_program_url': '',
         }
     r = data[0]
     pte = r.get('panic_sms_twilio_enabled')
@@ -1157,6 +1158,7 @@ def get_platform_settings(session):
         'panic_sms_min_seconds_between': int(r.get('panic_sms_min_seconds_between') or 180),
         'panic_sms_max_global_per_hour': int(r.get('panic_sms_max_global_per_hour') or 200),
         'panic_sms_twilio_enabled': pte_bool,
+        'training_program_url': (r.get('training_program_url') or '').strip(),
     }
 
 
@@ -1167,6 +1169,7 @@ def update_platform_settings(
     panic_min=None,
     panic_global=None,
     panic_twilio_enabled=None,
+    training_program_url=None,
 ):
     """Update free-tier default and optional subscribed panic SMS limits (same row id=1)."""
     try:
@@ -1184,6 +1187,9 @@ def update_platform_settings(
         body['panic_sms_max_global_per_hour'] = int(panic_global)
     if panic_twilio_enabled is not None:
         body['panic_sms_twilio_enabled'] = bool(panic_twilio_enabled)
+    if training_program_url is not None:
+        url = (training_program_url or '').strip()
+        body['training_program_url'] = url if url else None
     res = _req_write(session, 'PATCH', '/platform_settings?id=eq.1', json_data=body)
     return _patch_ok(res)
 

@@ -1525,6 +1525,7 @@ def subscription_platform_settings():
             pmin = int(request.form.get('panic_sms_min_seconds_between', '180'))
             pglob = int(request.form.get('panic_sms_max_global_per_hour', '200'))
             ptwilio = request.form.get('panic_sms_twilio_enabled') == '1'
+            training_url = (request.form.get('training_program_url') or '').strip()
         except (ValueError, TypeError):
             flash('Invalid number in form.')
             return redirect(url_for('subscription_platform_settings'))
@@ -1537,8 +1538,15 @@ def subscription_platform_settings():
         if not (10 <= pglob <= 100000):
             flash('Panic SMS: global cap per hour must be between 10 and 100000.')
             return redirect(url_for('subscription_platform_settings'))
-        if supabase_data.update_platform_settings(session, v, pmax, pmin, pglob, ptwilio):
-            flash('Platform settings saved (free connects and subscribed panic SMS limits).')
+        if training_url and not (
+            training_url.startswith('http://') or training_url.startswith('https://')
+        ):
+            flash('Training program URL must start with http:// or https://')
+            return redirect(url_for('subscription_platform_settings'))
+        if supabase_data.update_platform_settings(
+            session, v, pmax, pmin, pglob, ptwilio, training_url
+        ):
+            flash('Platform settings saved.')
         else:
             flash('Failed to update platform settings.')
         return redirect(url_for('subscription_platform_settings'))

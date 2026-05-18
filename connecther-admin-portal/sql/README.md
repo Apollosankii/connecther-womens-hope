@@ -11,6 +11,8 @@ Run these in the Supabase SQL Editor **in order** when setting up a fresh Supaba
 
 Other files (subscription_plans, provider_applications, etc.) as needed.
 
+- `supabase_platform_training_program_url.sql` – `platform_settings.training_program_url` and `get_app_platform_config()` for the mobile home screen training button.
+
 ## Provider verification documents (approvals)
 
 On **Approvals → Review**, thumbnails and **Open** use the same-origin route `GET /documents/<documents.id>/content`, which loads the file from your Supabase Storage (`documents.name` must be an `https://…/storage/v1/object/…` URL for this project). The server forwards **admin JWT + anon key** (or the service role, if set) to Storage so private `provider-docs` objects resolve. Previews open in an **in-page modal** (images and PDFs); **Download** still uses `?download=1`. Ensure `sql/supabase_rls_admin.sql` is applied so admins can `SELECT` from `documents`.

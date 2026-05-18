@@ -22,6 +22,17 @@
 
                 <hr class="my-4">
 
+                <h5 class="mb-2">Mobile app links</h5>
+                <div class="form-group">
+                    <label for="training_program_url">Training program URL</label>
+                    <input type="url" id="training_program_url" name="training_program_url" class="form-control"
+                           value="{{ settings.training_program_url or '' }}"
+                           placeholder="https://example.com/training">
+                    <small class="form-text text-muted">Shown on the app home screen as <strong>Join our training program</strong>. Opens in the device browser (like Open in Maps). Leave empty to hide the button.</small>
+                </div>
+
+                <hr class="my-4">
+
                 <h5 class="mb-2">Subscribed panic SMS (Twilio)</h5>
                 <p class="text-muted small mb-3">These values are read by the Supabase Edge function <code>panic-sms</code> on each request. A <strong>dispatch</strong> is one successful send batch (up to five emergency numbers per tap). They reduce spam, mistaken taps, and Twilio cost.</p>
 
