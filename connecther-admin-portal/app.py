@@ -1237,7 +1237,7 @@ def unsuspend_provider(user_id):
         internal_id = supabase_data.get_user_internal_id(session, user_id)
         if internal_id is not None:
             _notify_provider_unsuspended(internal_id)
-        flash('Provider unsuspended.')
+        flash('Provider unsuspended. They are now available for bookings.')
     else:
         flash(f'Failed to unsuspend provider ({err or "unknown error"}).')
     return redirect(request.referrer or url_for('service_providers'))
@@ -1455,7 +1455,7 @@ def _notify_provider_unsuspended(internal_user_id):
     return _notify_provider_account_status(
         internal_user_id,
         'Account reactivated',
-        'Your provider account is active again. You can receive bookings when you are online.',
+        'Your provider account is active again. You are now available to receive bookings.',
         'provider_unsuspended',
     )
 
@@ -1565,6 +1565,55 @@ def approve():
     return redirect(url_for('service_providers'))
 
 
+def _jobs_nav_context(active=''):
+    """Sidebar active classes for jobs section: '', 'overview', 'ongoing', 'complete'."""
+    return {
+        'active_jobs': 'active' if active == 'overview' else '',
+        'active_jobs_ongoing': 'active' if active == 'ongoing' else '',
+        'active_jobs_complete': 'active' if active == 'complete' else '',
+    }
+
+
+@app.route('/jobs')
+def jobs_overview():
+    redir = _require_auth()
+    if redir:
+        return redir
+    import supabase_data
+    user = _current_admin() or {}
+    nm = user.get('name', user.get('email', 'Admin'))
+    try:
+        summary = supabase_data.jobs_tracking_summary(session)
+        recent_ongoing = supabase_data.all_pending_jobs(session)[:8]
+        recent_complete = supabase_data.all_complete_jobs(session)[:8]
+    except Exception:
+        summary = {
+            'ongoing_count': 0,
+            'completed_count': 0,
+            'in_progress_count': 0,
+            'arrived_count': 0,
+            'scheduled_count': 0,
+            'missed_checkins_total': 0,
+        }
+        recent_ongoing = []
+        recent_complete = []
+    ctx = _jobs_nav_context('overview')
+    return render_template(
+        'jobs_overview.html',
+        user=user,
+        name=nm,
+        summary=summary,
+        recent_ongoing=recent_ongoing,
+        recent_complete=recent_complete,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='',
+        **ctx,
+    )
+
+
 @app.route('/jobs/pending/', methods=['GET', 'POST'])
 def pending_jobs():
     redir = _require_auth()
@@ -1572,11 +1621,24 @@ def pending_jobs():
         return redir
     import supabase_data
     user = _current_admin() or {}
+    nm = user.get('name', user.get('email', 'Admin'))
     try:
         jobs = supabase_data.all_pending_jobs(session)
     except Exception:
         jobs = []
-    return render_template('ongoingjobs.html', user=user, jobs=jobs)
+    ctx = _jobs_nav_context('ongoing')
+    return render_template(
+        'ongoingjobs.html',
+        user=user,
+        name=nm,
+        jobs=jobs,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='',
+        **ctx,
+    )
 
 
 @app.route('/jobs/complete/', methods=['GET', 'POST'])
@@ -1586,11 +1648,24 @@ def complete_jobs():
         return redir
     import supabase_data
     user = _current_admin() or {}
+    nm = user.get('name', user.get('email', 'Admin'))
     try:
         jobs = supabase_data.all_complete_jobs(session)
     except Exception:
         jobs = []
-    return render_template('completejobs.html', user=user, jobs=jobs)
+    ctx = _jobs_nav_context('complete')
+    return render_template(
+        'completejobs.html',
+        user=user,
+        name=nm,
+        jobs=jobs,
+        active_d='',
+        active_p='',
+        active_b='',
+        active_ap='',
+        active_sub='',
+        **ctx,
+    )
 
 
 @app.route('/subscription/platform-settings', methods=['GET', 'POST'])

@@ -943,10 +943,39 @@ def list_document_types(session):
     return [{'docType': r.get('id'), 'name': r.get('name')} for r in data]
 
 
+def _format_job_ts(ts):
+    """Format timestamptz for admin tables (UTC, readable)."""
+    if not ts:
+        return '—'
+    try:
+        from datetime import datetime, timezone
+        s = str(ts).replace('Z', '+00:00')
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')
+    except Exception:
+        return str(ts)[:19].replace('T', ' ')
+
+
+def _job_status_phase(row, *, is_complete):
+    """Human-readable pipeline stage for admin job tracking."""
+    if is_complete:
+        return 'Completed'
+    if row.get('work_started_at'):
+        return 'In progress'
+    if row.get('arrived_at'):
+        return 'Arrived'
+    return 'Scheduled'
+
+
 def _build_jobs(session, complete):
     """Fetch jobs with quote embed, resolve client/provider/service names."""
     path = f'/jobs?complete=is.{str(complete).lower()}'
-    path += '&select=id,price,date,arrived_at,work_started_at,site_photo_path,quote_id,quote:quotes(quote_code,client_id,provider_id,service_id)'
+    path += (
+        '&select=id,price,date,location,complete,completed_at,arrived_at,work_started_at,'
+        'site_photo_path,quote_id,quote:quotes(quote_code,client_id,provider_id,service_id)'
+    )
     data = _req(session, 'GET', path)
     if not data or not isinstance(data, list):
         return []
@@ -1032,20 +1061,51 @@ def _build_jobs(session, complete):
                 hrs = int(delta.total_seconds() // 3600)
                 expected = max(0, hrs + 1)  # include hour 0
                 missed = max(0, expected - done_count)
+            loc = (j.get('location') or '').strip()
+            if loc and len(loc) > 80:
+                loc = loc[:77] + '…'
             out.append({
+                'job_id': j.get('id'),
                 'quote': q.get('quote_code'),
                 'client': client,
                 'provider': provider,
                 'price': j.get('price'),
                 'date': j.get('date'),
+                'date_label': _format_job_ts(j.get('date')),
                 'service': service,
+                'location': loc or '—',
+                'status_phase': _job_status_phase(j, is_complete=complete),
+                'arrived_at': _format_job_ts(j.get('arrived_at')),
+                'work_started_at': _format_job_ts(j.get('work_started_at')),
+                'completed_at': _format_job_ts(j.get('completed_at')),
                 'arrival_photo_url': site_url,
                 'checkins_done': done_count,
                 'checkins_expected': expected,
                 'checkins_missed': missed,
             })
         else:
-            out.append({'quote': '', 'client': '', 'provider': '', 'price': j.get('price'), 'date': j.get('date'), 'service': '', 'arrival_photo_url': None, 'checkins_done': 0, 'checkins_expected': 0, 'checkins_missed': 0})
+            loc = (j.get('location') or '').strip()
+            if loc and len(loc) > 80:
+                loc = loc[:77] + '…'
+            out.append({
+                'job_id': j.get('id'),
+                'quote': '',
+                'client': '',
+                'provider': '',
+                'price': j.get('price'),
+                'date': j.get('date'),
+                'date_label': _format_job_ts(j.get('date')),
+                'service': '',
+                'location': loc or '—',
+                'status_phase': _job_status_phase(j, is_complete=complete),
+                'arrived_at': _format_job_ts(j.get('arrived_at')),
+                'work_started_at': _format_job_ts(j.get('work_started_at')),
+                'completed_at': _format_job_ts(j.get('completed_at')),
+                'arrival_photo_url': None,
+                'checkins_done': 0,
+                'checkins_expected': 0,
+                'checkins_missed': 0,
+            })
     return out
 
 
@@ -1055,6 +1115,24 @@ def all_pending_jobs(session):
 
 def all_complete_jobs(session):
     return _build_jobs(session, True)
+
+
+def jobs_tracking_summary(session):
+    """Counts for admin jobs overview."""
+    ongoing = all_pending_jobs(session)
+    completed = all_complete_jobs(session)
+    in_progress = sum(1 for j in ongoing if j.get('status_phase') == 'In progress')
+    arrived = sum(1 for j in ongoing if j.get('status_phase') == 'Arrived')
+    scheduled = sum(1 for j in ongoing if j.get('status_phase') == 'Scheduled')
+    missed_checkins = sum(int(j.get('checkins_missed') or 0) for j in ongoing)
+    return {
+        'ongoing_count': len(ongoing),
+        'completed_count': len(completed),
+        'in_progress_count': in_progress,
+        'arrived_count': arrived,
+        'scheduled_count': scheduled,
+        'missed_checkins_total': missed_checkins,
+    }
 
 
 def search_providers(session, query):

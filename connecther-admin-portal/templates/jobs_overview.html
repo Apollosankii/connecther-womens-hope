@@ -1,0 +1,110 @@
+{%extends 'portemp.html'%}
+{%block content%}
+<div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
+    <div class="ch-page-header">
+        <h2 class="ch-page-title">Jobs tracking</h2>
+        <p class="ch-page-subtitle">Monitor ongoing and completed service jobs across the platform</p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body text-center py-4">
+                    <div class="display-4 text-primary">{{ summary.ongoing_count }}</div>
+                    <p class="mb-2 text-muted">Ongoing jobs</p>
+                    <a href="{{ url_for('pending_jobs') }}" class="ch-btn-sm ch-btn-sm--primary">View all</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body text-center py-4">
+                    <div class="display-4 text-success">{{ summary.completed_count }}</div>
+                    <p class="mb-2 text-muted">Completed jobs</p>
+                    <a href="{{ url_for('complete_jobs') }}" class="ch-btn-sm ch-btn-sm--primary">View history</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="ch-card h-100">
+                <div class="ch-card-body py-3">
+                    <p class="mb-2"><strong>Ongoing breakdown</strong></p>
+                    <ul class="list-unstyled mb-0 small">
+                        <li>Scheduled: <strong>{{ summary.scheduled_count }}</strong></li>
+                        <li>Arrived: <strong>{{ summary.arrived_count }}</strong></li>
+                        <li>In progress: <strong>{{ summary.in_progress_count }}</strong></li>
+                        {% if summary.missed_checkins_total > 0 %}
+                        <li class="text-danger mt-1">Missed safety check-ins: <strong>{{ summary.missed_checkins_total }}</strong></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="ch-card">
+                <div class="ch-card-header d-flex justify-content-between align-items-center">
+                    <h5 class="ch-card-title mb-0">Recent ongoing</h5>
+                    <a href="{{ url_for('pending_jobs') }}" class="ch-btn-sm">See all</a>
+                </div>
+                <div class="ch-card-body ch-card-body--table">
+                    <table class="ch-table">
+                        <thead>
+                            <tr>
+                                <th>Job</th>
+                                <th>Client</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in recent_ongoing %}
+                            <tr>
+                                <td><code class="ch-code">#{{ job.job_id }}</code></td>
+                                <td>{{ job.client or '—' }}</td>
+                                <td><span class="ch-badge ch-badge-warning">{{ job.status_phase }}</span></td>
+                            </tr>
+                            {% endfor %}
+                            {% if not recent_ongoing %}
+                            <tr><td colspan="3" class="ch-empty-state">No ongoing jobs</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="ch-card">
+                <div class="ch-card-header d-flex justify-content-between align-items-center">
+                    <h5 class="ch-card-title mb-0">Recent completed</h5>
+                    <a href="{{ url_for('complete_jobs') }}" class="ch-btn-sm">See all</a>
+                </div>
+                <div class="ch-card-body ch-card-body--table">
+                    <table class="ch-table">
+                        <thead>
+                            <tr>
+                                <th>Job</th>
+                                <th>Provider</th>
+                                <th>Completed</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for job in recent_complete %}
+                            <tr>
+                                <td><code class="ch-code">#{{ job.job_id }}</code></td>
+                                <td>{{ job.provider or '—' }}</td>
+                                <td class="small">{{ job.completed_at }}</td>
+                            </tr>
+                            {% endfor %}
+                            {% if not recent_complete %}
+                            <tr><td colspan="3" class="ch-empty-state">No completed jobs yet</td></tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{%endblock content%}

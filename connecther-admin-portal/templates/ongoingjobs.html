@@ -1,24 +1,36 @@
 {%extends 'portemp.html'%}
 {%block content%}
 <div class="col-sm-12 col-lg-8 col-xl-9 ch-main-content">
-    <div class="ch-page-header">
-        <h2 class="ch-page-title">Ongoing Jobs</h2>
-        <p class="ch-page-subtitle">Currently active service requests</p>
+    <div class="ch-page-header d-flex flex-wrap justify-content-between align-items-start">
+        <div>
+            <h2 class="ch-page-title">Ongoing Jobs</h2>
+            <p class="ch-page-subtitle">Active service jobs (not yet marked complete)</p>
+        </div>
+        <div class="mt-2">
+            <a href="{{ url_for('jobs_overview') }}" class="ch-btn-sm">Jobs overview</a>
+            <a href="{{ url_for('complete_jobs') }}" class="ch-btn-sm">Completed jobs</a>
+        </div>
     </div>
 
     <div class="ch-card">
         <div class="ch-card-header">
-            <h5 class="ch-card-title">Active Jobs</h5>
+            <h5 class="ch-card-title">Active Jobs ({{ jobs|length }})</h5>
         </div>
         <div class="ch-card-body ch-card-body--table">
+            <div class="table-responsive">
             <table class="ch-table">
                 <thead>
                     <tr>
+                        <th>Job ID</th>
                         <th>Quote</th>
+                        <th>Status</th>
                         <th>Client</th>
                         <th>Provider</th>
                         <th>Service</th>
-                        <th>Date</th>
+                        <th>Booked</th>
+                        <th>Arrived</th>
+                        <th>Work started</th>
+                        <th>Location</th>
                         <th>Arrival photo</th>
                         <th>Safety check-ins</th>
                         <th class="text-right">Price</th>
@@ -27,11 +39,24 @@
                 <tbody>
                     {%for job in jobs%}
                     <tr>
-                        <td><code class="ch-code">{{job.quote}}</code></td>
-                        <td class="ch-td-name">{{job.client}}</td>
-                        <td class="ch-td-name">{{job.provider}}</td>
-                        <td>{{job.service}}</td>
-                        <td>{{job.date}}</td>
+                        <td><code class="ch-code">#{{ job.job_id }}</code></td>
+                        <td><code class="ch-code">{{ job.quote or '—' }}</code></td>
+                        <td>
+                            {% if job.status_phase == 'In progress' %}
+                            <span class="ch-badge ch-badge-success">{{ job.status_phase }}</span>
+                            {% elif job.status_phase == 'Arrived' %}
+                            <span class="ch-badge ch-badge-warning">{{ job.status_phase }}</span>
+                            {% else %}
+                            <span class="ch-badge">{{ job.status_phase }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="ch-td-name">{{ job.client or '—' }}</td>
+                        <td class="ch-td-name">{{ job.provider or '—' }}</td>
+                        <td>{{ job.service or '—' }}</td>
+                        <td class="small">{{ job.date_label }}</td>
+                        <td class="small">{{ job.arrived_at }}</td>
+                        <td class="small">{{ job.work_started_at }}</td>
+                        <td class="small" title="{{ job.location }}">{{ job.location }}</td>
                         <td>
                             {% if job.arrival_photo_url %}
                             <a href="{{ job.arrival_photo_url }}" target="_blank" rel="noopener">View</a>
@@ -45,14 +70,15 @@
                             <span class="text-danger"> (missed {{ job.checkins_missed }})</span>
                             {% endif %}
                         </td>
-                        <td class="text-right"><strong>KES {{job.price}}</strong></td>
+                        <td class="text-right"><strong>KES {{ job.price }}</strong></td>
                     </tr>
                     {%endfor%}
                     {%if not jobs%}
-                    <tr><td colspan="8" class="ch-empty-state">No ongoing jobs</td></tr>
+                    <tr><td colspan="13" class="ch-empty-state">No ongoing jobs</td></tr>
                     {%endif%}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
